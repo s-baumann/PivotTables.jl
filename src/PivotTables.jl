@@ -155,6 +155,12 @@ module PivotTables
         println("Pivot table page saved to $outfile_path")
     end
 
+    function create_pivot_table_html(pt::PivotTable, dd::DataFrame, outfile_path::String="pivottable.html")
+        pge = PivotTablePage(Dict{Symbol,DataFrame}(pt.data_label => dd), [pt])
+        create_pivot_table_html(pge,outfile_path)
+    end
+
+
     export PivotTable, PivotTablePage, create_pivot_table_html
 
 end # module PivotTables

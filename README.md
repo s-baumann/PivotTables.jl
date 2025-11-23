@@ -2,7 +2,7 @@
 
 This is a wrapper over PivotTableJS. You can use it to embed your data into a html page. Once in there you can visualise the data like a pivottable. You can see examples here https://pivottable.js.org/examples/index.html.
 
-The functionality is quite similar to the python module. One change is that it is possible to put multiple different tables onto the same page (either sharing or not sharing data sources). It is also easy to change the colour mapping for use in HeatMap.
+The functionality is quite similar to the [python module](https://pypi.org/project/pivottablejs/). One change is that it is possible to put multiple different tables onto the same page (either sharing or not sharing data sources). It is also easy to change the colour mapping for use in HeatMap.
 
 As an example see the following. This produces the file pivottable.html
 
@@ -46,8 +46,13 @@ pt2 = PivotTable(:Correlation_Matrix, :correlations;
     rendererName = :Heatmap
 )
 
+# To plot both of these together we can do:
 pge = PivotTablePage(Dict{Symbol,DataFrame}(:stockReturns => stockReturns, :correlations => correlations), [pt, pt2])
 create_pivot_table_html(pge,"pivottable.html")
+
+
+# Or if you are only charting one single pivottable you dont have to make a PivotTablePage, you can simply do:
+create_pivot_table_html(pt, stockReturns, "only_one.html")
 
 ```
 
