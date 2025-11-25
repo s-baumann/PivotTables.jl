@@ -30,8 +30,9 @@ module PivotTables
                                 rows::Union{Missing,Vector{Symbol}} = missing, cols::Union{Missing,Vector{Symbol}} = missing, vals::Union{Missing,Symbol} = missing,
                                 inclusions::Union{Missing,Dict{Symbol,Vector{Symbol}}}= missing,
                                 exclusions::Union{Missing,Dict{Symbol,Vector{Symbol}}}=missing,
-                                colour_map::Union{Missing,Dict{Float64,String}}= Dict{Float64,String}([-2.0, -1.0, 0.0, 1.0, 2.0] .=> ["#faccc0", "#fffcb0" , "#ffffff", "#A1FFAD", "#ACCBFC"]),
+                                colour_map::Union{Missing,Dict{Float64,String}}= Dict{Float64,String}([-2.5, -1.0, 0.0, 1.0, 2.5] .=> ["#f70c10", "#f7dc0c", "#ffffff", "#0fd430", "#03039e"]),
                                 aggregatorName::Symbol=:Average,
+                                extrapolate_colours::Bool=false,
                                 rendererName::Symbol=:Heatmap,
                                 rendererOptions::Union{Missing,Dict{Symbol,Any}}=missing)
             
@@ -56,7 +57,11 @@ module PivotTables
             if ismissing(colour_map) == false
                 colour_values = sort(collect(keys(colour_map)))
                 colours = [colour_map[x] for x in colour_values]
-                strr = replace(strr, "\"___rendererOptions___\"" => "{ heatmap: { colorScaleGenerator: function(values) { return Plotly.d3.scale.linear().domain(" * string(colour_values) * ").range(" * string(colours) * ")}}}")
+                if extrapolate_colours
+                    strr = replace(strr, "\"___rendererOptions___\"" => "{ heatmap: { colorScaleGenerator: function(values) { return Plotly.d3.scale.linear().domain(" * string(colour_values) * ").range(" * string(colours) * ")}}}")
+                else
+                    strr = replace(strr, "\"___rendererOptions___\"" => "{ heatmap: { colorScaleGenerator: function(values) { return Plotly.d3.scale.linear().domain(" * string(colour_values) * ").range(" * string(colours) * ").clamp(true)}}}")
+                end
             end
 
             new(chart_title, data_label, strr)
