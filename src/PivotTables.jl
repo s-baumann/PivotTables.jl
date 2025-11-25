@@ -30,7 +30,7 @@ module PivotTables
                                 rows::Union{Missing,Vector{Symbol}} = missing, cols::Union{Missing,Vector{Symbol}} = missing, vals::Union{Missing,Symbol} = missing,
                                 inclusions::Union{Missing,Dict{Symbol,Vector{Symbol}}}= missing,
                                 exclusions::Union{Missing,Dict{Symbol,Vector{Symbol}}}=missing,
-                                colour_map::Union{Missing,Dict{Float64,String}}= Dict{Float64,String}([-2.0, -1.0, 0.0, 1.0, 2.0] .=> ["#FF4545", "#FFE045" , "#ffffff", "#42f55a", "#4F92FF"]),
+                                colour_map::Union{Missing,Dict{Float64,String}}= Dict{Float64,String}([-2.0, -1.0, 0.0, 1.0, 2.0] .=> ["#faccc0", "#fffcb0" , "#ffffff", "#A1FFAD", "#ACCBFC"]),
                                 aggregatorName::Symbol=:Average,
                                 rendererName::Symbol=:Heatmap,
                                 rendererOptions::Union{Missing,Dict{Symbol,Any}}=missing)
