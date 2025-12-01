@@ -38,9 +38,13 @@ pt2 = PivotTable(:Correlation_Matrix, :correlations;
 
 subframe = allcombinations(DataFrame, x = collect(1:6), y = collect(1:6)); subframe[!, :group] .= "A";
 sf2 = deepcopy(subframe); sf2[!, :group] .= "B"
+sf3 = deepcopy(subframe); sf3[!, :group] .= "C"
+sf4 = deepcopy(subframe); sf4[!, :group] .= "D"
 subframe[!, :z] = cos.(sqrt.(subframe.x .^ 2 .+  subframe.y .^ 2))
 sf2[!, :z] = cos.(sqrt.(sf2.x .^ 2 .+  sf2.y .^ 1)) .- 1.0
-subframe = vcat(subframe, sf2)
+sf3[!, :z] = cos.(sqrt.(sf3.x .^ 2 .+  sf3.y .^ 0.5)) .+ 1.0
+sf4[!, :z] = sqrt.(sf4.x) .- sqrt.(sf4.y)
+subframe = reduce(vcat, [subframe, sf2, sf3, sf4])
 
 pt3 = PThreeDChart(:threeD, :subframe;
         x_col = :x,
@@ -84,12 +88,10 @@ pt00 = PChart(:pchart, df, :df;
             y_label="This is the y axis")
 
 
-
-
 # To plot both of these together we can do:
 pge = PivotTablePage(Dict{Symbol,DataFrame}(:stockReturns => stockReturns, :correlations => correlations, :subframe => subframe, :df => df), [pt, pt00, pt2, pt3])
 create_html(pge,"pivottable.html")
 
 
 # Or if you are only charting one single pivottable you dont have to make a PivotTablePage, you can simply do:
-#create_html(pt, stockReturns, "only_one.html")
+create_html(pt, stockReturns, "only_one.html")
