@@ -1,6 +1,13 @@
 
 const pivottable_function_template = raw"""
     loadDataset('__NAME_OF_DATA___').then(function(data) {
+        console.log('Loaded data for pivot table __NAME_OF_PLOT___:', data);
+
+        // Validate data
+        if (!data || data.length === 0) {
+            throw new Error('No data loaded for pivot table __NAME_OF_PLOT___');
+        }
+
         // Convert data to array format expected by pivotUI
         // First row is headers
         var headers = Object.keys(data[0]);
@@ -13,6 +20,8 @@ const pivottable_function_template = raw"""
             });
             arrayData.push(rowArray);
         });
+
+        console.log('Converted array data for __NAME_OF_PLOT___:', arrayData.slice(0, 3));
 
         $("#__NAME_OF_PLOT___").pivotUI(
             arrayData,
@@ -28,6 +37,7 @@ const pivottable_function_template = raw"""
         );
     }).catch(function(error) {
         console.error('Error loading data for pivot table __NAME_OF_PLOT___:', error);
+        $("#__NAME_OF_PLOT___").html('<div style="color: red; padding: 20px;">Error loading pivot table: ' + error.message + '</div>');
     });
 """
 
@@ -86,9 +96,9 @@ struct PivotTable <: JSPlotsType
             colour_values = sort(collect(keys(colour_map)))
             colours = [colour_map[x] for x in colour_values]
             if extrapolate_colours
-                strr = replace(strr, "\"___rendererOptions___\"" => "{ heatmap: { colorScaleGenerator: function(values) { return Plotly.d3.scale.linear().domain(" * string(colour_values) * ").range(" * string(colours) * ")}}}")
+                strr = replace(strr, "\"___rendererOptions___\"" => "{ heatmap: { colorScaleGenerator: function(values) { return d3.scale.linear().domain(" * string(colour_values) * ").range(" * string(colours) * ")}}}")
             else
-                strr = replace(strr, "\"___rendererOptions___\"" => "{ heatmap: { colorScaleGenerator: function(values) { return Plotly.d3.scale.linear().domain(" * string(colour_values) * ").range(" * string(colours) * ").clamp(true)}}}")
+                strr = replace(strr, "\"___rendererOptions___\"" => "{ heatmap: { colorScaleGenerator: function(values) { return d3.scale.linear().domain(" * string(colour_values) * ").range(" * string(colours) * ").clamp(true)}}}")
             end
         end
         #

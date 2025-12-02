@@ -20,6 +20,9 @@ module JSPlots
     include("distplot.jl")
     export DistPlot
 
+    include("textblock.jl")
+    export TextBlock
+
     include("make_html.jl")
     export JSPlotPage, create_html
 

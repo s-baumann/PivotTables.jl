@@ -104,4 +104,121 @@ create_html(pt, stockReturns, "only_one.html")
 
 ```
 
+## Data Format Options
+
+JSPlots supports three different data embedding formats, which you can specify using the `dataformat` parameter when creating a `JSPlotPage`:
+
+### 1. `:csv_embedded` (Default)
+
+Data is embedded directly into the HTML file as CSV text within `<script>` tags.
+
+**Advantages:**
+- Single self-contained HTML file
+- No external dependencies
+- Easy to share and distribute
+- Works when opened directly in a browser
+
+**Disadvantages:**
+- Large datasets result in very large HTML files
+- Slower initial page load for large datasets
+- Higher memory usage in browser
+
+**Usage:**
+```julia
+page = JSPlotPage(dataframes, plots, dataformat=:csv_embedded)
+create_html(page, "output.html")
+```
+
+### 2. `:json_embedded`
+
+Data is embedded directly into the HTML file as JSON within `<script>` tags.
+
+**Advantages:**
+- Single self-contained HTML file
+- Often slightly more compact than CSV for complex data structures
+- Preserves data types more reliably
+- Works when opened directly in a browser
+
+**Disadvantages:**
+- Large datasets result in very large HTML files
+- May be slower to parse than CSV for simple tabular data
+
+**Usage:**
+```julia
+page = JSPlotPage(dataframes, plots, dataformat=:json_embedded)
+create_html(page, "output.html")
+```
+
+### 3. `:csv_external`
+
+Data is saved as separate CSV files in a `data/` subdirectory, and the HTML references these files.
+
+**Advantages:**
+- Much smaller HTML file size
+- Faster page load for large datasets
+- Easier to inspect and edit data separately
+- Better for version control (can diff data and HTML separately)
+- CSV files can be reused by other tools
+
+**Disadvantages:**
+- Requires multiple files (HTML + CSV files + launcher scripts)
+- Browsers block local file access by default (CORS)
+- Must use provided launcher scripts to open with proper browser flags
+
+**Usage:**
+```julia
+page = JSPlotPage(dataframes, plots, dataformat=:csv_external)
+create_html(page, "output_dir/myplots.html")
+```
+
+**Output structure:**
+When you specify `"output_dir/myplots.html"`, it creates a project folder structure:
+```
+output_dir/
+└── myplots/              # Project folder (named after HTML file)
+    ├── myplots.html      # Main HTML file
+    ├── open.bat          # Windows launcher script
+    ├── open.sh           # Linux/macOS launcher script
+    └── data/             # Data subdirectory
+        ├── dataset1.csv
+        ├── dataset2.csv
+        └── dataset3.csv
+```
+
+**Opening the HTML:**
+
+⚠️ **IMPORTANT:** Do NOT open the HTML file directly! You will get CORS errors. Always use the launcher scripts.
+
+- **Windows:** Double-click `open.bat` or run it from command prompt
+- **Linux/macOS:** Run `./open.sh` from terminal (the script is automatically made executable)
+
+The launcher scripts will try to open the HTML in the following order:
+1. Brave Browser (with `--allow-file-access-from-files` flag)
+2. Google Chrome (with `--allow-file-access-from-files` flag)
+3. Firefox
+4. System default browser
+
+**Note:** The `--allow-file-access-from-files` flag is required for Chromium-based browsers to allow the HTML to load local CSV files. Firefox doesn't require special flags for local file access.
+
+## Choosing a Data Format
+
+**Use `:csv_embedded` when:**
+- You want a single file to share
+- Your datasets are small to medium sized (< 10MB total)
+- You need maximum portability
+- You're emailing or uploading to web hosting
+
+**Use `:json_embedded` when:**
+- You want a single file to share
+- Your data has complex nested structures
+- You need precise data type preservation
+- Your datasets are small to medium sized
+
+**Use `:csv_external` when:**
+- You have large datasets (> 10MB)
+- You want to keep HTML and data separate
+- You're using version control
+- You need to frequently update data without regenerating HTML
+- You want to inspect or process the data with other tools
+
 

@@ -228,7 +228,7 @@ page = JSPlotPage(
     data_dict,
     [distplot1, distplot2, distplot3, distplot4, distplot5, 
      distplot6, distplot7, distplot8, distplot9, distplot10]
-    ; dataformat = :json_embedded
+    ; dataformat = :csv_external
 )
 
 create_html(page, "generated_html_examples/distplots.html")

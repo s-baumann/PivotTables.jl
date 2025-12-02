@@ -7,14 +7,14 @@ struct JSPlotPage
     notes::String
     dataformat::Symbol
     function JSPlotPage(dataframes::Dict{Symbol,DataFrame}, pivot_tables::Vector; tab_title::String="JSPlots.jl", page_header::String="", notes::String="", dataformat::Symbol=:csv_embedded)
-        if !(dataformat in [:csv_embedded, :json_embedded])
-            error("dataformat must be either :csv_embedded or :json_embedded")
+        if !(dataformat in [:csv_embedded, :json_embedded, :csv_external])
+            error("dataformat must be :csv_embedded, :json_embedded, or :csv_external")
         end
         new(dataframes, pivot_tables, tab_title, page_header, notes, dataformat)
     end
 end
 
-const DATASET_TEMPLATE = raw"""<script type="text/plain" id="___DDATA_LABEL___" data-format="___DATA_FORMAT___">___DATA1___</script>"""
+const DATASET_TEMPLATE = raw"""<script type="text/plain" id="___DDATA_LABEL___" data-format="___DATA_FORMAT___" data-src="___DATA_SRC___">___DATA1___</script>"""
 
 
 
@@ -70,8 +70,8 @@ const FULL_PAGE_TEMPLATE = raw"""
 
 <script>
 // Centralized data loading function
-// This function parses data from a hidden div and returns a Promise
-// Supports both CSV and JSON formats based on the data-format attribute
+// This function parses data from embedded or external sources and returns a Promise
+// Supports CSV (embedded/external) and JSON (embedded) formats based on the data-format attribute
 // Usage: loadDataset('dataLabel').then(function(data) { /* use data */ });
 function loadDataset(dataLabel) {
     return new Promise(function(resolve, reject) {
@@ -82,6 +82,51 @@ function loadDataset(dataLabel) {
         }
 
         var format = dataElement.getAttribute('data-format') || 'csv_embedded';
+        var dataSrc = dataElement.getAttribute('data-src');
+
+        // Handle external CSV files
+        if (format === 'csv_external' && dataSrc) {
+            fetch(dataSrc)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load ' + dataSrc + ': ' + response.statusText);
+                    }
+                    return response.text();
+                })
+                .then(function(csvText) {
+                    Papa.parse(csvText, {
+                        header: true,
+                        dynamicTyping: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            // Check for fatal errors only (not warnings)
+                            var fatalErrors = results.errors.filter(function(err) {
+                                return err.type !== 'Delimiter';
+                            });
+
+                            if (fatalErrors.length > 0) {
+                                console.error('CSV parsing errors:', fatalErrors);
+                                reject(fatalErrors);
+                            } else if (results.data && results.data.length > 0) {
+                                resolve(results.data);
+                            } else {
+                                reject(new Error('No data parsed from CSV'));
+                            }
+                        },
+                        error: function(error) {
+                            console.error('CSV parsing error:', error);
+                            reject(error);
+                        }
+                    });
+                })
+                .catch(function(error) {
+                    console.error('Error loading external CSV:', error);
+                    reject(error);
+                });
+            return;
+        }
+
+        // Handle embedded data
         var dataText = dataElement.textContent.trim();
 
         if (format === 'json_embedded') {
@@ -151,10 +196,17 @@ ___PIVOT_TABLES___
 """
 
 function dataset_to_html(data_label::Symbol, df::DataFrame, format::Symbol=:csv_embedded)
-    data_string = if format == :csv_embedded
+    data_string = ""
+    data_src = ""
+
+    if format == :csv_external
+        # For external CSV, we just reference the file
+        data_src = "data/$(string(data_label)).csv"
+        # No data content needed for external format
+    elseif format == :csv_embedded
         io_buffer = IOBuffer()
         CSV.write(io_buffer, df)
-        String(take!(io_buffer))
+        data_string = String(take!(io_buffer))
     elseif format == :json_embedded
         # Convert DataFrame to array of dictionaries for JSON
         rows = []
@@ -163,39 +215,248 @@ function dataset_to_html(data_label::Symbol, df::DataFrame, format::Symbol=:csv_
             push!(rows, row_dict)
         end
         # Pretty print JSON with indentation for readability
-        JSON.json(rows, 2)
+        data_string = JSON.json(rows, 2)
     else
         error("Unsupported format: $format")
     end
 
     # Escape only </script> to prevent premature script tag closing
     # Using <\/script> is safe in script tags and won't interfere with CSV/JSON parsing
-    data_string_safe = replace(data_string, "</script>" => "<\\/script>")
+    if !isempty(data_string)
+        data_string_safe = replace(data_string, "</script>" => "<\\/script>")
+        html_str = replace(DATASET_TEMPLATE, "___DATA1___" => "\n" * data_string_safe * "\n")
+    else
+        html_str = replace(DATASET_TEMPLATE, "___DATA1___" => "")
+    end
 
-    html_str = replace(DATASET_TEMPLATE, "___DATA1___" => "\n" * data_string_safe * "\n")
     html_str = replace(html_str, "___DDATA_LABEL___" => replace(string(data_label), " " => "_"))
     html_str = replace(html_str, "___DATA_FORMAT___" => string(format))
+    html_str = replace(html_str, "___DATA_SRC___" => data_src)
     return html_str
 end
 
 
 
+function generate_bat_launcher(html_filename::String)
+    """
+    @echo off
+    REM JSPlots Launcher Script for Windows
+    REM Tries browsers in order: Brave, Chrome, Firefox, then system default
+
+    set "HTML_FILE=%~dp0$(html_filename)"
+
+    REM Try Brave Browser
+    where brave.exe >nul 2>&1
+    if %ERRORLEVEL% EQU 0 (
+        echo Opening with Brave Browser...
+        start brave.exe --allow-file-access-from-files "%HTML_FILE%"
+        exit /b
+    )
+
+    REM Try Chrome
+    where chrome.exe >nul 2>&1
+    if %ERRORLEVEL% EQU 0 (
+        echo Opening with Google Chrome...
+        start chrome.exe --allow-file-access-from-files "%HTML_FILE%"
+        exit /b
+    )
+
+    REM Try Chrome in Program Files
+    if exist "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" (
+        echo Opening with Google Chrome...
+        start "" "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --allow-file-access-from-files "%HTML_FILE%"
+        exit /b
+    )
+
+    REM Try Chrome in Program Files (x86)
+    if exist "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" (
+        echo Opening with Google Chrome...
+        start "" "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" --allow-file-access-from-files "%HTML_FILE%"
+        exit /b
+    )
+
+    REM Try Firefox
+    where firefox.exe >nul 2>&1
+    if %ERRORLEVEL% EQU 0 (
+        echo Opening with Firefox...
+        start firefox.exe "%HTML_FILE%"
+        exit /b
+    )
+
+    REM Try Firefox in Program Files
+    if exist "C:\\Program Files\\Mozilla Firefox\\firefox.exe" (
+        echo Opening with Firefox...
+        start "" "C:\\Program Files\\Mozilla Firefox\\firefox.exe" "%HTML_FILE%"
+        exit /b
+    )
+
+    REM Fallback to default browser
+    echo Opening with default browser...
+    start "" "%HTML_FILE%"
+    """
+end
+
+function generate_sh_launcher(html_filename::String)
+    """
+    #!/bin/bash
+    # JSPlots Launcher Script for Linux/macOS
+    # Tries browsers in order: Brave, Chrome, Firefox, then system default
+
+    SCRIPT_DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" && pwd )"
+    HTML_FILE="\$SCRIPT_DIR/$(html_filename)"
+
+    # Create a temporary user data directory for Chromium-based browsers
+    TEMP_USER_DIR="\$(mktemp -d)"
+
+    # Try Brave Browser
+    if command -v brave-browser &> /dev/null; then
+        echo "Opening with Brave Browser..."
+        brave-browser --allow-file-access-from-files --disable-web-security --user-data-dir="\$TEMP_USER_DIR" "\$HTML_FILE" &
+        exit 0
+    elif command -v brave &> /dev/null; then
+        echo "Opening with Brave Browser..."
+        brave --allow-file-access-from-files --disable-web-security --user-data-dir="\$TEMP_USER_DIR" "\$HTML_FILE" &
+        exit 0
+    fi
+
+    # Try Google Chrome
+    if command -v google-chrome &> /dev/null; then
+        echo "Opening with Google Chrome..."
+        google-chrome --allow-file-access-from-files --disable-web-security --user-data-dir="\$TEMP_USER_DIR" "\$HTML_FILE" &
+        exit 0
+    elif command -v chrome &> /dev/null; then
+        echo "Opening with Chrome..."
+        chrome --allow-file-access-from-files --disable-web-security --user-data-dir="\$TEMP_USER_DIR" "\$HTML_FILE" &
+        exit 0
+    fi
+
+    # Try Chromium
+    if command -v chromium-browser &> /dev/null; then
+        echo "Opening with Chromium..."
+        chromium-browser --allow-file-access-from-files --disable-web-security --user-data-dir="\$TEMP_USER_DIR" "\$HTML_FILE" &
+        exit 0
+    elif command -v chromium &> /dev/null; then
+        echo "Opening with Chromium..."
+        chromium --allow-file-access-from-files --disable-web-security --user-data-dir="\$TEMP_USER_DIR" "\$HTML_FILE" &
+        exit 0
+    fi
+
+    # Try Firefox
+    if command -v firefox &> /dev/null; then
+        echo "Opening with Firefox..."
+        firefox "\$HTML_FILE" &
+        exit 0
+    fi
+
+    # Fallback to default browser
+    echo "Opening with default browser..."
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "\$HTML_FILE" &
+    elif command -v open &> /dev/null; then
+        # macOS
+        open "\$HTML_FILE" &
+    else
+        echo "Could not find a suitable browser. Please open \$HTML_FILE manually."
+        exit 1
+    fi
+    """
+end
+
 function create_html(pt::JSPlotPage, outfile_path::String="pivottable.html")
-    data_set_bit   = reduce(*, [dataset_to_html(k, v, pt.dataformat) for (k,v) in pt.dataframes])
-    functional_bit = reduce(*, [pti.functional_html for pti in pt.pivot_tables])
-    table_bit      = reduce(*, [pti.appearance_html for pti in pt.pivot_tables])
-    full_page_html = replace(FULL_PAGE_TEMPLATE, "___DATASETS___" => data_set_bit)
-    full_page_html = replace(full_page_html, "___PIVOT_TABLES___" => table_bit)
-    full_page_html = replace(full_page_html, "___FUNCTIONAL_BIT___" => functional_bit)
-    full_page_html = replace(full_page_html, "___TITLE_OF_PAGE___" => pt.tab_title)
-    full_page_html = replace(full_page_html, "___PAGE_HEADER___" => pt.page_header)
-    full_page_html = replace(full_page_html, "___NOTES___" => pt.notes)
+    # Handle csv_external format differently
+    if pt.dataformat == :csv_external
+        # For csv_external, create a subfolder structure
+        # e.g., "generated_html_examples/pivottable.html" becomes
+        #       "generated_html_examples/pivottable/pivottable.html"
 
-    open(outfile_path, "w") do outfile
-        write(outfile, full_page_html)
+        original_dir = dirname(outfile_path)
+        original_name = basename(outfile_path)
+        name_without_ext = splitext(original_name)[1]
+
+        # Create the project folder: original_dir/name_without_ext/
+        project_dir = isempty(original_dir) ? name_without_ext : joinpath(original_dir, name_without_ext)
+        if !isdir(project_dir)
+            mkpath(project_dir)
+        end
+
+        # HTML file goes in the project folder with the same name
+        actual_html_path = joinpath(project_dir, original_name)
+
+        # Create data subdirectory within project folder
+        data_dir = joinpath(project_dir, "data")
+        if !isdir(data_dir)
+            mkpath(data_dir)
+        end
+
+        # Save all dataframes as separate CSV files
+        for (data_label, df) in pt.dataframes
+            csv_path = joinpath(data_dir, "$(string(data_label)).csv")
+            CSV.write(csv_path, df)
+            println("  Data saved to $csv_path")
+        end
+
+        # Generate HTML content
+        data_set_bit   = reduce(*, [dataset_to_html(k, v, pt.dataformat) for (k,v) in pt.dataframes])
+        functional_bit = reduce(*, [pti.functional_html for pti in pt.pivot_tables])
+        table_bit      = reduce(*, [pti.appearance_html for pti in pt.pivot_tables])
+        full_page_html = replace(FULL_PAGE_TEMPLATE, "___DATASETS___" => data_set_bit)
+        full_page_html = replace(full_page_html, "___PIVOT_TABLES___" => table_bit)
+        full_page_html = replace(full_page_html, "___FUNCTIONAL_BIT___" => functional_bit)
+        full_page_html = replace(full_page_html, "___TITLE_OF_PAGE___" => pt.tab_title)
+        full_page_html = replace(full_page_html, "___PAGE_HEADER___" => pt.page_header)
+        full_page_html = replace(full_page_html, "___NOTES___" => pt.notes)
+
+        # Save HTML file
+        open(actual_html_path, "w") do outfile
+            write(outfile, full_page_html)
+        end
+        println("HTML page saved to $actual_html_path")
+
+        # Generate launcher scripts in the project folder
+        bat_path = joinpath(project_dir, "open.bat")
+        sh_path = joinpath(project_dir, "open.sh")
+
+        open(bat_path, "w") do f
+            write(f, generate_bat_launcher(original_name))
+        end
+        println("Windows launcher saved to $bat_path")
+
+        open(sh_path, "w") do f
+            write(f, generate_sh_launcher(original_name))
+        end
+        # Make shell script executable on Unix-like systems
+        try
+            chmod(sh_path, 0o755)
+        catch
+            # Silently fail on Windows
+        end
+        println("Linux/macOS launcher saved to $sh_path")
+
+        println("\nProject created in: $project_dir")
+        println("To view the plots:")
+        println("  Windows: Run $bat_path")
+        println("  Linux/macOS: Run $sh_path")
+        println("\nIMPORTANT: Do not open the HTML file directly!")
+        println("Use the launcher scripts to avoid CORS errors.")
+
+    else
+        # Original embedded format logic
+        data_set_bit   = reduce(*, [dataset_to_html(k, v, pt.dataformat) for (k,v) in pt.dataframes])
+        functional_bit = reduce(*, [pti.functional_html for pti in pt.pivot_tables])
+        table_bit      = reduce(*, [pti.appearance_html for pti in pt.pivot_tables])
+        full_page_html = replace(FULL_PAGE_TEMPLATE, "___DATASETS___" => data_set_bit)
+        full_page_html = replace(full_page_html, "___PIVOT_TABLES___" => table_bit)
+        full_page_html = replace(full_page_html, "___FUNCTIONAL_BIT___" => functional_bit)
+        full_page_html = replace(full_page_html, "___TITLE_OF_PAGE___" => pt.tab_title)
+        full_page_html = replace(full_page_html, "___PAGE_HEADER___" => pt.page_header)
+        full_page_html = replace(full_page_html, "___NOTES___" => pt.notes)
+
+        open(outfile_path, "w") do outfile
+            write(outfile, full_page_html)
+        end
+
+        println("Pivot table page saved to $outfile_path")
     end
-
-    println("Pivot table page saved to $outfile_path")
 end
 
 function create_html(pt::JSPlotsType, dd::DataFrame, outfile_path::String="pivottable.html")
