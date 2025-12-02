@@ -5,12 +5,16 @@ struct PivotTablePage
     tab_title::String
     page_header::String
     notes::String
-    function PivotTablePage(dataframes::Dict{Symbol,DataFrame}, pivot_tables::Vector; tab_title::String="PivotTables.jl", page_header::String="", notes::String="")
-        new(dataframes, pivot_tables, tab_title, page_header, notes)
+    dataformat::Symbol
+    function PivotTablePage(dataframes::Dict{Symbol,DataFrame}, pivot_tables::Vector; tab_title::String="PivotTables.jl", page_header::String="", notes::String="", dataformat::Symbol=:csv_embedded)
+        if !(dataformat in [:csv_embedded, :json_embedded])
+            error("dataformat must be either :csv_embedded or :json_embedded")
+        end
+        new(dataframes, pivot_tables, tab_title, page_header, notes, dataformat)
     end
 end
 
-const DATASET_TEMPLATE = raw"""<div id="___DDATA_LABEL___" style="display: none;">___DATA1___</div>"""
+const DATASET_TEMPLATE = raw"""<div id="___DDATA_LABEL___" data-format="___DATA_FORMAT___" style="display: none;">___DATA1___</div>"""
 
 
 
@@ -66,28 +70,51 @@ const FULL_PAGE_TEMPLATE = raw"""
 
 <script>
 // Centralized data loading function
-// This function parses CSV data from a hidden div and returns a Promise
+// This function parses data from a hidden div and returns a Promise
+// Supports both CSV and JSON formats based on the data-format attribute
 // Usage: loadDataset('dataLabel').then(function(data) { /* use data */ });
 function loadDataset(dataLabel) {
     return new Promise(function(resolve, reject) {
-        var csvText = document.getElementById(dataLabel).textContent;
-        Papa.parse(csvText, {
-            header: true,
-            dynamicTyping: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                if (results.errors.length > 0) {
-                    console.error('CSV parsing errors:', results.errors);
-                    reject(results.errors);
-                } else {
-                    resolve(results.data);
-                }
-            },
-            error: function(error) {
-                console.error('CSV parsing error:', error);
+        var dataElement = document.getElementById(dataLabel);
+        if (!dataElement) {
+            reject(new Error('Data element not found: ' + dataLabel));
+            return;
+        }
+
+        var format = dataElement.getAttribute('data-format') || 'csv_embedded';
+        var dataText = dataElement.textContent;
+
+        if (format === 'json_embedded') {
+            // Parse JSON data
+            try {
+                var data = JSON.parse(dataText);
+                resolve(data);
+            } catch (error) {
+                console.error('JSON parsing error:', error);
                 reject(error);
             }
-        });
+        } else if (format === 'csv_embedded') {
+            // Parse CSV data using PapaParse
+            Papa.parse(dataText, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results.errors.length > 0) {
+                        console.error('CSV parsing errors:', results.errors);
+                        reject(results.errors);
+                    } else {
+                        resolve(results.data);
+                    }
+                },
+                error: function(error) {
+                    console.error('CSV parsing error:', error);
+                    reject(error);
+                }
+            });
+        } else {
+            reject(new Error('Unsupported data format: ' + format));
+        }
     });
 }
 
@@ -113,19 +140,39 @@ ___PIVOT_TABLES___
 </html>
 """
 
-function dataset_to_html(data_label::Symbol, df::DataFrame)
-    io_buffer = IOBuffer()
-    CSV.write(io_buffer, df)
-    csv_string = String(take!(io_buffer))
-    html_str = replace(DATASET_TEMPLATE, "___DATA1___" => csv_string)
+function dataset_to_html(data_label::Symbol, df::DataFrame, format::Symbol=:csv_embedded)
+    data_string = if format == :csv_embedded
+        io_buffer = IOBuffer()
+        CSV.write(io_buffer, df)
+        String(take!(io_buffer))
+    elseif format == :json_embedded
+        # Convert DataFrame to array of dictionaries for JSON
+        rows = []
+        for row in eachrow(df)
+            row_dict = Dict(String(col) => row[col] for col in names(df))
+            push!(rows, row_dict)
+        end
+        # Pretty print JSON with indentation for readability
+        JSON.json(rows, 2)
+    else
+        error("Unsupported format: $format")
+    end
+
+    # HTML escape the data to prevent issues with special characters
+    data_string_escaped = replace(data_string, "&" => "&amp;")
+    data_string_escaped = replace(data_string_escaped, "<" => "&lt;")
+    data_string_escaped = replace(data_string_escaped, ">" => "&gt;")
+
+    html_str = replace(DATASET_TEMPLATE, "___DATA1___" => "\n" * data_string_escaped * "\n")
     html_str = replace(html_str, "___DDATA_LABEL___" => replace(string(data_label), " " => "_"))
+    html_str = replace(html_str, "___DATA_FORMAT___" => string(format))
     return html_str
 end
 
 
 
 function create_html(pt::PivotTablePage, outfile_path::String="pivottable.html")
-    data_set_bit   = reduce(*, [dataset_to_html(k, v) for (k,v) in pt.dataframes])
+    data_set_bit   = reduce(*, [dataset_to_html(k, v, pt.dataformat) for (k,v) in pt.dataframes])
     functional_bit = reduce(*, [pti.functional_html for pti in pt.pivot_tables])
     table_bit      = reduce(*, [pti.appearance_html for pti in pt.pivot_tables])
     full_page_html = replace(FULL_PAGE_TEMPLATE, "___DATASETS___" => data_set_bit)

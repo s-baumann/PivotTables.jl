@@ -89,7 +89,7 @@ pt00 = PChart(:pchart, df, :df;
 
 
 # To plot both of these together we can do:
-pge = PivotTablePage(Dict{Symbol,DataFrame}(:stockReturns => stockReturns, :correlations => correlations, :subframe => subframe, :df => df), [pt, pt00, pt2, pt3])
+pge = PivotTablePage(Dict{Symbol,DataFrame}(:stockReturns => stockReturns, :correlations => correlations, :subframe => subframe, :df => df), [pt, pt00, pt2, pt3]; dataformat = :json_embedded)
 create_html(pge,"generated_html_examples/pivottable.html")
 
 

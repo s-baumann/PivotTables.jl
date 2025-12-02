@@ -1,17 +1,34 @@
 
 const pivottable_function_template = raw"""
-    $("#__NAME_OF_PLOT___").pivotUI(
-                        $.csv.toArrays($("#__NAME_OF_DATA___").text()),
-                        $.extend({
-                            renderers: $.extend(
-                                $.pivotUtilities.renderers,
-                                $.pivotUtilities.c3_renderers,
-                                $.pivotUtilities.d3_renderers,
-                                $.pivotUtilities.export_renderers
-                                ),
-                            hiddenAttributes: [""]
-                        }, ___KEYARGS_LOCATION___)
-                    );
+    loadDataset('__NAME_OF_DATA___').then(function(data) {
+        // Convert data to array format expected by pivotUI
+        // First row is headers
+        var headers = Object.keys(data[0]);
+        var arrayData = [headers];
+
+        // Add data rows
+        data.forEach(function(row) {
+            var rowArray = headers.map(function(header) {
+                return row[header];
+            });
+            arrayData.push(rowArray);
+        });
+
+        $("#__NAME_OF_PLOT___").pivotUI(
+            arrayData,
+            $.extend({
+                renderers: $.extend(
+                    $.pivotUtilities.renderers,
+                    $.pivotUtilities.c3_renderers,
+                    $.pivotUtilities.d3_renderers,
+                    $.pivotUtilities.export_renderers
+                ),
+                hiddenAttributes: [""]
+            }, ___KEYARGS_LOCATION___)
+        );
+    }).catch(function(error) {
+        console.error('Error loading data for pivot table __NAME_OF_PLOT___:', error);
+    });
 """
 
 const PIVOTTABLE_IN_PAGE_TEMPLATE = raw"""
