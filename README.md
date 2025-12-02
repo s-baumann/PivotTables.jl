@@ -112,17 +112,6 @@ JSPlots supports five different data embedding formats, which you can specify us
 
 Data is embedded directly into the HTML file as CSV text within `<script>` tags.
 
-**Advantages:**
-- Single self-contained HTML file
-- No external dependencies
-- Easy to share and distribute
-- Works when opened directly in a browser
-
-**Disadvantages:**
-- Large datasets result in very large HTML files
-- Slower initial page load for large datasets
-- Higher memory usage in browser
-
 **Usage:**
 ```julia
 page = JSPlotPage(dataframes, plots, dataformat=:csv_embedded)
@@ -133,16 +122,6 @@ create_html(page, "output.html")
 
 Data is embedded directly into the HTML file as JSON within `<script>` tags.
 
-**Advantages:**
-- Single self-contained HTML file
-- Often slightly more compact than CSV for complex data structures
-- Preserves data types more reliably
-- Works when opened directly in a browser
-
-**Disadvantages:**
-- Large datasets result in very large HTML files
-- May be slower to parse than CSV for simple tabular data
-
 **Usage:**
 ```julia
 page = JSPlotPage(dataframes, plots, dataformat=:json_embedded)
@@ -152,18 +131,6 @@ create_html(page, "output.html")
 ### 3. `:csv_external`
 
 Data is saved as separate CSV files in a `data/` subdirectory, and the HTML references these files.
-
-**Advantages:**
-- Much smaller HTML file size
-- Faster page load for large datasets
-- Easier to inspect and edit data separately
-- Better for version control (can diff data and HTML separately)
-- CSV files can be reused by other tools
-
-**Disadvantages:**
-- Requires multiple files (HTML + CSV files + launcher scripts)
-- Browsers block local file access by default (CORS)
-- Must use provided launcher scripts to open with proper browser flags
 
 **Usage:**
 ```julia
@@ -187,7 +154,7 @@ output_dir/
 
 **Opening the HTML:**
 
-⚠️ **IMPORTANT:** Do NOT open the HTML file directly! You will get CORS errors. Always use the launcher scripts.
+⚠️ **IMPORTANT:** If you open the html directly you might get permissions errors in your web browser. For this reason the package creates a sh file and a bat file that opens the html file with greater permissions.
 
 - **Windows:** Double-click `open.bat` or run it from command prompt
 - **Linux/macOS:** Run `./open.sh` from terminal (the script is automatically made executable)
@@ -203,19 +170,6 @@ The launcher scripts will try to open the HTML in the following order:
 ### 4. `:json_external`
 
 Data is saved as separate JSON files in a `data/` subdirectory, and the HTML references these files.
-
-**Advantages:**
-- Much smaller HTML file size
-- Faster page load for large datasets
-- JSON preserves data types better than CSV
-- Better for version control (can diff data and HTML separately)
-- JSON files can be easily consumed by other tools and languages
-
-**Disadvantages:**
-- Requires multiple files (HTML + JSON files + launcher scripts)
-- Browsers block local file access by default (CORS)
-- Must use provided launcher scripts to open with proper browser flags
-- Slightly larger file size than Parquet for large datasets
 
 **Usage:**
 ```julia
@@ -239,21 +193,6 @@ output_dir/
 ### 5. `:parquet`
 
 Data is saved as separate Parquet files in a `data/` subdirectory, and the HTML references these files. Parquet is a columnar binary format optimized for analytics workloads.
-
-**Advantages:**
-- **Smallest file size** - Highly compressed binary format
-- **Fastest loading** - Efficient binary parsing
-- Much smaller HTML file size
-- Industry-standard format used by data engineering tools
-- Excellent for very large datasets
-- Better for version control
-
-**Disadvantages:**
-- Requires multiple files (HTML + Parquet files + launcher scripts)
-- Browsers block local file access by default (CORS)
-- Must use provided launcher scripts to open with proper browser flags
-- Binary format (not human-readable)
-- Requires parquet-wasm library to be loaded in browser
 
 **Usage:**
 ```julia
