@@ -1,10 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PivotTable.js</title>
+    <title>PivotTables.jl</title>
     <meta charset="UTF-8">
     <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <style>
         body { 
             margin: 0; 
@@ -45,6 +48,32 @@
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
 <script>
+// Centralized data loading function
+// This function parses CSV data from a hidden div and returns a Promise
+// Usage: loadDataset('dataLabel').then(function(data) { /* use data */ });
+function loadDataset(dataLabel) {
+    return new Promise(function(resolve, reject) {
+        var csvText = document.getElementById(dataLabel).textContent;
+        Papa.parse(csvText, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                if (results.errors.length > 0) {
+                    console.error('CSV parsing errors:', results.errors);
+                    reject(results.errors);
+                } else {
+                    resolve(results.data);
+                }
+            },
+            error: function(error) {
+                console.error('CSV parsing error:', error);
+                reject(error);
+            }
+        });
+    });
+}
+
 $(function(){
 
     $("#Returns_Over_Last_Few_Days").pivotUI(
@@ -129,16 +158,12 @@ $(function(){
         Plotly.newPlot('pchart', traces, layout, {responsive: true});
     };
 
-    // Parse CSV data
-    const csvText = document.getElementById('df').textContent;
-    Papa.parse(csvText, {
-        header: true,
-        dynamicTyping: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-            allData = results.data;
-            updateChart();
-        }
+    // Load and parse CSV data using centralized parser
+    loadDataset('df').then(function(data) {
+        allData = data;
+        updateChart();
+    }).catch(function(error) {
+        console.error('Error loading data for chart pchart:', error);
     });
     $("#Correlation_Matrix").pivotUI(
                         $.csv.toArrays($("#correlations").text()),
@@ -152,21 +177,15 @@ $(function(){
                             hiddenAttributes: [""]
                         }, {"rendererName":"Heatmap","rows":["Symbol1"],"aggregatorName":"Average","vals":["Correlation"],"rendererOptions":{ heatmap: { colorScaleGenerator: function(values) { return Plotly.d3.scale.linear().domain([-1.0, 0.0, 1.0]).range(["#FF4545", "#ffffff", "#4F92FF"]).clamp(true)}}},"cols":["Symbol2"]})
                     );
-    const csvText3d = document.getElementById('subframe').textContent;
-        Papa.parse(csvText3d, {
-            header: true,
-            dynamicTyping: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                // ========== 3D SURFACE PLOT CONFIGURATION ==========
-                // Define your column names here
-                const x = 'x';
-                const y = 'y';
-                const z = 'z';
-                const group = 'group';
-                // ===================================================
-                
-                const data3d = results.data;
+    // Load and parse CSV data using centralized parser
+    loadDataset('subframe').then(function(data3d) {
+        // ========== 3D SURFACE PLOT CONFIGURATION ==========
+        // Define your column names here
+        const x = 'x';
+        const y = 'y';
+        const z = 'z';
+        const group = 'group';
+        // ===================================================
                 
                 // Get unique groups
                 const uniqueGroups = [...new Set(data3d.map(row => row[group]))].sort();
@@ -235,8 +254,9 @@ $(function(){
                 showlegend: false,
             };
             
-            Plotly.newPlot('threeD', plotData, layout);
-        }
+        Plotly.newPlot('threeD', plotData, layout);
+    }).catch(function(error) {
+        console.error('Error loading data for chart threeD:', error);
     });
 
 
@@ -330,6 +350,78 @@ MSFT,2023-01-03,-0.002
 4,6,B,-1.021971452410018
 5,6,B,-0.24518280412638171
 6,6,B,-0.019450682346141668
+1,1,C,1.1559436947653743
+2,1,C,0.38272712354283334
+3,1,C,0.00021392712067414
+4,1,C,0.44423460958085226
+5,1,C,1.377069812461686
+6,1,C,1.9799824974549554
+1,2,C,1.0170215307092125
+2,2,C,0.3139470657369108
+3,2,C,0.0036540443554032853
+4,2,C,0.48641743614550437
+5,2,C,1.4142212387971869
+6,2,C,1.986175939144255
+1,3,C,0.9179968609607547
+2,3,C,0.2665566278409074
+3,3,C,0.009016517099134758
+4,3,C,0.519307022323508
+5,3,C,1.4420795294939195
+6,3,C,1.990140036061585
+1,4,C,0.8394434614253095
+2,4,C,0.2300942702501071
+3,4,C,0.015279056875972419
+4,4,C,0.5473381427076471
+5,4,C,1.4651140516928534
+6,4,C,1.9929549762836907
+1,5,C,0.7738620277177296
+2,5,C,0.20052801164655532
+3,5,C,0.022059190682766516
+4,5,C,0.5722355793970464
+5,5,C,1.485058145415328
+6,5,C,1.9950387168674295
+1,6,C,0.7174188421724267
+2,6,C,0.17579990271593138
+3,6,C,0.02916737260633384
+4,6,C,0.5948873339246776
+5,6,C,1.502801829878708
+6,6,C,1.9966053897707945
+1,1,D,0.0
+2,1,D,0.41421356237309515
+3,1,D,0.7320508075688772
+4,1,D,1.0
+5,1,D,1.2360679774997898
+6,1,D,1.4494897427831779
+1,2,D,-0.41421356237309515
+2,2,D,0.0
+3,2,D,0.31783724519578205
+4,2,D,0.5857864376269049
+5,2,D,0.8218544151266947
+6,2,D,1.0352761804100827
+1,3,D,-0.7320508075688772
+2,3,D,-0.31783724519578205
+3,3,D,0.0
+4,3,D,0.2679491924311228
+5,3,D,0.5040171699309126
+6,3,D,0.7174389352143007
+1,4,D,-1.0
+2,4,D,-0.5857864376269049
+3,4,D,-0.2679491924311228
+4,4,D,0.0
+5,4,D,0.2360679774997898
+6,4,D,0.4494897427831779
+1,5,D,-1.2360679774997898
+2,5,D,-0.8218544151266947
+3,5,D,-0.5040171699309126
+4,5,D,-0.2360679774997898
+5,5,D,0.0
+6,5,D,0.21342176528338808
+1,6,D,-1.4494897427831779
+2,6,D,-1.0352761804100827
+3,6,D,-0.7174389352143007
+4,6,D,-0.4494897427831779
+5,6,D,-0.21342176528338808
+6,6,D,0.0
 </div><div id="correlations" style="display: none;">Symbol1,Symbol2,Correlation
 RTX,GOOG,-0.85
 RTX,MSFT,-0.75
@@ -341,29 +433,32 @@ GOOG,RTX,-0.85
 MSFT,RTX,-0.75
 MSFT,GOOG,0.8
 </div><div id="df" style="display: none;">date,x,y,color,categ,categ22
-2024-01-01,1,0.716276993654819,A,B,Category_A
-2024-01-02,2,0.6423649944206601,B,B,Category_A
-2024-01-03,3,0.4958845001458856,A,B,Category_A
-2024-01-04,4,0.5445094184596678,B,B,Category_A
-2024-01-05,5,0.16467913738301565,A,B,Category_A
-2024-01-06,6,0.27309023839033064,B,A,Category_A
-2024-01-07,7,0.07145800377915923,A,A,Category_A
-2024-01-08,8,0.9968517415397815,B,A,Category_A
-2024-01-09,9,0.731009956973597,A,A,Category_A
-2024-01-10,10,0.9019718460406881,B,C,Category_A
-2024-01-01,1,0.35711891494334713,A,A,Category_B
-2024-01-02,2,0.19344574321522368,B,A,Category_B
-2024-01-03,3,0.5103189039984609,A,A,Category_B
-2024-01-04,4,0.631785205355996,B,A,Category_B
-2024-01-05,5,0.9095273529603235,A,A,Category_B
-2024-01-06,6,0.548219551629551,B,B,Category_B
-2024-01-07,7,0.23171073152237875,A,B,Category_B
-2024-01-08,8,0.34630037144646597,B,B,Category_B
-2024-01-09,9,0.29504475034837085,A,B,Category_B
-2024-01-10,10,0.47039562214826913,B,C,Category_B
+2024-01-01,1,0.28744546468394316,A,B,Category_A
+2024-01-02,2,0.1493097385572918,B,B,Category_A
+2024-01-03,3,0.7477655649611844,A,B,Category_A
+2024-01-04,4,0.5944276837736112,B,B,Category_A
+2024-01-05,5,0.4209120513600455,A,B,Category_A
+2024-01-06,6,0.623461842891765,B,A,Category_A
+2024-01-07,7,0.7011924253662256,A,A,Category_A
+2024-01-08,8,0.3667766881420472,B,A,Category_A
+2024-01-09,9,0.2127419226534375,A,A,Category_A
+2024-01-10,10,0.9623397158815609,B,C,Category_A
+2024-01-01,1,0.4403948814900035,A,A,Category_B
+2024-01-02,2,0.7817545559114915,B,A,Category_B
+2024-01-03,3,0.8607069766346133,A,A,Category_B
+2024-01-04,4,0.8407939059073998,B,A,Category_B
+2024-01-05,5,0.4953824035421598,A,A,Category_B
+2024-01-06,6,0.2680858650942728,B,B,Category_B
+2024-01-07,7,0.3895499562029605,A,B,Category_B
+2024-01-08,8,0.012953878872641988,B,B,Category_B
+2024-01-09,9,0.3586929450460915,A,B,Category_B
+2024-01-10,10,0.18586587744537297,B,C,Category_B
 </div>
 
 <!-- ACTUAL CONTENT -->
+
+<h1></h1>
+<p></p>
 
     <h2>Returns_Over_Last_Few_Days</h2>
     <p></p>

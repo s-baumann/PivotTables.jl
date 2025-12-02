@@ -328,7 +328,7 @@ struct PDistPlot <: PivotTablesType
                 },
                 yaxis: {
                     title: 'Frequency',
-                    domain: [0.35, 0.85],
+                    domain: [0.07, 0.69],
                     showgrid: true,
                     zeroline: true
                 },
@@ -338,7 +338,7 @@ struct PDistPlot <: PivotTablesType
                     showticklabels: false
                 },
                 yaxis2: {
-                    domain: [0.9, 1],
+                    domain: [0.7, 1],
                     showgrid: false,
                     showticklabels: false
                 },
@@ -387,17 +387,12 @@ struct PDistPlot <: PivotTablesType
             window.showBox_$(chart_title) = $(show_box ? "true" : "false");
             window.showRug_$(chart_title) = $(show_rug ? "true" : "false");
             
-            // Parse CSV data from the hidden div
-            var csvText_$(chart_title) = document.getElementById('$data_label').textContent;
-            Papa.parse(csvText_$(chart_title), {
-                header: true,
-                dynamicTyping: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    window.allData_$(chart_title) = results.data;
-                    
-                    // Initialize buttons and sliders after data is loaded
-                    \$(function() {
+            // Load and parse CSV data using centralized parser
+            loadDataset('$data_label').then(function(data) {
+                window.allData_$(chart_title) = data;
+
+                // Initialize buttons and sliders after data is loaded
+                \$(function() {
                         // Histogram toggle button
                         document.getElementById('$(chart_title)_histogram_toggle').addEventListener('click', function() {
                             window.showHistogram_$(chart_title) = !window.showHistogram_$(chart_title);
@@ -421,10 +416,11 @@ struct PDistPlot <: PivotTablesType
                         
                         $slider_init_js
                         
-                        // Initial plot
-                        updatePlotWithFilters_$(chart_title)();
-                    });
-                }
+                    // Initial plot
+                    updatePlotWithFilters_$(chart_title)();
+                });
+            }).catch(function(error) {
+                console.error('Error loading data for chart $chart_title:', error);
             });
             
             function updatePlot_$(chart_title)(data) {

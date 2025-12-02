@@ -314,17 +314,12 @@ struct PScatterPlot <: PivotTablesType
             // Initialize density toggle state
             window.showDensity_$(chart_title) = $(show_density ? "true" : "false");
             
-            // Parse CSV data from the hidden div
-            var csvText_$(chart_title) = document.getElementById('$data_label').textContent;
-            Papa.parse(csvText_$(chart_title), {
-                header: true,
-                dynamicTyping: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    window.allData_$(chart_title) = results.data;
-                    
-                    // Initialize sliders and button after data is loaded
-                    \$(function() {
+            // Load and parse CSV data using centralized parser
+            loadDataset('$data_label').then(function(data) {
+                window.allData_$(chart_title) = data;
+
+                // Initialize sliders and button after data is loaded
+                \$(function() {
                         // Density toggle button
                         document.getElementById('$(chart_title)_density_toggle').addEventListener('click', function() {
                             window.showDensity_$(chart_title) = !window.showDensity_$(chart_title);
@@ -334,10 +329,11 @@ struct PScatterPlot <: PivotTablesType
                         
                         $slider_init_js
                         
-                        // Initial plot
-                        updatePlotWithFilters_$(chart_title)();
-                    });
-                }
+                    // Initial plot
+                    updatePlotWithFilters_$(chart_title)();
+                });
+            }).catch(function(error) {
+                console.error('Error loading data for chart $chart_title:', error);
             });
             
             function updatePlot_$(chart_title)(data) {

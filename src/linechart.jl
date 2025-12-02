@@ -128,16 +128,12 @@ struct PChart <: PivotTablesType
                 Plotly.newPlot('$chart_title', traces, layout, {responsive: true});
             };
 
-            // Parse CSV data
-            const csvText = document.getElementById('$data_label').textContent;
-            Papa.parse(csvText, {
-                header: true,
-                dynamicTyping: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    allData = results.data;
-                    updateChart();
-                }
+            // Load and parse CSV data using centralized parser
+            loadDataset('$data_label').then(function(data) {
+                allData = data;
+                updateChart();
+            }).catch(function(error) {
+                console.error('Error loading data for chart $chart_title:', error);
             });
         """
 

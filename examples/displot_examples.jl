@@ -14,7 +14,7 @@ distplot1 = PDistPlot(:simple_dist, df1, :df1;
     notes = "Shows histogram, box plot, and rug plot for a normal distribution"
 )
 
-create_html(distplot1, df1, "simple_distribution.html")
+create_html(distplot1, df1, "generated_html_examples/simple_distribution.html")
 
 
 # Example 2: Comparing multiple groups
@@ -37,7 +37,7 @@ distplot2 = PDistPlot(:multi_group_dist, df2, :df2;
     notes = "Compare distributions across different treatment groups"
 )
 
-create_html(distplot2, df2, "multi_group_distribution.html")
+create_html(distplot2, df2, "generated_html_examples/multi_group_distribution.html")
 
 # Example 3: Distribution with categorical filter
 n = 800
@@ -230,13 +230,13 @@ page = PivotTablePage(
      distplot6, distplot7, distplot8, distplot9, distplot10]
 )
 
-create_html(page, "distplots.html")
+create_html(page, "generated_html_examples/distplots.html")
 
 # Create individual examples
-create_html(distplot2, df2, "multi_group_example.html")
-create_html(distplot5, df5, "seasonal_example.html")
-create_html(distplot6, df6, "stock_returns_example.html")
-create_html(distplot10, df10, "employee_scores_example.html")
+create_html(distplot2, df2, "generated_html_examples/multi_group_example.html")
+create_html(distplot5, df5, "generated_html_examples/seasonal_example.html")
+create_html(distplot6, df6, "generated_html_examples/stock_returns_example.html")
+create_html(distplot10, df10, "generated_html_examples/employee_scores_example.html")
 
 println("Distribution plots created successfully!")
 println("Open distplots.html to view all examples")

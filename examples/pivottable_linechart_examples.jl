@@ -90,8 +90,8 @@ pt00 = PChart(:pchart, df, :df;
 
 # To plot both of these together we can do:
 pge = PivotTablePage(Dict{Symbol,DataFrame}(:stockReturns => stockReturns, :correlations => correlations, :subframe => subframe, :df => df), [pt, pt00, pt2, pt3])
-create_html(pge,"pivottable.html")
+create_html(pge,"generated_html_examples/pivottable.html")
 
 
 # Or if you are only charting one single pivottable you dont have to make a PivotTablePage, you can simply do:
-create_html(pt, stockReturns, "only_one.html")
+create_html(pt, stockReturns, "generated_html_examples/only_one.html")

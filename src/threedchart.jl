@@ -18,21 +18,15 @@ struct PThreeDChart <: PivotTablesType
        
 
         functional_html = """
-            const csvText3d = document.getElementById('$data_label').textContent;
-                Papa.parse(csvText3d, {
-                    header: true,
-                    dynamicTyping: true,
-                    skipEmptyLines: true,
-                    complete: function(results) {
-                        // ========== 3D SURFACE PLOT CONFIGURATION ==========
-                        // Define your column names here
-                        const x = '$x_col';
-                        const y = '$y_col';
-                        const z = '$z_col';
-                        const group = '$group_col';
-                        // ===================================================
-                        
-                        const data3d = results.data;
+            // Load and parse CSV data using centralized parser
+            loadDataset('$data_label').then(function(data3d) {
+                // ========== 3D SURFACE PLOT CONFIGURATION ==========
+                // Define your column names here
+                const x = '$x_col';
+                const y = '$y_col';
+                const z = '$z_col';
+                const group = '$group_col';
+                // ===================================================
                         
                         // Get unique groups
                         const uniqueGroups = [...new Set(data3d.map(row => row[group]))].sort();
@@ -101,8 +95,9 @@ struct PThreeDChart <: PivotTablesType
                         showlegend: false,
                     };
                     
-                    Plotly.newPlot('$chart_title', plotData, layout);
-                }
+                Plotly.newPlot('$chart_title', plotData, layout);
+            }).catch(function(error) {
+                console.error('Error loading data for chart $chart_title:', error);
             });
 
 

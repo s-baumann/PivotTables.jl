@@ -2,9 +2,11 @@
 struct PivotTablePage
     dataframes::Dict{Symbol,DataFrame}
     pivot_tables::Vector
-    title_of_page::String
-    function PivotTablePage(dataframes::Dict{Symbol,DataFrame}, pivot_tables::Vector; title_of_page::String="PivotTables.jl")
-        new(dataframes, pivot_tables, title_of_page)
+    tab_title::String
+    page_header::String
+    notes::String
+    function PivotTablePage(dataframes::Dict{Symbol,DataFrame}, pivot_tables::Vector; tab_title::String="PivotTables.jl", page_header::String="", notes::String="")
+        new(dataframes, pivot_tables, tab_title, page_header, notes)
     end
 end
 
@@ -63,6 +65,32 @@ const FULL_PAGE_TEMPLATE = raw"""
 <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
 <script>
+// Centralized data loading function
+// This function parses CSV data from a hidden div and returns a Promise
+// Usage: loadDataset('dataLabel').then(function(data) { /* use data */ });
+function loadDataset(dataLabel) {
+    return new Promise(function(resolve, reject) {
+        var csvText = document.getElementById(dataLabel).textContent;
+        Papa.parse(csvText, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                if (results.errors.length > 0) {
+                    console.error('CSV parsing errors:', results.errors);
+                    reject(results.errors);
+                } else {
+                    resolve(results.data);
+                }
+            },
+            error: function(error) {
+                console.error('CSV parsing error:', error);
+                reject(error);
+            }
+        });
+    });
+}
+
 $(function(){
 
 ___FUNCTIONAL_BIT___
@@ -75,6 +103,9 @@ ___FUNCTIONAL_BIT___
 ___DATASETS___
 
 <!-- ACTUAL CONTENT -->
+
+<h1>___PAGE_HEADER___</h1>
+<p>___NOTES___</p>
 
 ___PIVOT_TABLES___
 
@@ -100,7 +131,9 @@ function create_html(pt::PivotTablePage, outfile_path::String="pivottable.html")
     full_page_html = replace(FULL_PAGE_TEMPLATE, "___DATASETS___" => data_set_bit)
     full_page_html = replace(full_page_html, "___PIVOT_TABLES___" => table_bit)
     full_page_html = replace(full_page_html, "___FUNCTIONAL_BIT___" => functional_bit)
-    full_page_html = replace(full_page_html, "___TITLE_OF_PAGE___" => pt.title_of_page)
+    full_page_html = replace(full_page_html, "___TITLE_OF_PAGE___" => pt.tab_title)
+    full_page_html = replace(full_page_html, "___PAGE_HEADER___" => pt.page_header)
+    full_page_html = replace(full_page_html, "___NOTES___" => pt.notes)
 
     open(outfile_path, "w") do outfile
         write(outfile, full_page_html)

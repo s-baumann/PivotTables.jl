@@ -144,12 +144,12 @@ page = PivotTablePage(
     [scatter1, scatter2, scatter3, scatter4, scatter5, scatter6]
 )
 
-create_html(page, "scatterplots.html")
+create_html(page, "generated_html_examples/scatterplots.html")
 
 # Create individual examples
-create_html(scatter2, df2, "multi_slider_example.html")
-create_html(scatter3, df3, "weather_example.html")
-create_html(scatter6, df6, "complex_example.html")
+create_html(scatter2, df2, "generated_html_examples/multi_slider_example.html")
+create_html(scatter3, df3, "generated_html_examples/weather_example.html")
+create_html(scatter6, df6, "generated_html_examples/complex_example.html")
 
 println("Scatter plots created successfully!")
 println("Open scatterplots.html to view all examples")
