@@ -561,4 +561,235 @@ using Dates
         end
     end
 
+    @testset "Picture" begin
+        mktempdir() do tmpdir
+            # Use the real example image for testing
+            test_png = joinpath(@__DIR__, "..", "examples", "pictures", "images.jpeg")
+
+            # Create a test SVG
+            test_svg = joinpath(tmpdir, "test.svg")
+            write(test_svg, """
+            <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+              <rect width="100" height="100" fill="red"/>
+            </svg>
+            """)
+
+            @testset "Picture from file path" begin
+                pic = Picture(:test_pic, test_png; notes="Test image")
+                @test pic.chart_title == :test_pic
+                @test pic.notes == "Test image"
+                @test pic.is_temp == false
+                @test isfile(pic.image_path)
+            end
+
+            @testset "Picture from non-existent file" begin
+                @test_throws ErrorException Picture(:bad, "/nonexistent/path.png")
+            end
+
+            @testset "Picture with custom save function" begin
+                # Mock chart object
+                mock_chart = Dict(:data => [1, 2, 3])
+                save_func = (obj, path) -> write(path, "mock_png_data")
+
+                pic = Picture(:custom, mock_chart, save_func; format=:png, notes="Custom save")
+                @test pic.chart_title == :custom
+                @test pic.is_temp == true
+                @test isfile(pic.image_path)
+                @test read(pic.image_path, String) == "mock_png_data"
+            end
+
+            @testset "Picture with invalid format" begin
+                mock_chart = Dict(:data => [1, 2, 3])
+                @test_throws ErrorException Picture(:bad_format, mock_chart, (o, p) -> nothing; format=:pdf)
+            end
+
+            @testset "Picture in embedded HTML" begin
+                pic = Picture(:embedded_pic, test_png)
+                page = JSPlotPage(Dict{Symbol,DataFrame}(), [pic], dataformat=:csv_embedded)
+                outfile = joinpath(tmpdir, "picture_embedded.html")
+                create_html(page, outfile)
+
+                @test isfile(outfile)
+                content = read(outfile, String)
+                @test occursin("data:image/jpeg;base64", content)
+                @test occursin("embedded_pic", content)
+            end
+
+            @testset "Picture in external HTML" begin
+                pic = Picture(:external_pic, test_png)
+                page = JSPlotPage(Dict{Symbol,DataFrame}(), [pic], dataformat=:csv_external)
+                outfile = joinpath(tmpdir, "picture_external.html")
+                create_html(page, outfile)
+
+                project_dir = joinpath(tmpdir, "picture_external")
+                @test isdir(project_dir)
+
+                pictures_dir = joinpath(project_dir, "pictures")
+                @test isdir(pictures_dir)
+                @test isfile(joinpath(pictures_dir, "external_pic.jpeg"))
+
+                content = read(joinpath(project_dir, "picture_external.html"), String)
+                @test occursin("pictures/external_pic.jpeg", content)
+            end
+
+            @testset "Picture with SVG (embedded)" begin
+                pic = Picture(:svg_pic, test_svg)
+                page = JSPlotPage(Dict{Symbol,DataFrame}(), [pic])
+                outfile = joinpath(tmpdir, "svg_embedded.html")
+                create_html(page, outfile)
+
+                content = read(outfile, String)
+                # SVG should be embedded directly as XML, not base64
+                @test occursin("<svg", content)
+                @test occursin("</svg>", content)
+                @test !occursin("data:image", content) # Not base64 encoded
+            end
+
+            @testset "Picture convenience function" begin
+                pic = Picture(:convenience, test_png)
+                outfile = joinpath(tmpdir, "picture_convenience.html")
+                create_html(pic, outfile)
+
+                @test isfile(outfile)
+                content = read(outfile, String)
+                @test occursin("convenience", content)
+            end
+
+            @testset "Multiple Pictures on same page" begin
+                pic1 = Picture(:pic1, test_png)
+                pic2 = Picture(:pic2, test_svg)
+                page = JSPlotPage(Dict{Symbol,DataFrame}(), [pic1, pic2])
+                outfile = joinpath(tmpdir, "multiple_pictures.html")
+                create_html(page, outfile)
+
+                content = read(outfile, String)
+                @test occursin("pic1", content)
+                @test occursin("pic2", content)
+            end
+        end
+    end
+
+    @testset "Table" begin
+        table_df = DataFrame(
+            name = ["Alice", "Bob", "Charlie"],
+            age = [25, 30, 35],
+            city = ["NYC", "LA", "Chicago"],
+            salary = [75000, 85000, 95000]
+        )
+
+        @testset "Basic Table creation" begin
+            tbl = Table(:test_table, table_df; notes="Employee data")
+            @test tbl.chart_title == :test_table
+            @test tbl.notes == "Employee data"
+            @test occursin("<table>", tbl.appearance_html)
+            @test occursin("Alice", tbl.appearance_html)
+            @test occursin("downloadTableCSV", tbl.functional_html)
+        end
+
+        @testset "Table HTML structure" begin
+            tbl = Table(:html_table, table_df)
+            @test occursin("<thead>", tbl.appearance_html)
+            @test occursin("<tbody>", tbl.appearance_html)
+            @test occursin("<th>name</th>", tbl.appearance_html)
+            @test occursin("<td>Alice</td>", tbl.appearance_html)
+            @test occursin("Download as CSV", tbl.appearance_html)
+        end
+
+        @testset "Table with special characters" begin
+            special_df = DataFrame(
+                text = ["<script>alert('xss')</script>", "a & b", "quote\"test"],
+                value = [1, 2, 3]
+            )
+            tbl = Table(:special_table, special_df)
+            # Should escape HTML entities
+            @test occursin("&lt;script&gt;", tbl.appearance_html)
+            @test occursin("&amp;", tbl.appearance_html)
+            @test occursin("&quot;", tbl.appearance_html)
+        end
+
+        @testset "Table with missing values" begin
+            missing_df = DataFrame(
+                a = [1, missing, 3],
+                b = ["x", "y", missing]
+            )
+            tbl = Table(:missing_table, missing_df)
+            @test occursin("<table>", tbl.appearance_html)
+            # Missing values should be rendered as empty cells
+            @test occursin("<td></td>", tbl.appearance_html)
+        end
+
+        @testset "Table in HTML output" begin
+            mktempdir() do tmpdir
+                tbl = Table(:output_table, table_df)
+                outfile = joinpath(tmpdir, "table_test.html")
+                create_html(tbl, outfile)
+
+                @test isfile(outfile)
+                content = read(outfile, String)
+                @test occursin("<table>", content)
+                @test occursin("Alice", content)
+                @test occursin("downloadTableCSV", content)
+                @test occursin("window.downloadTableCSV_output_table = function()", content)
+            end
+        end
+
+        @testset "Table convenience function" begin
+            mktempdir() do tmpdir
+                tbl = Table(:convenience_table, table_df)
+                outfile = joinpath(tmpdir, "table_convenience.html")
+                create_html(tbl, outfile)
+
+                @test isfile(outfile)
+            end
+        end
+
+        @testset "Multiple Tables on same page" begin
+            mktempdir() do tmpdir
+                df1 = DataFrame(a = [1, 2], b = [3, 4])
+                df2 = DataFrame(x = ["a", "b"], y = ["c", "d"])
+
+                tbl1 = Table(:table1, df1)
+                tbl2 = Table(:table2, df2)
+
+                page = JSPlotPage(Dict{Symbol,DataFrame}(), [tbl1, tbl2])
+                outfile = joinpath(tmpdir, "multiple_tables.html")
+                create_html(page, outfile)
+
+                content = read(outfile, String)
+                @test occursin("table1", content)
+                @test occursin("table2", content)
+                @test occursin("downloadTableCSV_table1", content)
+                @test occursin("downloadTableCSV_table2", content)
+            end
+        end
+
+        @testset "Mixed content: Table, Picture, and other plots" begin
+            mktempdir() do tmpdir
+                # Use the real example image for testing
+                test_png = joinpath(@__DIR__, "..", "examples", "pictures", "images.jpeg")
+
+                test_df = DataFrame(x = 1:5, y = rand(5), color = repeat(["A"], 5))
+                table_df = DataFrame(item = ["A", "B"], value = [10, 20])
+
+                chart = LineChart(:line, test_df, :data; x_col=:x, y_col=:y)
+                tbl = Table(:summary, table_df)
+                pic = Picture(:image, test_png)
+                text = TextBlock("<h2>Mixed Content Test</h2>")
+
+                page = JSPlotPage(
+                    Dict{Symbol,DataFrame}(:data => test_df),
+                    [text, chart, tbl, pic]
+                )
+                outfile = joinpath(tmpdir, "mixed_content.html")
+                create_html(page, outfile)
+
+                content = read(outfile, String)
+                @test occursin("Mixed Content Test", content)
+                @test occursin("line", content)
+                @test occursin("summary", content)
+                @test occursin("image", content)
+            end
+        end
+    end
+
 end

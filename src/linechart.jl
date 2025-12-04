@@ -44,7 +44,7 @@ struct LineChart <: JSPlotsType
             dropdowns_html *= """
             <div style="margin: 10px;">
                 <label for="$(col)_select">$(col): </label>
-                <select id="$(col)_select" onchange="updateChart()">
+                <select id="$(col)_select" onchange="updateChart_$chart_title()">
     $options_html            </select>
             </div>
             """
@@ -58,6 +58,7 @@ struct LineChart <: JSPlotsType
         color_map_js = "{" * join(["'$k': '$v'" for (k, v) in color_map], ", ") * "}"
 
         functional_html = """
+        (function() {
             // Configuration
             const X_COL = '$x_col';
             const Y_COL = '$y_col';
@@ -66,11 +67,11 @@ struct LineChart <: JSPlotsType
             const COLOR_MAP = $color_map_js;
             const X_LABEL = '$x_label';
             const Y_LABEL = '$y_label';
-                        
+
             let allData = [];
 
             // Make it global so inline onchange can see it
-            window.updateChart = function() {
+            window.updateChart_$chart_title = function() {
                 const filters = {};
                 FILTER_COLS.forEach(col => {
                     const select = document.getElementById(col + '_select');
@@ -115,7 +116,7 @@ struct LineChart <: JSPlotsType
                         marker: { size: $marker_size }
                     });
                 }
-                
+
                 // Layout
                 const layout = {
                     xaxis: { title: X_LABEL || X_COL },
@@ -123,7 +124,7 @@ struct LineChart <: JSPlotsType
                     hovermode: 'closest',
                     showlegend: true
                 };
-                
+
                 // Plot
                 Plotly.newPlot('$chart_title', traces, layout, {responsive: true});
             };
@@ -131,10 +132,11 @@ struct LineChart <: JSPlotsType
             // Load and parse CSV data using centralized parser
             loadDataset('$data_label').then(function(data) {
                 allData = data;
-                updateChart();
+                window.updateChart_$chart_title();
             }).catch(function(error) {
                 console.error('Error loading data for chart $chart_title:', error);
             });
+        })();
         """
 
         appearance_html = """

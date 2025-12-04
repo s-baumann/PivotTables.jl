@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PivotTable Examples</title>
+    <meta charset="UTF-8">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apache-arrow@14.0.1/Arrow.es2015.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        #$div_id {
+            width: 100%;
+            height: 600px;
+        }
+    </style>
+        <style>
+        .textblock-content {
+            padding: 20px;
+            margin: 10px 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .textblock-content h1 {
+            font-size: 2em;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+
+        .textblock-content h2 {
+            font-size: 1.5em;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+
+        .textblock-content h3 {
+            font-size: 1.25em;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+
+        .textblock-content p {
+            margin: 0.5em 0;
+        }
+
+        .textblock-content ul, .textblock-content ol {
+            margin: 0.5em 0;
+            padding-left: 2em;
+        }
+
+        .textblock-content code {
+            background-color: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .textblock-content pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .textblock-content pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .textblock-content blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 1em;
+            margin-left: 0;
+            color: #666;
+        }
+
+        .textblock-content a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .textblock-content a:hover {
+            text-decoration: underline;
+        }
+
+        .textblock-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+
+        .textblock-content th, .textblock-content td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .textblock-content th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+        }
+    </style>
+
+
+    <!-- external libs -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.11/c3.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.11/c3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/pivot.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/pivot.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/d3_renderers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/c3_renderers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/export_renderers.min.js"></script>
+</head>
+
+<body>
+
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+<script type="module">
+// Import parquet-wasm for Parquet file support
+import * as parquet from 'https://unpkg.com/parquet-wasm@0.6.1/esm/parquet_wasm.js';
+
+// Initialize parquet-wasm
+await parquet.default();
+
+// Make parquet available globally for loadDataset
+window.parquetWasm = parquet;
+window.parquetReady = true;
+console.log('Parquet-wasm library loaded successfully');
+</script>
+
+<script>
+// Helper function to wait for parquet-wasm to be loaded
+function waitForParquet() {
+    return new Promise(function(resolve) {
+        if (window.parquetReady) {
+            resolve();
+            return;
+        }
+        var checkInterval = setInterval(function() {
+            if (window.parquetReady) {
+                clearInterval(checkInterval);
+                resolve();
+            }
+        }, 50);
+    });
+}
+
+// Centralized data loading function
+// This function parses data from embedded or external sources and returns a Promise
+// Supports CSV (embedded/external), JSON (embedded/external), and Parquet (external) formats
+// Usage: loadDataset('dataLabel').then(function(data) { /* use data */ });
+function loadDataset(dataLabel) {
+    return new Promise(function(resolve, reject) {
+        var dataElement = document.getElementById(dataLabel);
+        if (!dataElement) {
+            reject(new Error('Data element not found: ' + dataLabel));
+            return;
+        }
+
+        var format = dataElement.getAttribute('data-format') || 'csv_embedded';
+        var dataSrc = dataElement.getAttribute('data-src');
+
+        // Handle external JSON files
+        if (format === 'json_external' && dataSrc) {
+            fetch(dataSrc)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load ' + dataSrc + ': ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    resolve(data);
+                })
+                .catch(function(error) {
+                    console.error('Error loading external JSON:', error);
+                    reject(error);
+                });
+            return;
+        }
+
+        // Handle external Parquet files
+        if (format === 'parquet' && dataSrc) {
+            // Wait for parquet-wasm to be loaded first
+            waitForParquet()
+                .then(function() {
+                    return fetch(dataSrc);
+                })
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load ' + dataSrc + ': ' + response.statusText);
+                    }
+                    return response.arrayBuffer();
+                })
+                .then(function(arrayBuffer) {
+                    // Use parquet-wasm to read the file
+                    var uint8Array = new Uint8Array(arrayBuffer);
+
+                    // readParquet returns an Arrow Table
+                    var wasmTable = window.parquetWasm.readParquet(uint8Array);
+
+                    // Convert to Arrow IPC stream
+                    var ipcStream = wasmTable.intoIPCStream();
+
+                    // Use Apache Arrow JS to read the IPC stream
+                    var arrowTable = window.Arrow.tableFromIPC(ipcStream);
+
+                    // Convert Arrow Table to array of JavaScript objects
+                    var data = [];
+                    for (var i = 0; i < arrowTable.numRows; i++) {
+                        var row = {};
+                        arrowTable.schema.fields.forEach(function(field) {
+                            var column = arrowTable.getChild(field.name);
+                            var value = column.get(i);
+
+                            // Convert BigInt to Number (Arrow returns BigInt for Int64)
+                            if (typeof value === 'bigint') {
+                                value = Number(value);
+                            }
+
+                            row[field.name] = value;
+                        });
+                        data.push(row);
+                    }
+
+                    resolve(data);
+                })
+                .catch(function(error) {
+                    console.error('Error loading external Parquet:', error);
+                    reject(error);
+                });
+            return;
+        }
+
+        // Handle external CSV files
+        if (format === 'csv_external' && dataSrc) {
+            fetch(dataSrc)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load ' + dataSrc + ': ' + response.statusText);
+                    }
+                    return response.text();
+                })
+                .then(function(csvText) {
+                    Papa.parse(csvText, {
+                        header: true,
+                        dynamicTyping: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            // Check for fatal errors only (not warnings)
+                            var fatalErrors = results.errors.filter(function(err) {
+                                return err.type !== 'Delimiter';
+                            });
+
+                            if (fatalErrors.length > 0) {
+                                console.error('CSV parsing errors:', fatalErrors);
+                                reject(fatalErrors);
+                            } else if (results.data && results.data.length > 0) {
+                                resolve(results.data);
+                            } else {
+                                reject(new Error('No data parsed from CSV'));
+                            }
+                        },
+                        error: function(error) {
+                            console.error('CSV parsing error:', error);
+                            reject(error);
+                        }
+                    });
+                })
+                .catch(function(error) {
+                    console.error('Error loading external CSV:', error);
+                    reject(error);
+                });
+            return;
+        }
+
+        // Handle embedded data
+        var dataText = dataElement.textContent.trim();
+
+        if (format === 'json_embedded') {
+            // Parse JSON data
+            try {
+                var data = JSON.parse(dataText);
+                resolve(data);
+            } catch (error) {
+                console.error('JSON parsing error:', error);
+                reject(error);
+            }
+        } else if (format === 'csv_embedded') {
+            // Parse CSV data using PapaParse
+            Papa.parse(dataText, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    // Check for fatal errors only (not warnings)
+                    // PapaParse includes non-fatal warnings in errors array
+                    var fatalErrors = results.errors.filter(function(err) {
+                        // Filter out delimiter detection warnings - these aren't fatal
+                        // (common for single-column CSVs)
+                        return err.type !== 'Delimiter';
+                    });
+
+                    if (fatalErrors.length > 0) {
+                        console.error('CSV parsing errors:', fatalErrors);
+                        reject(fatalErrors);
+                    } else if (results.data && results.data.length > 0) {
+                        resolve(results.data);
+                    } else {
+                        reject(new Error('No data parsed from CSV'));
+                    }
+                },
+                error: function(error) {
+                    console.error('CSV parsing error:', error);
+                    reject(error);
+                }
+            });
+        } else {
+            reject(new Error('Unsupported data format: ' + format));
+        }
+    });
+}
+
+$(function(){
+
+    loadDataset('sales_data').then(function(data) {
+        console.log('Loaded data for pivot table sales_pivot:', data);
+
+        // Validate data
+        if (!data || data.length === 0) {
+            throw new Error('No data loaded for pivot table sales_pivot');
+        }
+
+        // Convert data to array format expected by pivotUI
+        // First row is headers
+        var headers = Object.keys(data[0]);
+        var arrayData = [headers];
+
+        // Add data rows
+        data.forEach(function(row) {
+            var rowArray = headers.map(function(header) {
+                return row[header];
+            });
+            arrayData.push(rowArray);
+        });
+
+        console.log('Converted array data for sales_pivot:', arrayData.slice(0, 3));
+
+        $("#sales_pivot").pivotUI(
+            arrayData,
+            $.extend({
+                renderers: $.extend(
+                    $.pivotUtilities.renderers,
+                    $.pivotUtilities.c3_renderers,
+                    $.pivotUtilities.d3_renderers,
+                    $.pivotUtilities.export_renderers
+                ),
+                hiddenAttributes: [""]
+            }, {"rendererName":"Table","rows":["Region"],"aggregatorName":"Sum","vals":["Sales"],"rendererOptions":{ heatmap: { colorScaleGenerator: function(values) { return d3.scale.linear().domain([-2.5, -1.0, 0.0, 1.0, 2.5]).range(["#FF9999", "#FFFF99", "#FFFFFF", "#99FF99", "#99CCFF"]).clamp(true)}}},"cols":["Month"]})
+        );
+    }).catch(function(error) {
+        console.error('Error loading data for pivot table sales_pivot:', error);
+        $("#sales_pivot").html('<div style="color: red; padding: 20px;">Error loading pivot table: ' + error.message + '</div>');
+    });
+    loadDataset('performance_data').then(function(data) {
+        console.log('Loaded data for pivot table performance_heatmap:', data);
+
+        // Validate data
+        if (!data || data.length === 0) {
+            throw new Error('No data loaded for pivot table performance_heatmap');
+        }
+
+        // Convert data to array format expected by pivotUI
+        // First row is headers
+        var headers = Object.keys(data[0]);
+        var arrayData = [headers];
+
+        // Add data rows
+        data.forEach(function(row) {
+            var rowArray = headers.map(function(header) {
+                return row[header];
+            });
+            arrayData.push(rowArray);
+        });
+
+        console.log('Converted array data for performance_heatmap:', arrayData.slice(0, 3));
+
+        $("#performance_heatmap").pivotUI(
+            arrayData,
+            $.extend({
+                renderers: $.extend(
+                    $.pivotUtilities.renderers,
+                    $.pivotUtilities.c3_renderers,
+                    $.pivotUtilities.d3_renderers,
+                    $.pivotUtilities.export_renderers
+                ),
+                hiddenAttributes: [""]
+            }, {"rendererName":"Heatmap","rows":["Employee"],"aggregatorName":"Average","vals":["Score"],"rendererOptions":{ heatmap: { colorScaleGenerator: function(values) { return d3.scale.linear().domain([50.0, 65.0, 75.0, 85.0, 100.0]).range(["#d73027", "#fee08b", "#ffffbf", "#d9ef8b", "#1a9850"]).clamp(true)}}},"cols":["Quarter"]})
+        );
+    }).catch(function(error) {
+        console.error('Error loading data for pivot table performance_heatmap:', error);
+        $("#performance_heatmap").html('<div style="color: red; padding: 20px;">Error loading pivot table: ' + error.message + '</div>');
+    });
+    loadDataset('product_data').then(function(data) {
+        console.log('Loaded data for pivot table revenue_by_category:', data);
+
+        // Validate data
+        if (!data || data.length === 0) {
+            throw new Error('No data loaded for pivot table revenue_by_category');
+        }
+
+        // Convert data to array format expected by pivotUI
+        // First row is headers
+        var headers = Object.keys(data[0]);
+        var arrayData = [headers];
+
+        // Add data rows
+        data.forEach(function(row) {
+            var rowArray = headers.map(function(header) {
+                return row[header];
+            });
+            arrayData.push(rowArray);
+        });
+
+        console.log('Converted array data for revenue_by_category:', arrayData.slice(0, 3));
+
+        $("#revenue_by_category").pivotUI(
+            arrayData,
+            $.extend({
+                renderers: $.extend(
+                    $.pivotUtilities.renderers,
+                    $.pivotUtilities.c3_renderers,
+                    $.pivotUtilities.d3_renderers,
+                    $.pivotUtilities.export_renderers
+                ),
+                hiddenAttributes: [""]
+            }, {"rendererName":"Bar Chart","rows":["Category"],"aggregatorName":"Sum","vals":["Revenue"],"rendererOptions":{ heatmap: { colorScaleGenerator: function(values) { return d3.scale.linear().domain([-2.5, -1.0, 0.0, 1.0, 2.5]).range(["#FF9999", "#FFFF99", "#FFFFFF", "#99FF99", "#99CCFF"]).clamp(true)}}},"cols":["Quarter"]})
+        );
+    }).catch(function(error) {
+        console.error('Error loading data for pivot table revenue_by_category:', error);
+        $("#revenue_by_category").html('<div style="color: red; padding: 20px;">Error loading pivot table: ' + error.message + '</div>');
+    });
+    loadDataset('customer_data').then(function(data) {
+        console.log('Loaded data for pivot table customer_revenue:', data);
+
+        // Validate data
+        if (!data || data.length === 0) {
+            throw new Error('No data loaded for pivot table customer_revenue');
+        }
+
+        // Convert data to array format expected by pivotUI
+        // First row is headers
+        var headers = Object.keys(data[0]);
+        var arrayData = [headers];
+
+        // Add data rows
+        data.forEach(function(row) {
+            var rowArray = headers.map(function(header) {
+                return row[header];
+            });
+            arrayData.push(rowArray);
+        });
+
+        console.log('Converted array data for customer_revenue:', arrayData.slice(0, 3));
+
+        $("#customer_revenue").pivotUI(
+            arrayData,
+            $.extend({
+                renderers: $.extend(
+                    $.pivotUtilities.renderers,
+                    $.pivotUtilities.c3_renderers,
+                    $.pivotUtilities.d3_renderers,
+                    $.pivotUtilities.export_renderers
+                ),
+                hiddenAttributes: [""]
+            }, {"rendererName":"Heatmap","rows":["Country"],"aggregatorName":"Sum","vals":["Revenue"],"rendererOptions":{ heatmap: { colorScaleGenerator: function(values) { return d3.scale.linear().domain([-2.5, -1.0, 0.0, 1.0, 2.5]).range(["#FF9999", "#FFFF99", "#FFFFFF", "#99FF99", "#99CCFF"]).clamp(true)}}},"cols":["ProductType"],"exclusions":{"Country":["Test"]}})
+        );
+    }).catch(function(error) {
+        console.error('Error loading data for pivot table customer_revenue:', error);
+        $("#customer_revenue").html('<div style="color: red; padding: 20px;">Error loading pivot table: ' + error.message + '</div>');
+    });
+    loadDataset('survey_data').then(function(data) {
+        console.log('Loaded data for pivot table survey_results:', data);
+
+        // Validate data
+        if (!data || data.length === 0) {
+            throw new Error('No data loaded for pivot table survey_results');
+        }
+
+        // Convert data to array format expected by pivotUI
+        // First row is headers
+        var headers = Object.keys(data[0]);
+        var arrayData = [headers];
+
+        // Add data rows
+        data.forEach(function(row) {
+            var rowArray = headers.map(function(header) {
+                return row[header];
+            });
+            arrayData.push(rowArray);
+        });
+
+        console.log('Converted array data for survey_results:', arrayData.slice(0, 3));
+
+        $("#survey_results").pivotUI(
+            arrayData,
+            $.extend({
+                renderers: $.extend(
+                    $.pivotUtilities.renderers,
+                    $.pivotUtilities.c3_renderers,
+                    $.pivotUtilities.d3_renderers,
+                    $.pivotUtilities.export_renderers
+                ),
+                hiddenAttributes: [""]
+            }, {"rendererName":"Table Barchart","rows":["Age_Group","Gender"],"aggregatorName":"Average","vals":["Satisfaction"],"inclusions":{"Age_Group":["18-25","26-35","36-45"]},"rendererOptions":{ heatmap: { colorScaleGenerator: function(values) { return d3.scale.linear().domain([-2.5, -1.0, 0.0, 1.0, 2.5]).range(["#FF9999", "#FFFF99", "#FFFFFF", "#99FF99", "#99CCFF"]).clamp(true)}}},"cols":["Product"]})
+        );
+    }).catch(function(error) {
+        console.error('Error loading data for pivot table survey_results:', error);
+        $("#survey_results").html('<div style="color: red; padding: 20px;">Error loading pivot table: ' + error.message + '</div>');
+    });
+    loadDataset('transaction_data').then(function(data) {
+        console.log('Loaded data for pivot table transaction_analysis:', data);
+
+        // Validate data
+        if (!data || data.length === 0) {
+            throw new Error('No data loaded for pivot table transaction_analysis');
+        }
+
+        // Convert data to array format expected by pivotUI
+        // First row is headers
+        var headers = Object.keys(data[0]);
+        var arrayData = [headers];
+
+        // Add data rows
+        data.forEach(function(row) {
+            var rowArray = headers.map(function(header) {
+                return row[header];
+            });
+            arrayData.push(rowArray);
+        });
+
+        console.log('Converted array data for transaction_analysis:', arrayData.slice(0, 3));
+
+        $("#transaction_analysis").pivotUI(
+            arrayData,
+            $.extend({
+                renderers: $.extend(
+                    $.pivotUtilities.renderers,
+                    $.pivotUtilities.c3_renderers,
+                    $.pivotUtilities.d3_renderers,
+                    $.pivotUtilities.export_renderers
+                ),
+                hiddenAttributes: [""]
+            }, {"rendererName":"Heatmap","rows":["Customer_Type"],"aggregatorName":"Count","vals":["Amount"],"rendererOptions":{ heatmap: { colorScaleGenerator: function(values) { return d3.scale.linear().domain([0.0, 50.0, 100.0, 150.0]).range(["#f7fbff", "#9ecae1", "#4292c6", "#08519c"]).clamp(true)}}},"cols":["Transaction_Type"]})
+        );
+    }).catch(function(error) {
+        console.error('Error loading data for pivot table transaction_analysis:', error);
+        $("#transaction_analysis").html('<div style="color: red; padding: 20px;">Error loading pivot table: ' + error.message + '</div>');
+    });
+
+
+});
+</script>
+
+<!-- DATASETS -->
+
+<script type="text/plain" id="performance_data" data-format="csv_embedded" data-src="">
+Employee,Quarter,Score,Department
+Alice,Q1,84.18947865230265,Sales
+Alice,Q2,70.21371172781097,Sales
+Alice,Q3,81.6771592266957,Sales
+Alice,Q4,55.391574712947616,Sales
+Bob,Q1,70.15124861700619,Engineering
+Bob,Q2,91.56842022710883,Engineering
+Bob,Q3,77.06926847509706,Engineering
+Bob,Q4,56.199701972710706,Engineering
+Charlie,Q1,75.43916191303917,Sales
+Charlie,Q2,87.50636346036626,Sales
+Charlie,Q3,80.77987728545207,Sales
+Charlie,Q4,81.34734653623569,Sales
+Diana,Q1,90.55086723187773,Marketing
+Diana,Q2,65.53498733037766,Marketing
+Diana,Q3,89.45216443510743,Marketing
+Diana,Q4,79.74588885853726,Marketing
+Eve,Q1,93.84374728321119,Engineering
+Eve,Q2,78.14777014914362,Engineering
+Eve,Q3,72.74311563972246,Engineering
+Eve,Q4,79.58334272778222,Engineering
+
+</script><script type="text/plain" id="product_data" data-format="csv_embedded" data-src="">
+Category,Brand,Revenue,Quarter
+Electronics,Brand B,6942,Q1
+Clothing,Brand A,4403,Q2
+Home,Brand A,7538,Q3
+Sports,Brand C,9138,Q4
+Books,Brand D,4352,Q1
+Electronics,Brand C,5256,Q2
+Clothing,Brand D,6531,Q3
+Home,Brand A,5661,Q4
+Sports,Brand A,8956,Q1
+Books,Brand D,6720,Q2
+Electronics,Brand C,3457,Q3
+Clothing,Brand B,6893,Q4
+Home,Brand B,5243,Q1
+Sports,Brand B,5315,Q2
+Books,Brand A,7763,Q3
+Electronics,Brand B,2076,Q4
+Clothing,Brand A,9851,Q1
+Home,Brand D,2776,Q2
+Sports,Brand A,3126,Q3
+Books,Brand C,5284,Q4
+Electronics,Brand D,5452,Q1
+Clothing,Brand D,9408,Q2
+Home,Brand A,8386,Q3
+Sports,Brand A,5971,Q4
+Books,Brand A,7583,Q1
+Electronics,Brand D,6695,Q2
+Clothing,Brand B,1984,Q3
+Home,Brand D,9619,Q4
+Sports,Brand A,7498,Q1
+Books,Brand D,2474,Q2
+Electronics,Brand C,8625,Q3
+Clothing,Brand B,4137,Q4
+Home,Brand A,8464,Q1
+Sports,Brand D,3480,Q2
+Books,Brand B,4967,Q3
+Electronics,Brand D,3562,Q4
+Clothing,Brand A,7353,Q1
+Home,Brand A,1339,Q2
+Sports,Brand D,5016,Q3
+Books,Brand B,5787,Q4
+Electronics,Brand B,8419,Q1
+Clothing,Brand B,9250,Q2
+Home,Brand C,8842,Q3
+Sports,Brand D,5364,Q4
+Books,Brand B,6868,Q1
+Electronics,Brand B,6959,Q2
+Clothing,Brand B,7097,Q3
+Home,Brand B,2127,Q4
+Sports,Brand D,2630,Q1
+Books,Brand A,2837,Q2
+Electronics,Brand C,3994,Q3
+Clothing,Brand D,6379,Q4
+Home,Brand A,4320,Q1
+Sports,Brand C,3243,Q2
+Books,Brand A,5132,Q3
+Electronics,Brand B,4992,Q4
+Clothing,Brand D,9307,Q1
+Home,Brand C,3039,Q2
+Sports,Brand B,9601,Q3
+Books,Brand B,1219,Q4
+Electronics,Brand B,9082,Q1
+Clothing,Brand B,6945,Q2
+Home,Brand C,3983,Q3
+Sports,Brand A,2393,Q4
+Books,Brand C,6556,Q1
+Electronics,Brand A,5612,Q2
+Clothing,Brand B,1151,Q3
+Home,Brand A,1949,Q4
+Sports,Brand D,6321,Q1
+Books,Brand C,4863,Q2
+Electronics,Brand C,6510,Q3
+Clothing,Brand A,2889,Q4
+Home,Brand C,2484,Q1
+Sports,Brand C,6696,Q2
+Books,Brand D,1441,Q3
+Electronics,Brand A,6636,Q4
+Clothing,Brand A,9861,Q1
+Home,Brand D,6502,Q2
+Sports,Brand A,8551,Q3
+Books,Brand A,5679,Q4
+Electronics,Brand A,3214,Q1
+Clothing,Brand A,3128,Q2
+Home,Brand A,1698,Q3
+Sports,Brand A,4259,Q4
+Books,Brand A,7779,Q1
+Electronics,Brand D,8400,Q2
+Clothing,Brand D,9041,Q3
+Home,Brand A,1924,Q4
+Sports,Brand C,7090,Q1
+Books,Brand C,8554,Q2
+Electronics,Brand C,5797,Q3
+Clothing,Brand B,2160,Q4
+Home,Brand A,3613,Q1
+Sports,Brand D,8556,Q2
+Books,Brand A,4763,Q3
+Electronics,Brand A,6552,Q4
+Clothing,Brand A,9757,Q1
+Home,Brand B,8808,Q2
+Sports,Brand B,4496,Q3
+Books,Brand A,7985,Q4
+
+</script><script type="text/plain" id="customer_data" data-format="csv_embedded" data-src="">
+Country,ProductType,Channel,Revenue,Year
+Japan,Budget,Online,2834,2022
+UK,Standard,Retail,3865,2023
+UK,Premium,Retail,4769,2024
+UK,Standard,Online,2964,2022
+Germany,Standard,Online,2932,2023
+Test,Premium,Wholesale,1088,2024
+Test,Budget,Wholesale,2087,2022
+USA,Premium,Retail,2078,2023
+Test,Premium,Retail,3540,2024
+Germany,Budget,Retail,3698,2022
+France,Standard,Wholesale,1574,2023
+USA,Standard,Retail,824,2024
+Japan,Budget,Online,4194,2022
+Test,Budget,Retail,1278,2023
+France,Premium,Online,1530,2024
+USA,Budget,Retail,4189,2022
+UK,Budget,Online,1676,2023
+Japan,Premium,Wholesale,2012,2024
+Test,Premium,Online,3099,2022
+USA,Premium,Online,1727,2023
+Japan,Budget,Retail,1893,2024
+USA,Standard,Retail,1467,2022
+UK,Premium,Online,2837,2023
+Japan,Budget,Wholesale,882,2024
+Germany,Standard,Wholesale,4271,2022
+USA,Standard,Retail,2860,2023
+UK,Premium,Wholesale,3932,2024
+France,Standard,Online,598,2022
+Germany,Standard,Wholesale,3721,2023
+France,Budget,Wholesale,2860,2024
+Germany,Standard,Online,680,2022
+UK,Standard,Wholesale,2524,2023
+Germany,Standard,Wholesale,3198,2024
+USA,Premium,Wholesale,1494,2022
+USA,Standard,Retail,3959,2023
+France,Standard,Online,3684,2024
+Japan,Standard,Retail,3883,2022
+Test,Standard,Online,4379,2023
+USA,Budget,Online,4042,2024
+Test,Standard,Wholesale,565,2022
+Germany,Standard,Retail,2488,2023
+Japan,Premium,Retail,1695,2024
+Japan,Budget,Retail,4568,2022
+France,Budget,Retail,2126,2023
+France,Budget,Wholesale,3142,2024
+Test,Premium,Wholesale,2413,2022
+France,Standard,Wholesale,3120,2023
+Test,Budget,Online,671,2024
+Germany,Standard,Retail,1761,2022
+UK,Standard,Retail,3660,2023
+USA,Budget,Wholesale,4468,2024
+Japan,Budget,Online,3143,2022
+UK,Standard,Retail,3895,2023
+Japan,Budget,Retail,3123,2024
+USA,Standard,Retail,4497,2022
+France,Premium,Retail,3417,2023
+France,Premium,Wholesale,1641,2024
+Germany,Budget,Online,4917,2022
+Germany,Budget,Wholesale,2350,2023
+USA,Premium,Online,3617,2024
+France,Premium,Wholesale,4823,2022
+UK,Budget,Online,4899,2023
+Test,Standard,Wholesale,4894,2024
+Japan,Standard,Online,696,2022
+Test,Budget,Retail,2975,2023
+Germany,Standard,Wholesale,3583,2024
+Japan,Budget,Wholesale,4636,2022
+UK,Budget,Retail,3511,2023
+USA,Standard,Online,4473,2024
+USA,Standard,Retail,3509,2022
+USA,Standard,Retail,1871,2023
+Japan,Standard,Wholesale,726,2024
+USA,Premium,Retail,1354,2022
+USA,Premium,Wholesale,4557,2023
+Japan,Budget,Wholesale,3818,2024
+Japan,Budget,Online,2520,2022
+Japan,Standard,Online,1027,2023
+France,Premium,Online,1970,2024
+France,Premium,Online,3530,2022
+France,Standard,Wholesale,950,2023
+Germany,Premium,Wholesale,4020,2024
+USA,Standard,Wholesale,541,2022
+USA,Budget,Wholesale,3417,2023
+Test,Premium,Online,4467,2024
+Japan,Premium,Retail,2580,2022
+Test,Premium,Wholesale,1947,2023
+USA,Budget,Retail,4012,2024
+France,Standard,Wholesale,2975,2022
+France,Premium,Wholesale,2263,2023
+Japan,Standard,Retail,2242,2024
+Germany,Premium,Retail,3833,2022
+France,Premium,Retail,3703,2023
+USA,Standard,Online,4062,2024
+France,Standard,Wholesale,3973,2022
+France,Budget,Retail,4821,2023
+Test,Budget,Wholesale,4602,2024
+USA,Standard,Online,2045,2022
+Germany,Premium,Retail,1010,2023
+France,Standard,Online,1938,2024
+Germany,Premium,Wholesale,1780,2022
+France,Premium,Retail,4571,2023
+Test,Budget,Wholesale,4681,2024
+Test,Standard,Retail,919,2022
+Test,Standard,Wholesale,2835,2023
+Japan,Premium,Wholesale,3908,2024
+Japan,Budget,Wholesale,3916,2022
+Test,Premium,Online,738,2023
+Japan,Premium,Wholesale,605,2024
+USA,Standard,Online,4100,2022
+UK,Premium,Wholesale,1736,2023
+USA,Budget,Retail,3741,2024
+Germany,Premium,Wholesale,2943,2022
+France,Standard,Online,3818,2023
+USA,Standard,Wholesale,2709,2024
+France,Budget,Online,2609,2022
+Germany,Standard,Online,4862,2023
+Germany,Standard,Retail,568,2024
+France,Standard,Retail,1642,2022
+UK,Standard,Wholesale,2269,2023
+Test,Premium,Wholesale,4227,2024
+
+</script><script type="text/plain" id="survey_data" data-format="csv_embedded" data-src="">
+Age_Group,Gender,Satisfaction,Product,Region
+36-45,Female,9,Product C,South
+46-55,Female,6,Product A,South
+36-45,Male,7,Product A,South
+36-45,Male,7,Product C,South
+56+,Prefer not to say,10,Product A,West
+18-25,Other,4,Product A,North
+46-55,Other,5,Product A,North
+36-45,Female,1,Product C,North
+18-25,Prefer not to say,8,Product C,West
+26-35,Female,6,Product A,East
+36-45,Female,10,Product A,West
+56+,Male,4,Product A,South
+36-45,Other,3,Product B,South
+46-55,Other,4,Product C,South
+18-25,Female,6,Product A,West
+56+,Prefer not to say,8,Product C,South
+18-25,Prefer not to say,9,Product C,West
+36-45,Other,9,Product A,South
+26-35,Prefer not to say,10,Product C,South
+46-55,Prefer not to say,8,Product A,North
+56+,Prefer not to say,5,Product B,East
+56+,Other,10,Product C,North
+56+,Male,6,Product A,East
+26-35,Male,5,Product B,North
+36-45,Other,7,Product B,South
+36-45,Female,2,Product C,South
+46-55,Other,9,Product C,West
+26-35,Female,6,Product C,North
+46-55,Prefer not to say,6,Product B,East
+46-55,Female,8,Product A,North
+26-35,Prefer not to say,1,Product C,East
+36-45,Male,2,Product C,South
+18-25,Female,9,Product B,North
+26-35,Other,6,Product B,South
+46-55,Male,9,Product C,East
+18-25,Prefer not to say,3,Product B,West
+46-55,Prefer not to say,4,Product A,East
+46-55,Female,9,Product A,South
+46-55,Other,3,Product A,South
+36-45,Prefer not to say,5,Product B,North
+46-55,Male,3,Product C,South
+56+,Female,2,Product B,North
+36-45,Female,4,Product B,West
+56+,Male,6,Product C,North
+46-55,Female,2,Product A,North
+18-25,Female,4,Product B,East
+18-25,Prefer not to say,9,Product A,South
+56+,Other,10,Product A,South
+56+,Female,3,Product B,South
+46-55,Male,5,Product A,North
+18-25,Female,7,Product C,East
+36-45,Prefer not to say,8,Product C,North
+36-45,Prefer not to say,9,Product A,West
+56+,Prefer not to say,3,Product A,South
+36-45,Female,5,Product B,South
+56+,Male,4,Product A,East
+46-55,Prefer not to say,4,Product A,East
+26-35,Other,9,Product B,West
+46-55,Other,10,Product C,North
+26-35,Male,7,Product A,West
+36-45,Other,4,Product A,South
+36-45,Female,8,Product C,North
+18-25,Male,9,Product B,West
+36-45,Other,1,Product C,West
+26-35,Other,6,Product C,North
+36-45,Male,9,Product B,South
+18-25,Prefer not to say,5,Product A,North
+36-45,Prefer not to say,5,Product B,North
+56+,Prefer not to say,2,Product C,North
+18-25,Prefer not to say,5,Product C,West
+26-35,Female,7,Product C,West
+56+,Male,9,Product C,South
+46-55,Male,9,Product B,West
+26-35,Male,4,Product C,North
+18-25,Prefer not to say,8,Product A,South
+36-45,Female,10,Product B,East
+56+,Female,5,Product C,South
+26-35,Female,3,Product B,East
+46-55,Female,10,Product A,East
+56+,Prefer not to say,9,Product B,East
+56+,Prefer not to say,9,Product C,South
+56+,Other,3,Product B,North
+56+,Prefer not to say,4,Product C,East
+56+,Prefer not to say,3,Product B,East
+18-25,Female,2,Product A,North
+36-45,Female,1,Product C,East
+36-45,Female,10,Product B,South
+46-55,Prefer not to say,2,Product B,West
+26-35,Prefer not to say,5,Product C,East
+18-25,Other,8,Product B,North
+36-45,Other,10,Product C,East
+36-45,Prefer not to say,3,Product C,East
+56+,Prefer not to say,3,Product A,West
+18-25,Other,9,Product B,East
+18-25,Female,1,Product A,South
+26-35,Female,2,Product A,West
+18-25,Other,2,Product C,West
+18-25,Male,3,Product B,East
+46-55,Male,4,Product C,North
+18-25,Male,5,Product A,East
+46-55,Prefer not to say,7,Product C,North
+26-35,Prefer not to say,5,Product C,South
+26-35,Other,9,Product C,South
+46-55,Prefer not to say,5,Product B,South
+26-35,Female,3,Product C,West
+46-55,Female,4,Product A,North
+36-45,Female,5,Product B,East
+56+,Other,8,Product A,South
+56+,Female,9,Product A,South
+46-55,Other,1,Product A,West
+26-35,Other,4,Product B,North
+46-55,Prefer not to say,6,Product C,West
+18-25,Prefer not to say,2,Product C,East
+56+,Female,10,Product B,West
+46-55,Other,1,Product A,South
+46-55,Male,7,Product A,East
+56+,Female,7,Product A,East
+18-25,Male,7,Product A,South
+56+,Prefer not to say,6,Product B,South
+56+,Female,10,Product C,East
+56+,Female,6,Product A,South
+46-55,Prefer not to say,7,Product C,South
+46-55,Other,1,Product B,South
+46-55,Other,2,Product A,South
+18-25,Prefer not to say,9,Product A,West
+18-25,Prefer not to say,8,Product C,North
+18-25,Female,7,Product C,West
+26-35,Prefer not to say,10,Product A,West
+56+,Prefer not to say,2,Product B,South
+26-35,Other,4,Product A,South
+56+,Other,8,Product A,West
+46-55,Other,6,Product C,East
+26-35,Other,5,Product B,East
+26-35,Female,5,Product A,North
+36-45,Male,2,Product C,North
+36-45,Other,10,Product C,North
+56+,Other,1,Product A,North
+46-55,Female,9,Product A,West
+56+,Male,8,Product B,South
+56+,Prefer not to say,10,Product A,South
+56+,Male,4,Product C,South
+18-25,Male,7,Product C,North
+26-35,Other,5,Product C,North
+36-45,Male,4,Product C,East
+46-55,Other,9,Product B,West
+36-45,Female,9,Product C,West
+36-45,Prefer not to say,6,Product C,North
+26-35,Prefer not to say,7,Product A,West
+26-35,Female,2,Product C,East
+46-55,Male,1,Product A,South
+56+,Male,4,Product C,North
+46-55,Prefer not to say,4,Product B,South
+26-35,Male,5,Product A,South
+26-35,Prefer not to say,1,Product C,South
+18-25,Female,4,Product C,South
+26-35,Male,6,Product C,North
+18-25,Female,5,Product A,South
+46-55,Male,5,Product C,North
+56+,Prefer not to say,2,Product B,North
+36-45,Female,2,Product B,South
+56+,Other,7,Product C,North
+26-35,Prefer not to say,9,Product A,East
+18-25,Prefer not to say,9,Product C,West
+56+,Prefer not to say,1,Product C,North
+56+,Female,10,Product A,North
+18-25,Other,4,Product B,East
+36-45,Male,5,Product C,West
+36-45,Female,3,Product A,South
+36-45,Other,3,Product B,South
+18-25,Other,9,Product A,West
+26-35,Prefer not to say,1,Product C,North
+36-45,Male,2,Product B,North
+26-35,Male,3,Product A,South
+46-55,Other,7,Product A,North
+36-45,Female,4,Product B,South
+56+,Male,3,Product C,North
+36-45,Female,4,Product B,South
+26-35,Prefer not to say,4,Product A,North
+56+,Prefer not to say,5,Product B,East
+46-55,Male,2,Product A,South
+18-25,Female,5,Product C,North
+56+,Female,5,Product A,West
+18-25,Female,2,Product A,South
+36-45,Prefer not to say,4,Product A,West
+18-25,Other,10,Product B,South
+56+,Prefer not to say,4,Product B,South
+46-55,Other,7,Product A,West
+26-35,Female,2,Product B,North
+26-35,Male,8,Product A,West
+36-45,Prefer not to say,8,Product C,North
+36-45,Female,4,Product C,East
+46-55,Male,1,Product C,North
+18-25,Female,4,Product C,West
+46-55,Male,6,Product B,North
+56+,Prefer not to say,6,Product C,North
+56+,Female,2,Product B,South
+56+,Prefer not to say,10,Product A,South
+46-55,Prefer not to say,5,Product C,South
+56+,Male,9,Product B,West
+46-55,Prefer not to say,5,Product B,South
+
+</script><script type="text/plain" id="sales_data" data-format="csv_embedded" data-src="">
+Region,Month,Product,Sales,Units
+North,Jan,Widget,18581,164
+North,Feb,Gadget,44201,191
+North,Mar,Gadget,28037,87
+North,Apr,Widget,49117,170
+North,May,Gizmo,30345,160
+North,Jun,Gizmo,38431,95
+North,Jul,Gizmo,34463,96
+North,Aug,Gadget,16058,175
+North,Sep,Gadget,10033,193
+North,Oct,Gizmo,15762,179
+North,Nov,Widget,46086,94
+North,Dec,Widget,32843,57
+South,Jan,Gizmo,48301,86
+South,Feb,Gadget,21542,132
+South,Mar,Widget,49020,112
+South,Apr,Gadget,21083,80
+South,May,Gadget,29855,110
+South,Jun,Gadget,38503,121
+South,Jul,Gizmo,25022,200
+South,Aug,Gadget,20219,92
+South,Sep,Gadget,14314,199
+South,Oct,Gadget,46177,146
+South,Nov,Gizmo,19990,115
+South,Dec,Gadget,26577,132
+East,Jan,Widget,17434,184
+East,Feb,Gadget,27913,167
+East,Mar,Gadget,21718,124
+East,Apr,Widget,38718,150
+East,May,Gadget,16633,128
+East,Jun,Gizmo,47132,164
+East,Jul,Gizmo,42875,114
+East,Aug,Gadget,28027,77
+East,Sep,Widget,36531,91
+East,Oct,Widget,11815,70
+East,Nov,Gizmo,40488,92
+East,Dec,Gizmo,33136,184
+West,Jan,Widget,13712,188
+West,Feb,Gizmo,19624,163
+West,Mar,Widget,19391,116
+West,Apr,Gizmo,25737,139
+West,May,Gizmo,48746,58
+West,Jun,Gizmo,28059,191
+West,Jul,Widget,13480,81
+West,Aug,Gadget,23896,97
+West,Sep,Widget,15129,144
+West,Oct,Gizmo,24975,145
+West,Nov,Gizmo,24591,129
+West,Dec,Gizmo,15225,138
+
+</script><script type="text/plain" id="transaction_data" data-format="csv_embedded" data-src="">
+Transaction_Type,Customer_Type,Payment_Method,Store,Amount
+Exchange,New,Cash,Store 1,495
+Refund,VIP,Credit Card,Store 1,272
+Purchase,Returning,Bank Transfer,Store 1,85
+Cancel,New,Bank Transfer,Store 1,27
+Exchange,Returning,Bank Transfer,Store 2,130
+Cancel,New,Credit Card,Store 3,307
+Cancel,Returning,PayPal,Store 2,177
+Cancel,VIP,PayPal,Store 3,248
+Purchase,VIP,Bank Transfer,Store 3,214
+Cancel,VIP,Credit Card,Store 2,488
+Purchase,Returning,Bank Transfer,Store 3,17
+Cancel,VIP,PayPal,Store 1,446
+Purchase,Returning,Bank Transfer,Store 1,115
+Exchange,VIP,Credit Card,Store 2,331
+Exchange,New,Credit Card,Store 2,344
+Refund,VIP,Bank Transfer,Store 3,25
+Purchase,New,Credit Card,Store 1,478
+Refund,VIP,PayPal,Store 2,53
+Purchase,New,Cash,Store 1,344
+Exchange,VIP,PayPal,Store 3,493
+Exchange,New,Bank Transfer,Store 2,477
+Cancel,New,Bank Transfer,Store 1,470
+Purchase,VIP,Cash,Store 1,38
+Exchange,VIP,PayPal,Store 2,197
+Cancel,Returning,Credit Card,Store 3,69
+Purchase,VIP,Bank Transfer,Store 2,215
+Purchase,VIP,Credit Card,Store 1,51
+Refund,Returning,Credit Card,Store 2,159
+Purchase,New,Cash,Store 2,391
+Refund,New,PayPal,Store 2,353
+Exchange,New,PayPal,Store 1,321
+Exchange,New,Credit Card,Store 2,156
+Exchange,New,Credit Card,Store 1,495
+Exchange,VIP,Credit Card,Store 3,423
+Refund,VIP,Bank Transfer,Store 3,332
+Cancel,VIP,Cash,Store 1,486
+Purchase,VIP,PayPal,Store 3,290
+Cancel,VIP,Cash,Store 2,405
+Exchange,New,Cash,Store 2,186
+Purchase,VIP,Bank Transfer,Store 3,313
+Cancel,VIP,PayPal,Store 1,278
+Exchange,VIP,Cash,Store 2,491
+Refund,New,Bank Transfer,Store 1,408
+Refund,VIP,Bank Transfer,Store 2,277
+Exchange,VIP,Credit Card,Store 3,270
+Refund,Returning,Bank Transfer,Store 3,374
+Cancel,VIP,Cash,Store 3,261
+Refund,VIP,Credit Card,Store 3,42
+Exchange,New,PayPal,Store 2,140
+Cancel,Returning,Cash,Store 1,171
+Purchase,New,Bank Transfer,Store 3,81
+Cancel,Returning,Cash,Store 1,330
+Exchange,Returning,Credit Card,Store 1,143
+Refund,VIP,Bank Transfer,Store 3,160
+Purchase,Returning,PayPal,Store 2,404
+Cancel,New,Credit Card,Store 3,187
+Cancel,New,Bank Transfer,Store 3,184
+Exchange,VIP,Bank Transfer,Store 3,91
+Exchange,New,Credit Card,Store 1,248
+Exchange,New,Bank Transfer,Store 2,278
+Cancel,VIP,Cash,Store 1,80
+Exchange,Returning,Bank Transfer,Store 1,173
+Cancel,New,PayPal,Store 2,136
+Cancel,New,Cash,Store 2,351
+Exchange,VIP,Credit Card,Store 3,449
+Cancel,Returning,Credit Card,Store 3,164
+Cancel,New,Bank Transfer,Store 3,387
+Cancel,VIP,Cash,Store 1,122
+Purchase,New,Credit Card,Store 3,165
+Purchase,New,Credit Card,Store 1,53
+Exchange,Returning,Bank Transfer,Store 3,101
+Purchase,New,Cash,Store 2,211
+Purchase,New,PayPal,Store 3,291
+Cancel,New,Cash,Store 2,273
+Purchase,VIP,Credit Card,Store 1,476
+Purchase,VIP,Bank Transfer,Store 2,222
+Purchase,New,Credit Card,Store 3,286
+Exchange,New,Cash,Store 1,135
+Purchase,VIP,Bank Transfer,Store 3,78
+Refund,New,PayPal,Store 1,118
+Cancel,New,Credit Card,Store 2,396
+Refund,Returning,Bank Transfer,Store 3,192
+Refund,VIP,Credit Card,Store 3,318
+Exchange,New,Bank Transfer,Store 2,110
+Purchase,New,Credit Card,Store 3,344
+Cancel,VIP,Bank Transfer,Store 1,326
+Exchange,New,Cash,Store 3,31
+Refund,New,PayPal,Store 1,143
+Exchange,Returning,Credit Card,Store 1,147
+Refund,New,Credit Card,Store 1,356
+Purchase,VIP,Cash,Store 1,422
+Exchange,VIP,PayPal,Store 3,34
+Cancel,Returning,Cash,Store 3,317
+Cancel,Returning,Cash,Store 1,492
+Purchase,Returning,Bank Transfer,Store 3,38
+Purchase,Returning,Bank Transfer,Store 1,337
+Cancel,VIP,Cash,Store 2,462
+Exchange,VIP,PayPal,Store 1,36
+Purchase,New,Bank Transfer,Store 3,347
+Purchase,New,Cash,Store 1,435
+Cancel,New,Bank Transfer,Store 1,127
+Purchase,VIP,PayPal,Store 3,291
+Purchase,VIP,PayPal,Store 1,338
+Refund,Returning,Bank Transfer,Store 3,182
+Exchange,New,Credit Card,Store 3,251
+Purchase,VIP,Credit Card,Store 1,90
+Cancel,New,PayPal,Store 1,429
+Exchange,New,Cash,Store 3,326
+Exchange,VIP,Credit Card,Store 1,265
+Exchange,VIP,PayPal,Store 1,453
+Cancel,New,PayPal,Store 3,335
+Cancel,Returning,Credit Card,Store 2,352
+Refund,VIP,Bank Transfer,Store 2,311
+Cancel,New,PayPal,Store 1,279
+Exchange,New,PayPal,Store 2,260
+Refund,New,Credit Card,Store 2,191
+Cancel,VIP,Bank Transfer,Store 2,12
+Refund,Returning,Credit Card,Store 3,107
+Cancel,Returning,Bank Transfer,Store 2,61
+Cancel,New,Bank Transfer,Store 3,177
+Purchase,VIP,Cash,Store 3,153
+Refund,New,PayPal,Store 2,295
+Refund,New,Bank Transfer,Store 2,465
+Exchange,VIP,Credit Card,Store 1,133
+Cancel,VIP,Cash,Store 1,154
+Cancel,Returning,Bank Transfer,Store 2,375
+Exchange,Returning,Bank Transfer,Store 2,141
+Refund,New,PayPal,Store 3,25
+Cancel,Returning,Credit Card,Store 1,357
+Cancel,Returning,PayPal,Store 1,67
+Purchase,VIP,PayPal,Store 1,45
+Cancel,VIP,Cash,Store 1,65
+Cancel,New,PayPal,Store 3,50
+Purchase,Returning,Credit Card,Store 2,279
+Purchase,Returning,Credit Card,Store 2,485
+Exchange,Returning,Credit Card,Store 2,11
+Exchange,VIP,Bank Transfer,Store 1,308
+Cancel,VIP,Credit Card,Store 1,491
+Exchange,VIP,PayPal,Store 2,382
+Exchange,VIP,Bank Transfer,Store 1,181
+Cancel,Returning,Cash,Store 3,223
+Cancel,Returning,PayPal,Store 2,183
+Exchange,VIP,Credit Card,Store 1,232
+Purchase,Returning,Bank Transfer,Store 1,483
+Exchange,Returning,Cash,Store 3,333
+Cancel,Returning,PayPal,Store 3,405
+Purchase,VIP,Credit Card,Store 3,187
+Refund,VIP,Bank Transfer,Store 3,187
+Purchase,New,PayPal,Store 1,221
+Refund,VIP,PayPal,Store 3,41
+Refund,Returning,PayPal,Store 1,466
+Purchase,Returning,Cash,Store 1,222
+Refund,New,PayPal,Store 1,213
+Exchange,Returning,PayPal,Store 2,430
+Refund,New,Cash,Store 2,224
+Refund,New,Cash,Store 2,16
+Purchase,New,PayPal,Store 2,334
+Exchange,New,Credit Card,Store 3,258
+Exchange,VIP,PayPal,Store 3,105
+Cancel,New,PayPal,Store 1,280
+Refund,VIP,PayPal,Store 2,92
+Refund,VIP,Cash,Store 3,167
+Cancel,New,Credit Card,Store 3,80
+Refund,VIP,Bank Transfer,Store 2,209
+Exchange,Returning,Cash,Store 1,67
+Cancel,New,Cash,Store 1,261
+Refund,New,Bank Transfer,Store 3,12
+Exchange,Returning,PayPal,Store 1,193
+Exchange,Returning,Bank Transfer,Store 2,255
+Purchase,Returning,Credit Card,Store 3,120
+Exchange,New,PayPal,Store 1,228
+Refund,New,Bank Transfer,Store 2,198
+Exchange,New,Bank Transfer,Store 3,373
+Refund,New,PayPal,Store 3,432
+Purchase,New,PayPal,Store 1,323
+Exchange,VIP,PayPal,Store 3,345
+Purchase,Returning,Cash,Store 3,315
+Exchange,Returning,Cash,Store 2,382
+Purchase,Returning,Bank Transfer,Store 2,211
+Refund,Returning,Credit Card,Store 2,94
+Purchase,New,PayPal,Store 1,51
+Refund,VIP,Bank Transfer,Store 1,426
+Purchase,Returning,Cash,Store 1,374
+Exchange,New,Cash,Store 2,476
+Refund,Returning,Bank Transfer,Store 2,439
+Exchange,New,Credit Card,Store 2,218
+Cancel,Returning,Credit Card,Store 3,448
+Cancel,New,Credit Card,Store 2,215
+Exchange,Returning,Credit Card,Store 1,190
+Purchase,New,Cash,Store 2,239
+Cancel,VIP,Bank Transfer,Store 3,250
+Refund,VIP,PayPal,Store 1,335
+Exchange,New,PayPal,Store 1,115
+Exchange,VIP,Credit Card,Store 2,120
+Cancel,New,PayPal,Store 2,346
+Refund,New,Credit Card,Store 3,320
+Refund,VIP,PayPal,Store 1,355
+Cancel,New,Bank Transfer,Store 2,230
+Refund,VIP,Cash,Store 3,348
+Purchase,VIP,Cash,Store 1,469
+Exchange,Returning,Bank Transfer,Store 1,484
+Exchange,VIP,Cash,Store 3,321
+Exchange,Returning,Cash,Store 2,213
+Refund,New,PayPal,Store 1,141
+Cancel,New,PayPal,Store 1,100
+Purchase,New,Cash,Store 3,286
+Refund,VIP,PayPal,Store 3,450
+Exchange,New,Cash,Store 1,178
+Purchase,Returning,Credit Card,Store 3,204
+Exchange,Returning,Credit Card,Store 1,246
+Cancel,Returning,Cash,Store 1,26
+Cancel,Returning,Bank Transfer,Store 1,230
+Refund,VIP,PayPal,Store 2,447
+Cancel,VIP,Cash,Store 3,206
+Refund,VIP,Bank Transfer,Store 2,440
+Exchange,New,PayPal,Store 1,226
+Purchase,Returning,Bank Transfer,Store 2,87
+Cancel,New,PayPal,Store 1,133
+Exchange,New,Bank Transfer,Store 2,84
+Purchase,VIP,Cash,Store 3,174
+Purchase,Returning,Credit Card,Store 3,344
+Refund,New,PayPal,Store 2,444
+Refund,VIP,Cash,Store 2,412
+Exchange,New,PayPal,Store 1,11
+Purchase,VIP,Bank Transfer,Store 2,261
+Purchase,Returning,Bank Transfer,Store 1,62
+Exchange,New,Credit Card,Store 1,468
+Exchange,New,Cash,Store 3,92
+Cancel,VIP,Cash,Store 3,421
+Cancel,New,Bank Transfer,Store 2,236
+Purchase,Returning,PayPal,Store 1,353
+Cancel,Returning,Credit Card,Store 1,211
+Purchase,New,Bank Transfer,Store 2,105
+Purchase,Returning,Bank Transfer,Store 2,188
+Refund,VIP,Bank Transfer,Store 1,467
+Cancel,VIP,Bank Transfer,Store 3,20
+Exchange,Returning,PayPal,Store 2,312
+Purchase,VIP,Bank Transfer,Store 3,59
+Exchange,VIP,Credit Card,Store 1,141
+Purchase,Returning,Credit Card,Store 2,490
+Purchase,New,PayPal,Store 1,126
+Cancel,VIP,Credit Card,Store 1,229
+Exchange,New,Cash,Store 1,71
+Cancel,Returning,Bank Transfer,Store 1,27
+Exchange,VIP,PayPal,Store 3,103
+Exchange,VIP,Bank Transfer,Store 3,74
+Purchase,VIP,PayPal,Store 3,247
+Exchange,Returning,Credit Card,Store 1,62
+Purchase,VIP,Cash,Store 2,181
+Refund,Returning,PayPal,Store 3,335
+Cancel,VIP,Cash,Store 2,10
+Refund,New,Credit Card,Store 3,354
+Refund,VIP,Cash,Store 2,300
+Cancel,New,Credit Card,Store 2,66
+Purchase,VIP,Credit Card,Store 2,427
+Refund,VIP,Cash,Store 2,316
+Cancel,VIP,Credit Card,Store 3,341
+Purchase,VIP,Credit Card,Store 1,379
+Exchange,Returning,PayPal,Store 1,158
+Cancel,New,Credit Card,Store 2,185
+Refund,New,PayPal,Store 2,490
+Exchange,New,Credit Card,Store 1,74
+Purchase,Returning,PayPal,Store 3,350
+Purchase,VIP,Credit Card,Store 2,375
+Cancel,Returning,PayPal,Store 2,329
+Cancel,VIP,PayPal,Store 3,161
+Cancel,Returning,Credit Card,Store 3,392
+Cancel,VIP,Cash,Store 3,431
+Cancel,VIP,Credit Card,Store 3,491
+Exchange,New,Credit Card,Store 3,61
+Exchange,New,Cash,Store 2,141
+Purchase,New,Cash,Store 1,419
+Purchase,New,Cash,Store 1,173
+Exchange,Returning,Credit Card,Store 1,96
+Cancel,New,Credit Card,Store 1,202
+Purchase,New,Cash,Store 1,56
+Purchase,New,PayPal,Store 3,252
+Refund,VIP,Cash,Store 1,45
+Purchase,VIP,Credit Card,Store 3,58
+Purchase,New,Cash,Store 3,383
+Cancel,VIP,Bank Transfer,Store 2,138
+Exchange,Returning,Cash,Store 2,497
+Exchange,New,Bank Transfer,Store 1,471
+Refund,New,Credit Card,Store 1,271
+Exchange,New,Credit Card,Store 2,364
+Cancel,New,Cash,Store 2,332
+Cancel,VIP,Credit Card,Store 3,466
+Purchase,VIP,Credit Card,Store 2,350
+Exchange,VIP,Cash,Store 3,192
+Cancel,Returning,Credit Card,Store 2,84
+Refund,VIP,Cash,Store 2,33
+Refund,New,PayPal,Store 2,104
+Purchase,New,Bank Transfer,Store 3,340
+Refund,New,PayPal,Store 3,346
+Exchange,Returning,PayPal,Store 3,304
+Cancel,New,Cash,Store 3,435
+Refund,Returning,Credit Card,Store 3,38
+Refund,VIP,Cash,Store 2,84
+Purchase,Returning,PayPal,Store 2,420
+Cancel,New,PayPal,Store 2,144
+Purchase,VIP,Cash,Store 3,172
+Purchase,VIP,PayPal,Store 3,34
+Exchange,New,PayPal,Store 1,364
+Cancel,Returning,Bank Transfer,Store 3,457
+Cancel,VIP,Cash,Store 2,413
+Refund,New,PayPal,Store 2,452
+Purchase,Returning,Bank Transfer,Store 2,45
+Refund,Returning,PayPal,Store 1,17
+Purchase,New,Credit Card,Store 1,469
+Exchange,New,Cash,Store 1,171
+Purchase,New,Credit Card,Store 3,398
+Cancel,Returning,PayPal,Store 1,386
+Purchase,New,Cash,Store 3,308
+Purchase,New,PayPal,Store 2,440
+Exchange,New,Cash,Store 3,291
+Cancel,VIP,Cash,Store 2,437
+Purchase,VIP,Bank Transfer,Store 1,402
+Refund,Returning,Cash,Store 1,143
+Purchase,VIP,Cash,Store 3,293
+Purchase,New,Cash,Store 3,20
+Purchase,VIP,PayPal,Store 3,135
+Exchange,Returning,PayPal,Store 1,256
+Refund,Returning,Cash,Store 2,45
+Refund,Returning,Bank Transfer,Store 2,301
+Exchange,Returning,Bank Transfer,Store 2,116
+Cancel,VIP,PayPal,Store 1,286
+Cancel,New,PayPal,Store 3,316
+Refund,Returning,Credit Card,Store 3,181
+Purchase,Returning,Bank Transfer,Store 2,315
+Exchange,VIP,Credit Card,Store 1,208
+Cancel,Returning,Cash,Store 1,86
+Exchange,Returning,Bank Transfer,Store 1,106
+Cancel,Returning,Credit Card,Store 3,471
+Exchange,Returning,Bank Transfer,Store 3,202
+Exchange,New,Bank Transfer,Store 3,191
+Refund,VIP,Credit Card,Store 3,10
+Exchange,Returning,Cash,Store 2,384
+Cancel,Returning,Cash,Store 3,29
+Exchange,New,Cash,Store 3,146
+Refund,VIP,Cash,Store 3,168
+Refund,New,Cash,Store 3,326
+Cancel,New,PayPal,Store 3,268
+Exchange,New,PayPal,Store 2,173
+Exchange,VIP,Cash,Store 1,11
+Refund,VIP,Bank Transfer,Store 1,225
+Purchase,New,Cash,Store 1,230
+Exchange,VIP,PayPal,Store 2,294
+Cancel,Returning,Credit Card,Store 3,237
+Purchase,VIP,Credit Card,Store 2,342
+Refund,VIP,PayPal,Store 1,231
+Cancel,VIP,PayPal,Store 3,343
+Exchange,New,PayPal,Store 3,176
+Cancel,New,Credit Card,Store 3,471
+Purchase,VIP,PayPal,Store 2,455
+Exchange,Returning,PayPal,Store 2,371
+Cancel,New,PayPal,Store 1,147
+Purchase,New,Cash,Store 1,195
+Exchange,VIP,Bank Transfer,Store 2,55
+Exchange,VIP,Bank Transfer,Store 1,352
+Cancel,New,Cash,Store 2,218
+Exchange,New,PayPal,Store 1,397
+Purchase,VIP,Bank Transfer,Store 3,421
+Exchange,VIP,Credit Card,Store 2,435
+Exchange,Returning,PayPal,Store 3,28
+Exchange,New,PayPal,Store 3,241
+Refund,Returning,Bank Transfer,Store 1,221
+Cancel,Returning,Cash,Store 2,144
+Purchase,VIP,PayPal,Store 3,29
+Refund,New,PayPal,Store 3,436
+Cancel,VIP,PayPal,Store 3,68
+Refund,Returning,Cash,Store 1,67
+Refund,VIP,Credit Card,Store 1,442
+Exchange,Returning,Credit Card,Store 2,146
+Refund,VIP,Credit Card,Store 1,68
+Cancel,New,Cash,Store 2,244
+Exchange,Returning,Credit Card,Store 2,305
+Cancel,VIP,PayPal,Store 2,70
+Refund,VIP,Bank Transfer,Store 1,400
+Refund,VIP,PayPal,Store 3,165
+Exchange,VIP,Cash,Store 3,84
+Exchange,New,Cash,Store 2,496
+Cancel,Returning,Bank Transfer,Store 1,120
+Purchase,VIP,Credit Card,Store 2,475
+Exchange,VIP,Bank Transfer,Store 2,183
+Cancel,New,Bank Transfer,Store 1,438
+Cancel,New,Bank Transfer,Store 2,350
+Cancel,Returning,Bank Transfer,Store 2,21
+Exchange,New,Credit Card,Store 1,457
+Purchase,New,Cash,Store 2,41
+Exchange,New,Bank Transfer,Store 2,160
+Refund,New,Cash,Store 2,442
+Exchange,New,Cash,Store 3,356
+Refund,Returning,Bank Transfer,Store 3,399
+Refund,VIP,Bank Transfer,Store 1,458
+Exchange,New,Credit Card,Store 2,145
+Exchange,VIP,Cash,Store 1,140
+Exchange,New,Bank Transfer,Store 1,119
+Purchase,Returning,PayPal,Store 1,265
+Refund,VIP,Credit Card,Store 2,497
+Purchase,Returning,Credit Card,Store 1,352
+Refund,New,Cash,Store 2,91
+Purchase,Returning,Credit Card,Store 3,258
+Exchange,VIP,Bank Transfer,Store 2,159
+Exchange,Returning,Credit Card,Store 1,385
+Purchase,New,PayPal,Store 1,452
+Cancel,VIP,Credit Card,Store 3,313
+Purchase,VIP,Credit Card,Store 3,117
+Exchange,New,PayPal,Store 1,104
+Cancel,Returning,Cash,Store 1,228
+Cancel,Returning,Credit Card,Store 1,149
+Refund,New,PayPal,Store 2,168
+Purchase,New,PayPal,Store 1,434
+Exchange,VIP,PayPal,Store 3,462
+Purchase,New,PayPal,Store 3,93
+Refund,Returning,Bank Transfer,Store 2,331
+Refund,Returning,Bank Transfer,Store 1,196
+Exchange,VIP,Bank Transfer,Store 1,475
+Refund,Returning,Bank Transfer,Store 2,39
+Cancel,New,Cash,Store 1,98
+Exchange,VIP,Cash,Store 2,321
+Cancel,VIP,Credit Card,Store 3,434
+Cancel,Returning,Bank Transfer,Store 3,450
+Cancel,VIP,Bank Transfer,Store 2,410
+Purchase,New,Credit Card,Store 1,469
+Purchase,Returning,Cash,Store 3,83
+Purchase,VIP,Credit Card,Store 1,444
+Exchange,New,Bank Transfer,Store 3,116
+Refund,New,Bank Transfer,Store 2,396
+Purchase,New,PayPal,Store 2,448
+Purchase,VIP,Credit Card,Store 2,154
+Purchase,New,Credit Card,Store 1,48
+Refund,New,Credit Card,Store 2,412
+Exchange,Returning,PayPal,Store 3,42
+Exchange,Returning,Bank Transfer,Store 3,325
+Purchase,New,Credit Card,Store 3,272
+Purchase,New,PayPal,Store 3,391
+Cancel,VIP,Cash,Store 1,225
+Purchase,Returning,PayPal,Store 3,61
+Exchange,VIP,Credit Card,Store 3,383
+Exchange,VIP,Bank Transfer,Store 1,21
+Cancel,VIP,PayPal,Store 1,76
+Cancel,VIP,Cash,Store 2,396
+Refund,New,PayPal,Store 1,186
+Refund,New,Cash,Store 1,323
+Refund,Returning,Bank Transfer,Store 3,172
+Purchase,New,Cash,Store 2,472
+Cancel,Returning,Bank Transfer,Store 3,283
+Purchase,New,Bank Transfer,Store 3,371
+Exchange,Returning,Bank Transfer,Store 1,34
+Refund,VIP,Credit Card,Store 2,38
+Cancel,Returning,PayPal,Store 3,118
+Purchase,Returning,Credit Card,Store 1,28
+Purchase,Returning,Cash,Store 2,47
+Cancel,New,Bank Transfer,Store 3,416
+Cancel,New,Bank Transfer,Store 1,291
+Cancel,New,PayPal,Store 3,141
+Exchange,VIP,Cash,Store 1,458
+Purchase,VIP,Bank Transfer,Store 3,276
+Purchase,New,PayPal,Store 2,496
+Cancel,VIP,Cash,Store 2,280
+Cancel,VIP,PayPal,Store 3,46
+Refund,Returning,Bank Transfer,Store 2,499
+Refund,Returning,Bank Transfer,Store 1,15
+Exchange,New,Cash,Store 2,407
+Purchase,Returning,Cash,Store 2,340
+Refund,VIP,Credit Card,Store 1,442
+Exchange,Returning,Cash,Store 1,328
+Refund,New,PayPal,Store 1,377
+Cancel,VIP,Cash,Store 2,16
+Cancel,VIP,Cash,Store 1,168
+Purchase,VIP,Bank Transfer,Store 3,482
+Cancel,New,Bank Transfer,Store 1,229
+Exchange,Returning,PayPal,Store 2,96
+Purchase,Returning,Credit Card,Store 2,150
+Exchange,VIP,Cash,Store 2,70
+Purchase,VIP,Bank Transfer,Store 3,61
+Refund,VIP,Bank Transfer,Store 1,246
+Refund,VIP,PayPal,Store 2,151
+Purchase,VIP,Credit Card,Store 1,391
+Purchase,Returning,PayPal,Store 1,15
+Exchange,New,Credit Card,Store 3,161
+Refund,VIP,Credit Card,Store 3,264
+Purchase,VIP,Credit Card,Store 2,11
+Cancel,VIP,Bank Transfer,Store 2,241
+Purchase,VIP,Cash,Store 3,174
+Purchase,New,Bank Transfer,Store 3,294
+Exchange,Returning,Bank Transfer,Store 3,162
+Refund,Returning,Bank Transfer,Store 1,374
+Purchase,VIP,PayPal,Store 1,61
+Exchange,VIP,Bank Transfer,Store 1,315
+Refund,New,Bank Transfer,Store 2,137
+Cancel,VIP,Bank Transfer,Store 3,492
+Purchase,New,Credit Card,Store 2,482
+Purchase,New,Cash,Store 3,155
+Cancel,Returning,PayPal,Store 1,434
+Refund,New,Credit Card,Store 3,224
+Purchase,Returning,PayPal,Store 3,406
+Exchange,VIP,Cash,Store 2,500
+Refund,VIP,Credit Card,Store 1,468
+Refund,Returning,Cash,Store 1,184
+
+</script>
+
+<!-- ACTUAL CONTENT -->
+
+<h1></h1>
+<p></p>
+
+    <div class="textblock-content">
+        <h1>PivotTable Examples</h1>
+<p>This page demonstrates the key features of interactive PivotTable plots in JSPlots.</p>
+<ul>
+    <li><strong>Basic pivot:</strong> Simple data aggregation with drag-and-drop</li>
+    <li><strong>Custom heatmaps:</strong> Color-coded matrices with custom color scales</li>
+    <li><strong>Different renderers:</strong> Table, Bar Chart, Line Chart, and more</li>
+    <li><strong>Data filtering:</strong> Inclusions and exclusions to focus on specific data</li>
+    <li><strong>Aggregations:</strong> Sum, Average, Count, and other aggregation functions</li>
+</ul>
+<p><em>Tip: Drag and drop fields between Rows, Columns, and Values to reorganize!</em></p>
+
+    </div>
+
+    <br><hr><br>
+    <h2>sales_pivot</h2>
+    <p>Basic pivot table - drag fields to reorganize rows and columns</p>
+    <div id="sales_pivot"></div>
+
+    <br><hr><br>
+    <h2>performance_heatmap</h2>
+    <p>Custom color scale heatmap - green indicates good performance, red needs improvement</p>
+    <div id="performance_heatmap"></div>
+
+    <br><hr><br>
+    <h2>revenue_by_category</h2>
+    <p>Bar chart renderer - switch renderer in the dropdown to see other visualizations</p>
+    <div id="revenue_by_category"></div>
+
+    <br><hr><br>
+    <h2>customer_revenue</h2>
+    <p>Exclusions feature - 'Test' country data is automatically filtered out</p>
+    <div id="customer_revenue"></div>
+
+    <br><hr><br>
+    <h2>survey_results</h2>
+    <p>Inclusions feature - only showing ages 18-45, filtering out older demographics</p>
+    <div id="survey_results"></div>
+
+    <br><hr><br>
+    <h2>transaction_analysis</h2>
+    <p>Count aggregation - showing transaction counts rather than sums or averages</p>
+    <div id="transaction_analysis"></div>
+
+    <br><hr><br>
+    <div class="textblock-content">
+        <h2>Key Features Summary</h2>
+<ul>
+    <li><strong>Drag-and-drop interface:</strong> Reorganize data dynamically by dragging fields</li>
+    <li><strong>Multiple renderers:</strong> Table, Heatmap, Bar Chart, Line Chart, and more</li>
+    <li><strong>Custom color scales:</strong> Define your own color gradients for heatmaps</li>
+    <li><strong>Aggregation functions:</strong> Sum, Average, Count, Median, Min, Max, etc.</li>
+    <li><strong>Data filtering:</strong> Include or exclude specific values</li>
+    <li><strong>Multi-level grouping:</strong> Use multiple row or column dimensions</li>
+</ul>
+<p><strong>Tip:</strong> Try dragging unused fields from the top into Rows or Columns!</p>
+
+    </div>
+
+    <br><hr><br>
+
+
+<hr><p align="right"><small>This page was created using <a href="https://github.com/s-baumann/JSPlots.jl">JSPlots.jl</a>.</small></p>
+</body>
+</html>

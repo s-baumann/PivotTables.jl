@@ -1,5 +1,12 @@
 using JSPlots, DataFrames, Dates
 
+# Prepare header
+header = TextBlock("""
+<h1>TextBlock Examples</h1>
+<p>This page demonstrates how to use TextBlock elements in JSPlots to add formatted text, documentation, and context to your visualizations.</p>
+<p>TextBlocks support full HTML formatting including headings, paragraphs, lists, tables, and more.</p>
+""")
+
 # Example 1: Simple text block with basic HTML
 text1 = TextBlock("""
 <h2>Introduction</h2>
@@ -65,10 +72,9 @@ line_plot = LineChart(:example_chart, df, :df;
 )
 
 intro_text = TextBlock("""
-<h1>Analysis Report</h1>
+<h2>Example: Analysis Report</h2>
 <p><em>Generated on $(Dates.format(now(), "yyyy-mm-dd HH:MM:SS"))</em></p>
-<h2>Overview</h2>
-<p>This report presents the analysis of our sample data collected over the past period.</p>
+<p>This section shows how to create a complete analysis report with text blocks and interactive charts.</p>
 """)
 
 conclusion_text = TextBlock("""
@@ -83,24 +89,35 @@ conclusion_text = TextBlock("""
 <p>For more information, contact the data science team.</p>
 """)
 
-# Create a page combining text blocks and plots
+summary = TextBlock("""
+<h2>Summary</h2>
+<p>This page demonstrated TextBlock features:</p>
+<ul>
+    <li>Basic HTML formatting (bold, italic, code)</li>
+    <li>Lists (unordered and ordered)</li>
+    <li>HTML tables for structured data</li>
+    <li>Combining text blocks with interactive plots</li>
+    <li>Creating complete reports with multiple sections</li>
+</ul>
+<p><strong>Tip:</strong> TextBlocks can include any valid HTML, making them perfect for documentation, reports, and explanations!</p>
+""")
+
+# Create a single page combining all text block examples
 page = JSPlotPage(
     Dict{Symbol,DataFrame}(:df => df),
-    [intro_text, line_plot, conclusion_text],
-    tab_title = "Analysis Report with Text"
+    [header, text1, text2, text3, intro_text, line_plot, conclusion_text, summary],
+    tab_title = "TextBlock Examples"
 )
 
-create_html(page, "generated_html_examples/textblock_example.html")
+create_html(page, "generated_html_examples/textblock_examples.html")
 
-# You can also create a page with just text blocks (no plots)
-page_text_only = JSPlotPage(
-    Dict{Symbol,DataFrame}(),  # Empty dataframes dict
-    [text1, text2, text3],
-    tab_title = "Documentation Page"
-)
-
-create_html(page_text_only, "generated_html_examples/textblocks_only.html")
-
+println("\n" * "="^60)
 println("TextBlock examples created successfully!")
-println("  - textblock_example.html (mixed text and plots)")
-println("  - textblocks_only.html (text blocks only)")
+println("="^60)
+println("\nFile created: generated_html_examples/textblock_examples.html")
+println("\nThis page includes:")
+println("  • Basic HTML formatting examples")
+println("  • Lists (unordered and ordered)")
+println("  • HTML tables")
+println("  • Text blocks combined with interactive plots")
+println("  • Complete analysis report structure")

@@ -145,15 +145,10 @@ page = JSPlotPage(
     dataformat = :parquet
 )
 
-create_html(page, "generated_html_examples/scatterplots.html")
-
-# Create individual examples
-create_html(scatter2, df2, "generated_html_examples/multi_slider_example.html")
-create_html(scatter3, df3, "generated_html_examples/weather_example.html")
-create_html(scatter6, df6, "generated_html_examples/complex_example.html")
+create_html(page, "generated_html_examples/scatterplot_examples.html")
 
 println("Scatter plots created successfully!")
-println("Open scatterplots.html to view all examples")
+println("Open scatterplot_examples.html to view all examples")
 println("  - Example 1: Single continuous range slider")
 println("  - Example 2: Two sliders (categorical + continuous)")
 println("  - Example 3: Three sliders (date + categorical + continuous)")

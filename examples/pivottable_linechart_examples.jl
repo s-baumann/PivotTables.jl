@@ -1,5 +1,13 @@
-
 using JSPlots, DataFrames, Dates
+
+println("Creating PivotTable and LineChart combined examples...")
+
+# Prepare header
+header = TextBlock("""
+<h1>PivotTable and LineChart Combined Examples</h1>
+<p>This page demonstrates combining PivotTables with LineCharts and 3D surface plots.</p>
+<p>These examples show how different plot types can work together on a single page.</p>
+""")
 
 stockReturns = DataFrame(
     Symbol = ["RTX", "RTX", "RTX", "GOOG", "GOOG", "GOOG", "MSFT", "MSFT", "MSFT"],
@@ -83,15 +91,45 @@ pt00 = LineChart(:pchart, df, :df;
             y_col=:y,
             color_col=:color,
             filters=Dict(:categ => :A, :categ22 => "Category_A"),
-            title="Line Chart",
+            title="Line Chart with Filters",
             x_label="This is the x axis",
-            y_label="This is the y axis")
+            y_label="This is the y axis",
+            notes="Interactive line chart with dropdown filters")
 
+conclusion = TextBlock("""
+<h2>Summary</h2>
+<p>This page demonstrated combining different plot types:</p>
+<ul>
+    <li><strong>PivotTable:</strong> Stock returns heatmap with exclusions</li>
+    <li><strong>LineChart:</strong> Time series with interactive filters</li>
+    <li><strong>PivotTable Heatmap:</strong> Correlation matrix with custom color scale</li>
+    <li><strong>3D Surface Chart:</strong> Mathematical surfaces grouped by type</li>
+</ul>
+<p><strong>Tip:</strong> You can combine any plot types on a single page using JSPlotPage!</p>
+""")
 
-# To plot both of these together we can do:
-pge = JSPlotPage(Dict{Symbol,DataFrame}(:stockReturns => stockReturns, :correlations => correlations, :subframe => subframe, :df => df), [pt, pt00, pt2, pt3]; dataformat = :parquet)
-create_html(pge,"generated_html_examples/pivottable.html")
+# Create single combined page with all plot types
+page = JSPlotPage(
+    Dict{Symbol,DataFrame}(
+        :stockReturns => stockReturns,
+        :correlations => correlations,
+        :subframe => subframe,
+        :df => df
+    ),
+    [header, pt, pt00, pt2, pt3, conclusion],
+    dataformat = :parquet,
+    tab_title = "Combined Examples"
+)
 
+create_html(page, "generated_html_examples/pivottable_linechart_examples.html")
 
-# Or if you are only charting one single pivottable you dont have to make a JSPlotPage, you can simply do:
-create_html(pt, stockReturns, "generated_html_examples/only_one.html")
+println("\n" * "="^60)
+println("Combined examples created successfully!")
+println("="^60)
+println("\nFile created: generated_html_examples/pivottable_linechart_examples.html")
+println("\nThis page includes:")
+println("  • PivotTable with stock returns heatmap")
+println("  • LineChart with interactive filters")
+println("  • Correlation matrix heatmap")
+println("  • 3D surface charts")
+println("\nDemonstrates combining multiple plot types on one page!")

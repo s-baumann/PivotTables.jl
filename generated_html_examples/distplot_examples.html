@@ -1,0 +1,5524 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DistPlot Examples</title>
+    <meta charset="UTF-8">
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apache-arrow@14.0.1/Arrow.es2015.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #controls {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+        #$div_id {
+            width: 100%;
+            height: 600px;
+        }
+    </style>
+        <style>
+        .textblock-content {
+            padding: 20px;
+            margin: 10px 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .textblock-content h1 {
+            font-size: 2em;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+
+        .textblock-content h2 {
+            font-size: 1.5em;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+
+        .textblock-content h3 {
+            font-size: 1.25em;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+            font-weight: 600;
+        }
+
+        .textblock-content p {
+            margin: 0.5em 0;
+        }
+
+        .textblock-content ul, .textblock-content ol {
+            margin: 0.5em 0;
+            padding-left: 2em;
+        }
+
+        .textblock-content code {
+            background-color: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .textblock-content pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .textblock-content pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+
+        .textblock-content blockquote {
+            border-left: 4px solid #ddd;
+            padding-left: 1em;
+            margin-left: 0;
+            color: #666;
+        }
+
+        .textblock-content a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .textblock-content a:hover {
+            text-decoration: underline;
+        }
+
+        .textblock-content table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1em 0;
+        }
+
+        .textblock-content th, .textblock-content td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .textblock-content th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+        }
+    </style>
+
+
+    <!-- external libs -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.11/c3.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.11/c3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/0.71/jquery.csv-0.71.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/pivot.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/pivot.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/d3_renderers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/c3_renderers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pivottable/2.19.0/export_renderers.min.js"></script>
+</head>
+
+<body>
+
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+<script type="module">
+// Import parquet-wasm for Parquet file support
+import * as parquet from 'https://unpkg.com/parquet-wasm@0.6.1/esm/parquet_wasm.js';
+
+// Initialize parquet-wasm
+await parquet.default();
+
+// Make parquet available globally for loadDataset
+window.parquetWasm = parquet;
+window.parquetReady = true;
+console.log('Parquet-wasm library loaded successfully');
+</script>
+
+<script>
+// Helper function to wait for parquet-wasm to be loaded
+function waitForParquet() {
+    return new Promise(function(resolve) {
+        if (window.parquetReady) {
+            resolve();
+            return;
+        }
+        var checkInterval = setInterval(function() {
+            if (window.parquetReady) {
+                clearInterval(checkInterval);
+                resolve();
+            }
+        }, 50);
+    });
+}
+
+// Centralized data loading function
+// This function parses data from embedded or external sources and returns a Promise
+// Supports CSV (embedded/external), JSON (embedded/external), and Parquet (external) formats
+// Usage: loadDataset('dataLabel').then(function(data) { /* use data */ });
+function loadDataset(dataLabel) {
+    return new Promise(function(resolve, reject) {
+        var dataElement = document.getElementById(dataLabel);
+        if (!dataElement) {
+            reject(new Error('Data element not found: ' + dataLabel));
+            return;
+        }
+
+        var format = dataElement.getAttribute('data-format') || 'csv_embedded';
+        var dataSrc = dataElement.getAttribute('data-src');
+
+        // Handle external JSON files
+        if (format === 'json_external' && dataSrc) {
+            fetch(dataSrc)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load ' + dataSrc + ': ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(function(data) {
+                    resolve(data);
+                })
+                .catch(function(error) {
+                    console.error('Error loading external JSON:', error);
+                    reject(error);
+                });
+            return;
+        }
+
+        // Handle external Parquet files
+        if (format === 'parquet' && dataSrc) {
+            // Wait for parquet-wasm to be loaded first
+            waitForParquet()
+                .then(function() {
+                    return fetch(dataSrc);
+                })
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load ' + dataSrc + ': ' + response.statusText);
+                    }
+                    return response.arrayBuffer();
+                })
+                .then(function(arrayBuffer) {
+                    // Use parquet-wasm to read the file
+                    var uint8Array = new Uint8Array(arrayBuffer);
+
+                    // readParquet returns an Arrow Table
+                    var wasmTable = window.parquetWasm.readParquet(uint8Array);
+
+                    // Convert to Arrow IPC stream
+                    var ipcStream = wasmTable.intoIPCStream();
+
+                    // Use Apache Arrow JS to read the IPC stream
+                    var arrowTable = window.Arrow.tableFromIPC(ipcStream);
+
+                    // Convert Arrow Table to array of JavaScript objects
+                    var data = [];
+                    for (var i = 0; i < arrowTable.numRows; i++) {
+                        var row = {};
+                        arrowTable.schema.fields.forEach(function(field) {
+                            var column = arrowTable.getChild(field.name);
+                            var value = column.get(i);
+
+                            // Convert BigInt to Number (Arrow returns BigInt for Int64)
+                            if (typeof value === 'bigint') {
+                                value = Number(value);
+                            }
+
+                            row[field.name] = value;
+                        });
+                        data.push(row);
+                    }
+
+                    resolve(data);
+                })
+                .catch(function(error) {
+                    console.error('Error loading external Parquet:', error);
+                    reject(error);
+                });
+            return;
+        }
+
+        // Handle external CSV files
+        if (format === 'csv_external' && dataSrc) {
+            fetch(dataSrc)
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to load ' + dataSrc + ': ' + response.statusText);
+                    }
+                    return response.text();
+                })
+                .then(function(csvText) {
+                    Papa.parse(csvText, {
+                        header: true,
+                        dynamicTyping: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            // Check for fatal errors only (not warnings)
+                            var fatalErrors = results.errors.filter(function(err) {
+                                return err.type !== 'Delimiter';
+                            });
+
+                            if (fatalErrors.length > 0) {
+                                console.error('CSV parsing errors:', fatalErrors);
+                                reject(fatalErrors);
+                            } else if (results.data && results.data.length > 0) {
+                                resolve(results.data);
+                            } else {
+                                reject(new Error('No data parsed from CSV'));
+                            }
+                        },
+                        error: function(error) {
+                            console.error('CSV parsing error:', error);
+                            reject(error);
+                        }
+                    });
+                })
+                .catch(function(error) {
+                    console.error('Error loading external CSV:', error);
+                    reject(error);
+                });
+            return;
+        }
+
+        // Handle embedded data
+        var dataText = dataElement.textContent.trim();
+
+        if (format === 'json_embedded') {
+            // Parse JSON data
+            try {
+                var data = JSON.parse(dataText);
+                resolve(data);
+            } catch (error) {
+                console.error('JSON parsing error:', error);
+                reject(error);
+            }
+        } else if (format === 'csv_embedded') {
+            // Parse CSV data using PapaParse
+            Papa.parse(dataText, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    // Check for fatal errors only (not warnings)
+                    // PapaParse includes non-fatal warnings in errors array
+                    var fatalErrors = results.errors.filter(function(err) {
+                        // Filter out delimiter detection warnings - these aren't fatal
+                        // (common for single-column CSVs)
+                        return err.type !== 'Delimiter';
+                    });
+
+                    if (fatalErrors.length > 0) {
+                        console.error('CSV parsing errors:', fatalErrors);
+                        reject(fatalErrors);
+                    } else if (results.data && results.data.length > 0) {
+                        resolve(results.data);
+                    } else {
+                        reject(new Error('No data parsed from CSV'));
+                    }
+                },
+                error: function(error) {
+                    console.error('CSV parsing error:', error);
+                    reject(error);
+                }
+            });
+        } else {
+            reject(new Error('Unsupported data format: ' + format));
+        }
+    });
+}
+
+$(function(){
+
+    // Plotly default colors
+    var plotlyColors = [
+        'rgb(31, 119, 180)', 'rgb(255, 127, 14)', 'rgb(44, 160, 44)',
+        'rgb(214, 39, 40)', 'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
+        'rgb(227, 119, 194)', 'rgb(127, 127, 127)', 'rgb(188, 189, 34)',
+        'rgb(23, 190, 207)'
+    ];
+    
+    // Initialize toggle states
+    window.showHistogram_simple_dist = true;
+    window.showBox_simple_dist = true;
+    window.showRug_simple_dist = true;
+    
+    // Load and parse CSV data using centralized parser
+    loadDataset('df1').then(function(data) {
+        window.allData_simple_dist = data;
+
+        // Initialize buttons and sliders after data is loaded
+        $(function() {
+                // Histogram toggle button
+                document.getElementById('simple_dist_histogram_toggle').addEventListener('click', function() {
+                    window.showHistogram_simple_dist = !window.showHistogram_simple_dist;
+                    this.textContent = window.showHistogram_simple_dist ? 'Hide Histogram' : 'Show Histogram';
+                    updatePlotWithFilters_simple_dist();
+                });
+                
+                // Box plot toggle button
+                document.getElementById('simple_dist_box_toggle').addEventListener('click', function() {
+                    window.showBox_simple_dist = !window.showBox_simple_dist;
+                    this.textContent = window.showBox_simple_dist ? 'Hide Box Plot' : 'Show Box Plot';
+                    updatePlotWithFilters_simple_dist();
+                });
+                
+                // Rug plot toggle button
+                document.getElementById('simple_dist_rug_toggle').addEventListener('click', function() {
+                    window.showRug_simple_dist = !window.showRug_simple_dist;
+                    this.textContent = window.showRug_simple_dist ? 'Hide Rug Plot' : 'Show Rug Plot';
+                    updatePlotWithFilters_simple_dist();
+                });
+                
+                
+                
+            // Initial plot
+            updatePlotWithFilters_simple_dist();
+        });
+    }).catch(function(error) {
+        console.error('Error loading data for chart simple_dist:', error);
+    });
+    
+    function updatePlot_simple_dist(data) {
+        var traces = [];
+        
+        var values = data.map(d => d.value);
+
+// Box plot (top portion)
+if (window.showBox_simple_dist) {
+    traces.push({
+        x: values,
+        name: 'distribution',
+        type: 'box',
+        xaxis: 'x2',
+        yaxis: 'y2',
+        orientation: 'h',
+        marker: {
+            color: 'rgb(31, 119, 180)'
+        },
+        boxmean: 'sd',
+        opacity: 0.7,
+        showlegend: false
+    });
+}
+
+// Histogram (bottom portion)
+if (window.showHistogram_simple_dist) {
+    traces.push({
+        x: values,
+        name: 'frequency',
+        type: 'histogram',
+        xaxis: 'x',
+        yaxis: 'y',
+        marker: {
+            color: 'rgb(31, 119, 180)'
+        },
+        opacity: 0.7,
+        nbinsx: 30,
+        showlegend: false
+    });
+}
+
+// Rug plot (tick marks at bottom)
+if (window.showRug_simple_dist) {
+    traces.push({
+        x: values,
+        name: 'rug',
+        type: 'scatter',
+        mode: 'markers',
+        xaxis: 'x',
+        yaxis: 'y3',
+        marker: {
+            symbol: 'line-ns-open',
+            color: 'rgb(31, 119, 180)',
+            size: 8,
+            line: {
+                width: 1
+            }
+        },
+        showlegend: false,
+        hoverinfo: 'x'
+    });
+}
+
+        
+            var layout = {
+        title: 'Simple Distribution Plot',
+        showlegend: false,
+        autosize: true,
+        grid: {
+            rows: 3,
+            columns: 1,
+            pattern: 'independent',
+            roworder: 'top to bottom'
+        },
+        xaxis: {
+            title: 'Values',
+            domain: [0, 1],
+            showgrid: true,
+            zeroline: true
+        },
+        yaxis: {
+            title: 'Frequency',
+            domain: [0.07, 0.69],
+            showgrid: true,
+            zeroline: true
+        },
+        xaxis2: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis2: {
+            domain: [0.7, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        xaxis3: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis3: {
+            domain: [0, 0.05],
+            showgrid: false,
+            showticklabels: false
+        },
+        margin: {t: 100, r: 50, b: 100, l: 80}
+    };
+
+        
+        Plotly.newPlot('simple_dist', traces, layout, {responsive: true});
+    }
+    
+        function updatePlotWithFilters_simple_dist() {
+        updatePlot_simple_dist(window.allData_simple_dist);
+    }
+
+    // Plotly default colors
+    var plotlyColors = [
+        'rgb(31, 119, 180)', 'rgb(255, 127, 14)', 'rgb(44, 160, 44)',
+        'rgb(214, 39, 40)', 'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
+        'rgb(227, 119, 194)', 'rgb(127, 127, 127)', 'rgb(188, 189, 34)',
+        'rgb(23, 190, 207)'
+    ];
+    
+    // Initialize toggle states
+    window.showHistogram_multi_group_dist = true;
+    window.showBox_multi_group_dist = true;
+    window.showRug_multi_group_dist = true;
+    
+    // Load and parse CSV data using centralized parser
+    loadDataset('df2').then(function(data) {
+        window.allData_multi_group_dist = data;
+
+        // Initialize buttons and sliders after data is loaded
+        $(function() {
+                // Histogram toggle button
+                document.getElementById('multi_group_dist_histogram_toggle').addEventListener('click', function() {
+                    window.showHistogram_multi_group_dist = !window.showHistogram_multi_group_dist;
+                    this.textContent = window.showHistogram_multi_group_dist ? 'Hide Histogram' : 'Show Histogram';
+                    updatePlotWithFilters_multi_group_dist();
+                });
+                
+                // Box plot toggle button
+                document.getElementById('multi_group_dist_box_toggle').addEventListener('click', function() {
+                    window.showBox_multi_group_dist = !window.showBox_multi_group_dist;
+                    this.textContent = window.showBox_multi_group_dist ? 'Hide Box Plot' : 'Show Box Plot';
+                    updatePlotWithFilters_multi_group_dist();
+                });
+                
+                // Rug plot toggle button
+                document.getElementById('multi_group_dist_rug_toggle').addEventListener('click', function() {
+                    window.showRug_multi_group_dist = !window.showRug_multi_group_dist;
+                    this.textContent = window.showRug_multi_group_dist ? 'Hide Rug Plot' : 'Show Rug Plot';
+                    updatePlotWithFilters_multi_group_dist();
+                });
+                
+                
+                
+            // Initial plot
+            updatePlotWithFilters_multi_group_dist();
+        });
+    }).catch(function(error) {
+        console.error('Error loading data for chart multi_group_dist:', error);
+    });
+    
+    function updatePlot_multi_group_dist(data) {
+        var traces = [];
+        
+        // Group data by group column
+var groups = {};
+data.forEach(function(row) {
+    var key = row.group;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(row);
+});
+
+var groupKeys = Object.keys(groups);
+var numGroups = groupKeys.length;
+
+// Create traces for each group
+groupKeys.forEach(function(key, idx) {
+    var groupData = groups[key];
+    var values = groupData.map(d => d.value);
+    
+    // Box plot (top portion)
+    if (window.showBox_multi_group_dist) {
+        traces.push({
+            x: values,
+            name: key,
+            type: 'box',
+            xaxis: 'x2',
+            yaxis: 'y2',
+            orientation: 'h',
+            marker: {
+                color: plotlyColors[idx % plotlyColors.length]
+            },
+            boxmean: 'sd',
+            opacity: 0.7,
+            showlegend: false
+        });
+    }
+    
+    // Histogram (bottom portion)
+    if (window.showHistogram_multi_group_dist) {
+        traces.push({
+            x: values,
+            name: key,
+            type: 'histogram',
+            xaxis: 'x',
+            yaxis: 'y',
+            marker: {
+                color: plotlyColors[idx % plotlyColors.length]
+            },
+            opacity: 0.7,
+            nbinsx: 30
+        });
+    }
+    
+    // Rug plot (tick marks at bottom)
+    if (window.showRug_multi_group_dist) {
+        traces.push({
+            x: values,
+            name: key + ' rug',
+            type: 'scatter',
+            mode: 'markers',
+            xaxis: 'x',
+            yaxis: 'y3',
+            marker: {
+                symbol: 'line-ns-open',
+                color: plotlyColors[idx % plotlyColors.length],
+                size: 8,
+                line: {
+                    width: 1
+                }
+            },
+            showlegend: false,
+            hoverinfo: 'x'
+        });
+    }
+});
+
+        
+            var layout = {
+        title: 'Treatment Effect Comparison',
+        showlegend: true,
+        autosize: true,
+        grid: {
+            rows: 3,
+            columns: 1,
+            pattern: 'independent',
+            roworder: 'top to bottom'
+        },
+        xaxis: {
+            title: 'Response Value',
+            domain: [0, 1],
+            showgrid: true,
+            zeroline: true
+        },
+        yaxis: {
+            title: 'Frequency',
+            domain: [0.07, 0.69],
+            showgrid: true,
+            zeroline: true
+        },
+        xaxis2: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis2: {
+            domain: [0.7, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        xaxis3: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis3: {
+            domain: [0, 0.05],
+            showgrid: false,
+            showticklabels: false
+        },
+        margin: {t: 100, r: 50, b: 100, l: 80}
+    };
+
+        
+        Plotly.newPlot('multi_group_dist', traces, layout, {responsive: true});
+    }
+    
+        function updatePlotWithFilters_multi_group_dist() {
+        updatePlot_multi_group_dist(window.allData_multi_group_dist);
+    }
+
+    // Plotly default colors
+    var plotlyColors = [
+        'rgb(31, 119, 180)', 'rgb(255, 127, 14)', 'rgb(44, 160, 44)',
+        'rgb(214, 39, 40)', 'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
+        'rgb(227, 119, 194)', 'rgb(127, 127, 127)', 'rgb(188, 189, 34)',
+        'rgb(23, 190, 207)'
+    ];
+    
+    // Initialize toggle states
+    window.showHistogram_filtered_dist = true;
+    window.showBox_filtered_dist = true;
+    window.showRug_filtered_dist = true;
+    
+    // Load and parse CSV data using centralized parser
+    loadDataset('df3').then(function(data) {
+        window.allData_filtered_dist = data;
+
+        // Initialize buttons and sliders after data is loaded
+        $(function() {
+                // Histogram toggle button
+                document.getElementById('filtered_dist_histogram_toggle').addEventListener('click', function() {
+                    window.showHistogram_filtered_dist = !window.showHistogram_filtered_dist;
+                    this.textContent = window.showHistogram_filtered_dist ? 'Hide Histogram' : 'Show Histogram';
+                    updatePlotWithFilters_filtered_dist();
+                });
+                
+                // Box plot toggle button
+                document.getElementById('filtered_dist_box_toggle').addEventListener('click', function() {
+                    window.showBox_filtered_dist = !window.showBox_filtered_dist;
+                    this.textContent = window.showBox_filtered_dist ? 'Hide Box Plot' : 'Show Box Plot';
+                    updatePlotWithFilters_filtered_dist();
+                });
+                
+                // Rug plot toggle button
+                document.getElementById('filtered_dist_rug_toggle').addEventListener('click', function() {
+                    window.showRug_filtered_dist = !window.showRug_filtered_dist;
+                    this.textContent = window.showRug_filtered_dist ? 'Hide Rug Plot' : 'Show Rug Plot';
+                    updatePlotWithFilters_filtered_dist();
+                });
+                
+                    $("#filtered_dist_age_slider").slider({
+        range: true,
+        min: 18,
+        max: 80,
+        step: 0.062,
+        values: [18, 80],
+        slide: function(event, ui) {
+            $("#filtered_dist_age_slider_label").text(ui.values[0].toFixed(2) + " to " + ui.values[1].toFixed(2));
+        },
+        change: function(event, ui) {
+            updatePlotWithFilters_filtered_dist();
+        }
+    });
+    document.getElementById('filtered_dist_department_slider').addEventListener('change', function() {
+        updatePlotWithFilters_filtered_dist();
+    });
+
+                
+            // Initial plot
+            updatePlotWithFilters_filtered_dist();
+        });
+    }).catch(function(error) {
+        console.error('Error loading data for chart filtered_dist:', error);
+    });
+    
+    function updatePlot_filtered_dist(data) {
+        var traces = [];
+        
+        var values = data.map(d => d.score);
+
+// Box plot (top portion)
+if (window.showBox_filtered_dist) {
+    traces.push({
+        x: values,
+        name: 'distribution',
+        type: 'box',
+        xaxis: 'x2',
+        yaxis: 'y2',
+        orientation: 'h',
+        marker: {
+            color: 'rgb(31, 119, 180)'
+        },
+        boxmean: 'sd',
+        opacity: 0.7,
+        showlegend: false
+    });
+}
+
+// Histogram (bottom portion)
+if (window.showHistogram_filtered_dist) {
+    traces.push({
+        x: values,
+        name: 'frequency',
+        type: 'histogram',
+        xaxis: 'x',
+        yaxis: 'y',
+        marker: {
+            color: 'rgb(31, 119, 180)'
+        },
+        opacity: 0.7,
+        nbinsx: 40,
+        showlegend: false
+    });
+}
+
+// Rug plot (tick marks at bottom)
+if (window.showRug_filtered_dist) {
+    traces.push({
+        x: values,
+        name: 'rug',
+        type: 'scatter',
+        mode: 'markers',
+        xaxis: 'x',
+        yaxis: 'y3',
+        marker: {
+            symbol: 'line-ns-open',
+            color: 'rgb(31, 119, 180)',
+            size: 8,
+            line: {
+                width: 1
+            }
+        },
+        showlegend: false,
+        hoverinfo: 'x'
+    });
+}
+
+        
+            var layout = {
+        title: 'Score Distribution with Interactive Filters',
+        showlegend: false,
+        autosize: true,
+        grid: {
+            rows: 3,
+            columns: 1,
+            pattern: 'independent',
+            roworder: 'top to bottom'
+        },
+        xaxis: {
+            title: 'Test Score',
+            domain: [0, 1],
+            showgrid: true,
+            zeroline: true
+        },
+        yaxis: {
+            title: 'Frequency',
+            domain: [0.07, 0.69],
+            showgrid: true,
+            zeroline: true
+        },
+        xaxis2: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis2: {
+            domain: [0.7, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        xaxis3: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis3: {
+            domain: [0, 0.05],
+            showgrid: false,
+            showticklabels: false
+        },
+        margin: {t: 100, r: 50, b: 100, l: 80}
+    };
+
+        
+        Plotly.newPlot('filtered_dist', traces, layout, {responsive: true});
+    }
+    
+        function updatePlotWithFilters_filtered_dist() {
+        var filteredData = window.allData_filtered_dist.filter(function(row) {
+                // Filter for age (continuous)
+    if ($("#filtered_dist_age_slider").data('ui-slider')) {
+        var age_values = $("#filtered_dist_age_slider").slider("values");
+        var age_val = parseFloat(row.age);
+        if (age_val < age_values[0] || age_val > age_values[1]) {
+            return false;
+        }
+    }
+
+                            // Filter for department (categorical)
+    var department_select = document.getElementById('filtered_dist_department_slider');
+    var department_selected = Array.from(department_select.selectedOptions).map(opt => opt.value);
+    if (department_selected.length > 0 && !department_selected.includes(String(row.department))) {
+        return false;
+    }
+
+            return true;
+        });
+        updatePlot_filtered_dist(filteredData);
+    }
+
+    // Plotly default colors
+    var plotlyColors = [
+        'rgb(31, 119, 180)', 'rgb(255, 127, 14)', 'rgb(44, 160, 44)',
+        'rgb(214, 39, 40)', 'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
+        'rgb(227, 119, 194)', 'rgb(127, 127, 127)', 'rgb(188, 189, 34)',
+        'rgb(23, 190, 207)'
+    ];
+    
+    // Initialize toggle states
+    window.showHistogram_custom_appearance = true;
+    window.showBox_custom_appearance = true;
+    window.showRug_custom_appearance = false;
+    
+    // Load and parse CSV data using centralized parser
+    loadDataset('df4').then(function(data) {
+        window.allData_custom_appearance = data;
+
+        // Initialize buttons and sliders after data is loaded
+        $(function() {
+                // Histogram toggle button
+                document.getElementById('custom_appearance_histogram_toggle').addEventListener('click', function() {
+                    window.showHistogram_custom_appearance = !window.showHistogram_custom_appearance;
+                    this.textContent = window.showHistogram_custom_appearance ? 'Hide Histogram' : 'Show Histogram';
+                    updatePlotWithFilters_custom_appearance();
+                });
+                
+                // Box plot toggle button
+                document.getElementById('custom_appearance_box_toggle').addEventListener('click', function() {
+                    window.showBox_custom_appearance = !window.showBox_custom_appearance;
+                    this.textContent = window.showBox_custom_appearance ? 'Hide Box Plot' : 'Show Box Plot';
+                    updatePlotWithFilters_custom_appearance();
+                });
+                
+                // Rug plot toggle button
+                document.getElementById('custom_appearance_rug_toggle').addEventListener('click', function() {
+                    window.showRug_custom_appearance = !window.showRug_custom_appearance;
+                    this.textContent = window.showRug_custom_appearance ? 'Hide Rug Plot' : 'Show Rug Plot';
+                    updatePlotWithFilters_custom_appearance();
+                });
+                
+                
+                
+            // Initial plot
+            updatePlotWithFilters_custom_appearance();
+        });
+    }).catch(function(error) {
+        console.error('Error loading data for chart custom_appearance:', error);
+    });
+    
+    function updatePlot_custom_appearance(data) {
+        var traces = [];
+        
+        // Group data by group column
+var groups = {};
+data.forEach(function(row) {
+    var key = row.time_point;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(row);
+});
+
+var groupKeys = Object.keys(groups);
+var numGroups = groupKeys.length;
+
+// Create traces for each group
+groupKeys.forEach(function(key, idx) {
+    var groupData = groups[key];
+    var values = groupData.map(d => d.measurement);
+    
+    // Box plot (top portion)
+    if (window.showBox_custom_appearance) {
+        traces.push({
+            x: values,
+            name: key,
+            type: 'box',
+            xaxis: 'x2',
+            yaxis: 'y2',
+            orientation: 'h',
+            marker: {
+                color: plotlyColors[idx % plotlyColors.length]
+            },
+            boxmean: 'sd',
+            opacity: 0.8,
+            showlegend: false
+        });
+    }
+    
+    // Histogram (bottom portion)
+    if (window.showHistogram_custom_appearance) {
+        traces.push({
+            x: values,
+            name: key,
+            type: 'histogram',
+            xaxis: 'x',
+            yaxis: 'y',
+            marker: {
+                color: plotlyColors[idx % plotlyColors.length]
+            },
+            opacity: 0.7,
+            nbinsx: 30
+        });
+    }
+    
+    // Rug plot (tick marks at bottom)
+    if (window.showRug_custom_appearance) {
+        traces.push({
+            x: values,
+            name: key + ' rug',
+            type: 'scatter',
+            mode: 'markers',
+            xaxis: 'x',
+            yaxis: 'y3',
+            marker: {
+                symbol: 'line-ns-open',
+                color: plotlyColors[idx % plotlyColors.length],
+                size: 8,
+                line: {
+                    width: 1
+                }
+            },
+            showlegend: false,
+            hoverinfo: 'x'
+        });
+    }
+});
+
+        
+            var layout = {
+        title: 'Customized DistPlot - Longitudinal Study',
+        showlegend: true,
+        autosize: true,
+        grid: {
+            rows: 3,
+            columns: 1,
+            pattern: 'independent',
+            roworder: 'top to bottom'
+        },
+        xaxis: {
+            title: 'Clinical Measurement',
+            domain: [0, 1],
+            showgrid: true,
+            zeroline: true
+        },
+        yaxis: {
+            title: 'Frequency',
+            domain: [0.07, 0.69],
+            showgrid: true,
+            zeroline: true
+        },
+        xaxis2: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis2: {
+            domain: [0.7, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        xaxis3: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis3: {
+            domain: [0, 0.05],
+            showgrid: false,
+            showticklabels: false
+        },
+        margin: {t: 100, r: 50, b: 100, l: 80}
+    };
+
+        
+        Plotly.newPlot('custom_appearance', traces, layout, {responsive: true});
+    }
+    
+        function updatePlotWithFilters_custom_appearance() {
+        updatePlot_custom_appearance(window.allData_custom_appearance);
+    }
+
+
+
+});
+</script>
+
+<!-- DATASETS -->
+
+<script type="text/plain" id="df2" data-format="csv_embedded" data-src="">
+value,group
+99.90060018781624,Control
+101.0912282786477,Control
+107.64280323157358,Control
+96.17842056902688,Control
+100.02143254552247,Control
+105.14994589533883,Control
+104.90704206539829,Control
+97.434044058859,Control
+103.06617979158345,Control
+92.0316586808062,Control
+89.82874644345729,Control
+101.47287797148567,Control
+104.02374431442253,Control
+108.7875126113973,Control
+100.58749276158794,Control
+95.2219039970236,Control
+97.30903537169067,Control
+99.2194205363817,Control
+112.1362323496862,Control
+102.03233672968128,Control
+95.65687496355292,Control
+88.8454478055245,Control
+103.27038761821444,Control
+109.74001878431298,Control
+98.78539082602968,Control
+99.8241566958513,Control
+90.0056228468786,Control
+106.53089554212806,Control
+96.01715862127652,Control
+101.06307763691173,Control
+105.74082517267566,Control
+99.18179963160735,Control
+97.20502697306392,Control
+100.29098758721186,Control
+96.56571480887543,Control
+105.36098264337915,Control
+98.40273491597095,Control
+102.64311139682141,Control
+96.5691579481947,Control
+102.47594872125369,Control
+107.72642552732898,Control
+92.60004751759209,Control
+96.25940323714799,Control
+98.73056175259698,Control
+99.72243627179493,Control
+103.72388025452001,Control
+98.26304736199855,Control
+106.38799717147808,Control
+98.00083033428797,Control
+103.38829428329366,Control
+86.77780106383418,Control
+96.0499503655181,Control
+96.80118580442506,Control
+92.41843161085588,Control
+94.89610825038909,Control
+104.12798631419096,Control
+108.28362645612805,Control
+94.42246025342278,Control
+93.01277633456829,Control
+97.58578815224865,Control
+106.63692222409371,Control
+106.97438367793544,Control
+88.25975887446646,Control
+97.2663518422993,Control
+97.60391385911456,Control
+101.46979198573639,Control
+106.53461826586192,Control
+92.77054018101212,Control
+99.91856357316995,Control
+104.2636558184672,Control
+106.89198130680768,Control
+98.45922347568421,Control
+105.0384643473019,Control
+89.08449032423688,Control
+107.76537262563566,Control
+106.86201879097896,Control
+96.89747600098667,Control
+106.16409234203037,Control
+96.1119741484978,Control
+96.58711279957949,Control
+102.02857690754001,Control
+103.24178373732293,Control
+97.24391523711948,Control
+95.20687208784052,Control
+103.98641096993872,Control
+94.72590045604205,Control
+98.23303372764367,Control
+97.72606876029312,Control
+97.98683833937014,Control
+101.23948236489846,Control
+102.44750811707158,Control
+102.34703495779259,Control
+99.63791459097475,Control
+107.41786327622381,Control
+94.49645787177732,Control
+99.23934065389759,Control
+93.22680153976107,Control
+96.42544818292335,Control
+97.75499920679125,Control
+104.80971812272675,Control
+101.05750777867752,Control
+98.82764103270073,Control
+99.89564264626848,Control
+102.74983699528052,Control
+87.70460473756674,Control
+109.92856910904236,Control
+104.27523521161461,Control
+103.47157170497447,Control
+102.52470807144044,Control
+102.31746776365615,Control
+96.92353847438373,Control
+105.80405833439038,Control
+94.75476264509953,Control
+96.15155948350656,Control
+101.87126021176303,Control
+95.92937550059847,Control
+101.75026889624266,Control
+103.24774207805734,Control
+89.75205954090339,Control
+99.07665815495183,Control
+90.06757685279828,Control
+95.71698884316076,Control
+113.43485185662568,Control
+93.85048412285092,Control
+110.56307516626357,Control
+102.08531202924412,Control
+98.42757073602922,Control
+105.93553531713738,Control
+100.64569536374745,Control
+94.41707981441367,Control
+97.18677169004401,Control
+98.33856318831803,Control
+103.36449562524258,Control
+97.81933441572309,Control
+91.55565334325455,Control
+96.20630332627093,Control
+105.05841553806418,Control
+97.09445789272345,Control
+94.61454625543958,Control
+94.60699746389865,Control
+101.23517087143982,Control
+100.64674050969515,Control
+101.98207802843797,Control
+106.52627974533281,Control
+94.12500861842982,Control
+96.03274693202417,Control
+114.53596954486596,Control
+100.45317035050746,Control
+98.74687576122348,Control
+106.6539524537564,Control
+95.45212995921139,Control
+97.78631467582797,Control
+97.41087982965242,Control
+93.09228680416719,Control
+93.69715361585097,Control
+95.95509986381443,Control
+96.55234970025941,Control
+102.77362363785207,Control
+99.81944292988871,Control
+101.95900359488502,Control
+100.22733266285105,Control
+96.73385309782911,Control
+103.17192307267443,Control
+102.9349044493775,Control
+109.02372862054108,Control
+98.440083345714,Control
+104.75587556422782,Control
+96.10006182986116,Control
+101.49164244456821,Control
+99.89243696647448,Control
+99.92319511907873,Control
+93.76272904133349,Control
+97.30427232514313,Control
+106.42086725154635,Control
+95.58302846283641,Control
+108.74172430955332,Control
+97.13364501341651,Control
+105.72528408118302,Control
+93.70383503662056,Control
+98.32197454860699,Control
+103.49165732681267,Control
+103.66571755748978,Control
+111.87897706668363,Control
+103.23149863947963,Control
+95.48739559092505,Control
+99.39627951915982,Control
+88.6821766180279,Control
+91.66684520293616,Control
+108.06729964215197,Control
+102.94990142450803,Control
+91.24921669187245,Control
+98.09630287482805,Control
+108.88140830981217,Control
+109.74472600534838,Control
+102.72689830192434,Control
+93.0664383784993,Control
+96.61506057856863,Control
+95.89855641574655,Control
+93.57304259463092,Control
+101.33853001564923,Control
+106.68571209048953,Control
+100.62149752965303,Control
+99.14076099315857,Control
+100.47674000712396,Control
+95.43546759599116,Control
+111.5568831606879,Control
+105.24589893561793,Control
+100.41323435360381,Control
+95.42835403761667,Control
+97.82798539180315,Control
+95.70213839030488,Control
+102.43014940681796,Control
+93.70773969993314,Control
+107.49320487273056,Control
+107.62726062291776,Control
+103.26885496121761,Control
+101.16124593939229,Control
+109.30935682704373,Control
+96.95888527283522,Control
+103.20325360473085,Control
+96.89311144951986,Control
+104.05755551913076,Control
+100.73991782656856,Control
+106.028665211199,Control
+100.92061319183142,Control
+96.49190704891157,Control
+89.59611658182735,Control
+101.5904598809708,Control
+91.64869191765635,Control
+92.75854256524433,Control
+102.15970901247634,Control
+103.12668474662416,Control
+105.45806994037238,Control
+99.71698288487829,Control
+97.31723431020129,Control
+96.00367093472063,Control
+100.15570467787236,Control
+91.89935115235654,Control
+98.05205478314514,Control
+96.27007291332905,Control
+107.7488884707887,Control
+102.50153320589344,Control
+93.89182143066971,Control
+96.113886869411,Control
+90.90461802987274,Control
+104.75466583583938,Control
+98.72457452842427,Control
+97.65517237707765,Control
+109.77775493302254,Control
+106.69356436994711,Control
+93.90407921894176,Control
+94.89665834758007,Control
+95.81008155902782,Control
+92.8691226415075,Control
+96.23401784450066,Control
+99.02183344769315,Control
+94.31452905457743,Control
+101.05872239447044,Control
+99.20346779079539,Control
+103.34537466588539,Control
+94.9833443745129,Control
+99.61565424325991,Control
+100.08855021217809,Control
+95.56290997835855,Control
+105.36262139866407,Control
+99.28127789483509,Control
+99.43673768914955,Control
+92.6567766233196,Control
+103.47440056164793,Control
+103.93852176595847,Control
+102.4184716266165,Control
+93.86900355039498,Control
+102.0966766400407,Control
+99.28740419274129,Control
+110.90040225537611,Control
+100.61620121896382,Control
+105.68882375297243,Control
+107.17135904693505,Control
+101.74239544171554,Control
+95.25533626027104,Control
+106.39675416258589,Control
+102.79440780858027,Control
+100.27198299154438,Control
+97.22800782943911,Control
+104.25865165620397,Control
+104.76977435731006,Control
+104.36460386281374,Control
+96.71153878146708,Control
+90.71105410401321,Control
+96.98957577317105,Control
+110.4104582835301,Control
+102.3992656858603,Control
+102.19228088532168,Control
+107.39128460405571,Control
+105.86224498861185,Control
+94.23357970599494,Control
+106.83975244351956,Control
+101.97467597837674,Control
+99.80844275314571,Control
+104.5343399564706,Control
+96.53971565440914,Control
+103.07700605595721,Control
+96.11341699939481,Control
+97.72169656341579,Control
+110.285507816783,Control
+99.7645497260666,Control
+94.32781296376756,Control
+105.39745106966038,Control
+94.58693275794832,Control
+99.19216962911455,Control
+102.07623328829624,Control
+106.51560282537761,Control
+95.24099188586884,Control
+97.07319212849633,Control
+103.48623089482857,Control
+111.01685524236989,Control
+90.34279872522106,Control
+97.88049777871734,Control
+93.27421589207438,Control
+93.98811354568753,Control
+103.73752150503904,Control
+93.50463579067541,Control
+103.30882163393068,Control
+96.48331961445437,Control
+103.69568733731894,Control
+93.14236680098249,Control
+98.47276467092075,Control
+98.14657865155303,Control
+90.76358916108941,Control
+106.54128327037104,Control
+98.89430308894285,Control
+97.64801708226332,Control
+98.72381646711547,Control
+99.5725329123641,Control
+102.53457787031442,Control
+96.6750983309825,Control
+105.49069898611206,Control
+98.95269711080977,Control
+98.93332775101939,Control
+101.40544414113788,Control
+101.1952289461343,Control
+103.56888540693713,Control
+96.37818510915358,Control
+100.16437651310157,Control
+110.24057438017795,Control
+95.16810567728487,Control
+96.63810992555752,Control
+102.24965389796412,Control
+90.32143384226153,Control
+103.63007970662467,Control
+95.17290371118777,Control
+102.13333309179744,Control
+95.40906048343625,Control
+97.57336140237543,Control
+100.71930258554511,Control
+94.6068127862476,Control
+104.57153160845908,Control
+91.4937358202388,Control
+107.32355331811502,Control
+108.56721333214605,Control
+98.84095409886058,Control
+95.43288687160496,Control
+103.93169151342947,Control
+99.06781642820448,Control
+109.8472406835798,Control
+90.78977053000236,Control
+97.20753236401342,Control
+101.26434736170724,Control
+102.40727851306677,Control
+90.02035993114939,Control
+99.01706245508355,Control
+94.5930641256227,Control
+96.60426516656035,Control
+102.41782546707749,Control
+101.08252820388847,Control
+103.76673282003348,Control
+93.99607587379272,Control
+100.77015055519557,Control
+102.25468419091816,Control
+104.06725333916002,Control
+107.32526629119565,Control
+108.30313312073898,Control
+106.00077863562663,Control
+96.62790113857187,Control
+101.18327403557609,Control
+101.82924100262018,Control
+99.57430188437826,Control
+103.37680291040282,Control
+108.85122243567572,Control
+102.14912403847764,Control
+107.3493495360152,Control
+103.43961763071489,Control
+115.77013017094542,Control
+102.73859347432786,Control
+101.09646209761648,Control
+92.16460134564286,Control
+99.5751394727621,Control
+101.7079162938243,Control
+99.89164734767127,Control
+99.20817475710187,Control
+101.51205528801644,Control
+105.79221263494156,Control
+101.93540275703799,Control
+105.91161135247214,Control
+105.23330117201189,Control
+104.1805635709857,Control
+101.55351885514736,Control
+107.39463353112315,Control
+98.63289152311657,Control
+105.90463948263225,Control
+93.93629291098138,Control
+102.7039632643181,Control
+97.3913586981476,Control
+105.19945413046682,Control
+92.88594673866788,Control
+110.8922259643162,Control
+101.54792174369308,Control
+95.48505145734157,Control
+110.18645108555292,Control
+90.36327210576611,Control
+95.56683231505788,Control
+92.65547942226064,Control
+98.28370444186363,Control
+95.30524735606869,Control
+90.82066497113833,Control
+102.77707214015916,Control
+101.93617157439297,Control
+104.56861508813073,Control
+98.0316257633237,Control
+100.18468547222605,Control
+104.82516856447987,Control
+97.43873293049896,Control
+98.2593713936891,Control
+98.17074900969354,Control
+94.37495203217156,Control
+94.23527435750266,Control
+92.6125625212881,Control
+101.8942970703643,Control
+97.28469822639714,Control
+99.67699587155316,Control
+107.13048384915538,Control
+109.53762011139514,Control
+104.14587480196515,Control
+103.40915834057853,Control
+99.87848263878983,Control
+102.75928550787287,Control
+100.75078020398827,Control
+99.28439210668733,Control
+103.37271345850837,Control
+99.69956589269971,Control
+103.7685206481005,Control
+95.67219832999848,Control
+93.9698715481335,Control
+95.40482469493311,Control
+105.05682615898967,Control
+107.96567502237411,Control
+101.35408458694548,Control
+100.16762097822472,Control
+101.53741924176923,Control
+96.43459351980883,Control
+100.2843694827432,Control
+90.37370659396382,Control
+97.66319325759788,Control
+98.76598703146064,Control
+104.57159755717709,Control
+91.42546437984372,Control
+94.92729224224645,Control
+97.80580597237115,Control
+96.55410255015937,Control
+96.69018910954766,Control
+94.32691078194007,Control
+99.16628145472885,Control
+101.525647828613,Control
+97.21392095717073,Control
+95.98241670645034,Control
+96.17527213616907,Control
+103.84908525138556,Control
+97.9606792234262,Control
+97.07466497708569,Control
+101.10122714866077,Control
+112.90559132928485,Control
+102.25084535160363,Control
+98.43067538861459,Control
+97.48935075870376,Control
+109.49224627587104,Control
+89.65963659189238,Control
+105.96910539750328,Control
+103.52739356034411,Control
+97.96999467755477,Control
+99.12001825413095,Control
+93.61457662246322,Control
+102.95329610680997,Control
+93.67813140034197,Control
+100.67523473201057,Control
+97.10406892990652,Control
+106.32104294788678,Control
+96.64696326455207,Control
+89.86176591241227,Control
+97.27715939496336,Control
+101.1040663122613,Control
+118.90355368027939,Treatment A
+118.0571775750538,Treatment A
+104.02236626945577,Treatment A
+113.44153555844795,Treatment A
+111.00677705419845,Treatment A
+110.65570078380762,Treatment A
+106.81135658876877,Treatment A
+110.6087312690454,Treatment A
+110.29135490787904,Treatment A
+114.10767456341857,Treatment A
+109.70516281838009,Treatment A
+116.2808551271665,Treatment A
+111.68404166245763,Treatment A
+103.77451114246891,Treatment A
+107.41654263798367,Treatment A
+106.64325703577805,Treatment A
+117.3405485199904,Treatment A
+111.90752131157109,Treatment A
+100.93132005476185,Treatment A
+110.09480945791533,Treatment A
+101.03046279413027,Treatment A
+97.77133052021854,Treatment A
+105.7291528777093,Treatment A
+105.3916381325768,Treatment A
+99.69444148707586,Treatment A
+109.05816138547485,Treatment A
+114.62253243361427,Treatment A
+113.03918927049303,Treatment A
+101.91939113784254,Treatment A
+104.87121075723203,Treatment A
+105.62647715861739,Treatment A
+112.59643071504979,Treatment A
+101.73896624181084,Treatment A
+106.90301143229337,Treatment A
+120.78122436853725,Treatment A
+115.6826986018934,Treatment A
+109.92177516729491,Treatment A
+114.73474591604827,Treatment A
+110.4306566002356,Treatment A
+107.47185360946082,Treatment A
+114.79825395670413,Treatment A
+114.79640982285414,Treatment A
+108.27001345093495,Treatment A
+104.12014796753303,Treatment A
+112.59069425156318,Treatment A
+116.90504608201763,Treatment A
+119.73092109320578,Treatment A
+106.04245784366576,Treatment A
+122.5298227125863,Treatment A
+118.88337541801255,Treatment A
+119.63291482292485,Treatment A
+108.37253892590121,Treatment A
+108.980379638583,Treatment A
+106.84038430661158,Treatment A
+122.0850931581462,Treatment A
+108.32653853774343,Treatment A
+108.63372449664766,Treatment A
+107.62498563810819,Treatment A
+108.75159324094501,Treatment A
+103.89818197430432,Treatment A
+111.6971081219402,Treatment A
+108.97194745189606,Treatment A
+123.23637401427617,Treatment A
+104.73997058096558,Treatment A
+114.25354155703612,Treatment A
+113.3011620217711,Treatment A
+104.88113452308373,Treatment A
+104.8064149710264,Treatment A
+108.17131609013293,Treatment A
+108.01343359249864,Treatment A
+118.30075116811535,Treatment A
+109.71774160808502,Treatment A
+108.54660118867953,Treatment A
+108.49089152994627,Treatment A
+104.7316106526345,Treatment A
+107.30605924701415,Treatment A
+109.05463077022732,Treatment A
+109.30892751420843,Treatment A
+116.8672917992075,Treatment A
+110.83438783298338,Treatment A
+108.46674161554213,Treatment A
+117.64381872674863,Treatment A
+98.82570313863232,Treatment A
+116.71814931561667,Treatment A
+104.35835042406616,Treatment A
+110.17073406845101,Treatment A
+105.06344050076018,Treatment A
+117.13572171551081,Treatment A
+109.15555778329916,Treatment A
+112.53620448141416,Treatment A
+102.40778572475706,Treatment A
+109.14968304916005,Treatment A
+116.00685927129912,Treatment A
+110.76527913668772,Treatment A
+106.3715634805482,Treatment A
+106.54087273070783,Treatment A
+118.96985812525791,Treatment A
+98.28129610077534,Treatment A
+116.42882848406478,Treatment A
+107.39167009931528,Treatment A
+102.33698045920242,Treatment A
+110.8576887384693,Treatment A
+110.9012777548143,Treatment A
+116.01928206735913,Treatment A
+121.03408801332439,Treatment A
+110.82924064446244,Treatment A
+104.84511113486603,Treatment A
+114.13175226040332,Treatment A
+112.53545668313046,Treatment A
+109.076891214573,Treatment A
+117.48772625196452,Treatment A
+108.50713079693921,Treatment A
+97.1706113499259,Treatment A
+110.10373828769212,Treatment A
+117.6209477365946,Treatment A
+103.3274991414434,Treatment A
+110.44391957207444,Treatment A
+119.11643784149025,Treatment A
+98.9267936069897,Treatment A
+102.97944772730858,Treatment A
+125.70428003074497,Treatment A
+111.93808826775695,Treatment A
+104.43252995415575,Treatment A
+119.34673745708282,Treatment A
+114.23760714322238,Treatment A
+110.68201441891604,Treatment A
+117.82347249974056,Treatment A
+112.67844553488624,Treatment A
+107.17190942345492,Treatment A
+101.84312201589435,Treatment A
+112.49516122282164,Treatment A
+113.16571239054025,Treatment A
+110.53681006171932,Treatment A
+113.76594267449343,Treatment A
+110.99009288476805,Treatment A
+104.05955806766436,Treatment A
+111.57619717825425,Treatment A
+106.55235343857673,Treatment A
+110.36104320916861,Treatment A
+119.63342204957881,Treatment A
+98.0118970231515,Treatment A
+110.08924782304955,Treatment A
+110.44990428837532,Treatment A
+103.11215482116083,Treatment A
+107.37458637075032,Treatment A
+105.49376949951686,Treatment A
+120.72180982394715,Treatment A
+112.1434615468748,Treatment A
+110.04479948308202,Treatment A
+114.08393675443718,Treatment A
+101.71239396448036,Treatment A
+110.2489737872629,Treatment A
+116.39608433009131,Treatment A
+111.27417320901388,Treatment A
+108.73384144309628,Treatment A
+109.1168262845681,Treatment A
+112.71023549025463,Treatment A
+100.371858102951,Treatment A
+105.53956785008769,Treatment A
+98.71428096754924,Treatment A
+119.43316118448354,Treatment A
+119.27437725267204,Treatment A
+107.15314031647901,Treatment A
+121.25394842989081,Treatment A
+117.14723459667607,Treatment A
+103.3616830054878,Treatment A
+112.73307010062847,Treatment A
+121.87518708665456,Treatment A
+120.48328739795504,Treatment A
+105.59886717149442,Treatment A
+107.7595418814446,Treatment A
+109.38253524170352,Treatment A
+112.27834120213397,Treatment A
+111.01235956055423,Treatment A
+106.10866889587453,Treatment A
+109.02645680772731,Treatment A
+113.8459457660002,Treatment A
+101.34837948400518,Treatment A
+110.07697475985739,Treatment A
+108.37644941230205,Treatment A
+110.2517130412889,Treatment A
+122.56576156205969,Treatment A
+104.46292042003802,Treatment A
+107.66376619430781,Treatment A
+115.6674403645695,Treatment A
+91.5206021549323,Treatment A
+103.53043376532176,Treatment A
+101.95094598621883,Treatment A
+118.40170973522058,Treatment A
+120.03473256884257,Treatment A
+100.9898346813162,Treatment A
+101.7453468010041,Treatment A
+109.09251515437626,Treatment A
+108.10225991735268,Treatment A
+113.639775475486,Treatment A
+107.8089085405029,Treatment A
+111.2975333545073,Treatment A
+106.04709411312008,Treatment A
+111.3869035774222,Treatment A
+101.47588991109623,Treatment A
+109.51106590059729,Treatment A
+109.3628323693095,Treatment A
+120.16257405651189,Treatment A
+100.42423448376057,Treatment A
+105.01269406756877,Treatment A
+97.34309741501285,Treatment A
+110.30672484481585,Treatment A
+103.84903347674104,Treatment A
+103.60162483613469,Treatment A
+118.73421377807618,Treatment A
+111.30368885195797,Treatment A
+110.20734601814108,Treatment A
+100.13697252191385,Treatment A
+115.43400301868158,Treatment A
+118.76400058443784,Treatment A
+113.92526738452054,Treatment A
+113.79027799822401,Treatment A
+114.56574966463032,Treatment A
+116.96898182789195,Treatment A
+112.93305262522716,Treatment A
+122.71217849178521,Treatment A
+101.57396827176733,Treatment A
+118.22668503692543,Treatment A
+115.14545931165446,Treatment A
+110.98649432548213,Treatment A
+117.4409990517606,Treatment A
+109.62335631284431,Treatment A
+110.403454380933,Treatment A
+116.29169343537505,Treatment A
+108.71216955971913,Treatment A
+118.22134145542898,Treatment A
+108.59450870342978,Treatment A
+112.09626970791247,Treatment A
+102.89771987290473,Treatment A
+114.9532035731901,Treatment A
+114.03409027014574,Treatment A
+113.36391602686042,Treatment A
+108.98952121858227,Treatment A
+105.05945720047308,Treatment A
+113.05528073521039,Treatment A
+108.45341527177006,Treatment A
+117.26940956644206,Treatment A
+113.50014720727502,Treatment A
+108.99077586127896,Treatment A
+111.60658382532625,Treatment A
+110.01986243762826,Treatment A
+116.34889701278779,Treatment A
+106.98943398054557,Treatment A
+120.29856275928258,Treatment A
+125.26152647194198,Treatment A
+112.50135726612417,Treatment A
+104.63687273128156,Treatment A
+100.97390342582264,Treatment A
+105.39015616301573,Treatment A
+110.53457802377598,Treatment A
+108.87067180814722,Treatment A
+115.3432917866444,Treatment A
+106.01436405978153,Treatment A
+115.09714790242911,Treatment A
+112.97970460224509,Treatment A
+107.34738929957173,Treatment A
+117.0621369321271,Treatment A
+102.69053580333131,Treatment A
+117.70690382131309,Treatment A
+109.28964419578897,Treatment A
+117.98696757560685,Treatment A
+118.1506381945431,Treatment A
+118.64826446788365,Treatment A
+113.59104104365446,Treatment A
+112.48263663362141,Treatment A
+110.40799301059667,Treatment A
+113.48989827312714,Treatment A
+105.1524722613775,Treatment A
+97.66942500971831,Treatment A
+109.57358619067523,Treatment A
+116.94765947772524,Treatment A
+116.60440549078281,Treatment A
+116.44139998306031,Treatment A
+110.18652529855888,Treatment A
+110.05534326441632,Treatment A
+121.33468426121206,Treatment A
+101.83898089240654,Treatment A
+115.15409308783768,Treatment A
+110.4158594997338,Treatment A
+112.53949690783934,Treatment A
+103.42955055479779,Treatment A
+109.50783602558191,Treatment A
+98.7297320390206,Treatment A
+119.38768599525899,Treatment A
+112.30206488378651,Treatment A
+112.43192595420138,Treatment A
+108.4270296177309,Treatment A
+113.45966406580035,Treatment A
+104.15278755187967,Treatment A
+96.85010656963185,Treatment A
+112.29062148045585,Treatment A
+111.29064219923727,Treatment A
+117.15881989079111,Treatment A
+108.89065059416751,Treatment A
+112.42010983550884,Treatment A
+105.43759425367406,Treatment A
+107.50608471923928,Treatment A
+101.07590356367699,Treatment A
+112.754756091697,Treatment A
+113.62097806034578,Treatment A
+112.74813820311331,Treatment A
+110.17301187244517,Treatment A
+117.3946284113873,Treatment A
+104.85081501600376,Treatment A
+113.20258729530534,Treatment A
+120.74734117536013,Treatment A
+117.33484310998914,Treatment A
+111.00724356712608,Treatment A
+112.49406984651341,Treatment A
+104.78962187929702,Treatment A
+111.3290473974394,Treatment A
+116.92172690765466,Treatment A
+110.81444390689634,Treatment A
+98.68425618590581,Treatment A
+114.46557978924596,Treatment A
+114.16950977198307,Treatment A
+118.33913168870896,Treatment A
+100.20263032464348,Treatment A
+105.79460556483525,Treatment A
+104.4714619006766,Treatment A
+103.64785260729727,Treatment A
+115.68384443110833,Treatment A
+110.5409926671467,Treatment A
+114.54206234315856,Treatment A
+111.04108516717997,Treatment A
+107.39771742604891,Treatment A
+113.79053911328408,Treatment A
+118.33472988137757,Treatment A
+116.56697944865239,Treatment A
+111.9399069573942,Treatment A
+110.30286948940017,Treatment A
+112.48199082724099,Treatment A
+110.38889622374998,Treatment A
+109.93749853854652,Treatment A
+113.50142699643122,Treatment A
+106.18657976513751,Treatment A
+116.13670470104877,Treatment A
+105.58513462800872,Treatment A
+113.23445376390345,Treatment A
+99.83983503529487,Treatment A
+111.34342001751683,Treatment A
+107.8736708702384,Treatment A
+111.16457109359384,Treatment A
+101.51924872608902,Treatment A
+116.58284094683746,Treatment A
+108.65003963224828,Treatment A
+102.63719686191689,Treatment A
+105.12009640107955,Treatment A
+110.970172432745,Treatment A
+106.65028999206116,Treatment A
+115.2532694084661,Treatment A
+115.10313842020267,Treatment A
+105.64560735297115,Treatment A
+117.25208617041662,Treatment A
+111.08713462893739,Treatment A
+110.11095597181131,Treatment A
+104.81820308077802,Treatment A
+121.43843132191184,Treatment A
+115.27094980948335,Treatment A
+112.0928882209477,Treatment A
+109.7871183968589,Treatment A
+117.08094587959677,Treatment A
+104.81029610537324,Treatment A
+118.7240595370111,Treatment A
+109.95144700277922,Treatment A
+108.84132301411437,Treatment A
+112.90798185871047,Treatment A
+109.09473745881174,Treatment A
+103.05059207165219,Treatment A
+108.83708228050115,Treatment A
+111.89262094919403,Treatment A
+104.33172633390875,Treatment A
+111.67499476925254,Treatment A
+111.44199044271446,Treatment A
+93.95871007082513,Treatment A
+127.53919749765566,Treatment A
+114.55117230129828,Treatment A
+116.83428155050358,Treatment A
+113.85595463056677,Treatment A
+106.49577744963054,Treatment A
+108.72199481239944,Treatment A
+106.5378061133202,Treatment A
+111.79526583551339,Treatment A
+112.90971536497509,Treatment A
+118.62034733908268,Treatment A
+112.49834629126059,Treatment A
+106.2970998159698,Treatment A
+119.20372347407519,Treatment A
+104.91523153598605,Treatment A
+105.6488533674437,Treatment A
+108.35787966513564,Treatment A
+105.43258680426791,Treatment A
+108.92152604514237,Treatment A
+108.49156631656601,Treatment A
+101.87508670444679,Treatment A
+104.70532167907557,Treatment A
+108.79401862370497,Treatment A
+99.29921989487389,Treatment A
+111.65608311987859,Treatment A
+119.36123721145691,Treatment A
+115.2138743755266,Treatment A
+117.48757394362147,Treatment A
+111.47165330046562,Treatment A
+102.9163391898315,Treatment A
+111.61644842883985,Treatment A
+112.84189827215835,Treatment A
+121.9825270679641,Treatment A
+109.41633790123257,Treatment A
+100.93437564329716,Treatment A
+107.15625769741004,Treatment A
+122.36988124997237,Treatment A
+108.11692105909451,Treatment A
+100.35002763389275,Treatment A
+114.22371328404121,Treatment A
+109.86996657472284,Treatment A
+101.63479150478653,Treatment A
+109.83381217727776,Treatment A
+98.60814063935538,Treatment A
+101.69537228719271,Treatment A
+109.73318515746445,Treatment A
+99.46743774776442,Treatment A
+100.44758744454973,Treatment A
+109.08124173018098,Treatment A
+102.57710317097528,Treatment A
+112.74430961871896,Treatment A
+114.16848100593843,Treatment A
+114.58231989775624,Treatment A
+107.84636206106589,Treatment A
+102.17085609383389,Treatment A
+120.2480564472953,Treatment A
+112.02588035967831,Treatment A
+119.9701907512859,Treatment A
+113.75620796084489,Treatment A
+117.82894916030287,Treatment A
+97.3741954854202,Treatment A
+115.85881311605303,Treatment A
+116.69556234903939,Treatment A
+103.94531671975739,Treatment A
+105.30246152525596,Treatment A
+121.37811178925162,Treatment A
+113.34956644941951,Treatment A
+104.35204971529204,Treatment A
+104.02215445476904,Treatment A
+110.87945979279239,Treatment A
+115.36485377242745,Treatment A
+109.82137847893273,Treatment A
+106.0024862378948,Treatment A
+107.10109719579575,Treatment A
+111.62671522915605,Treatment A
+113.31727647608868,Treatment A
+104.2417994267952,Treatment A
+105.45317756182567,Treatment A
+112.1184638411838,Treatment A
+103.26553137327261,Treatment A
+116.28066967804698,Treatment A
+115.57476305141309,Treatment A
+101.52228856019305,Treatment A
+111.14470743026581,Treatment A
+109.09810242463294,Treatment A
+114.166860672914,Treatment A
+106.81342402959125,Treatment A
+102.62290220851693,Treatment A
+102.46359876055756,Treatment A
+110.35495672684665,Treatment A
+105.5811924007548,Treatment A
+111.05854843796675,Treatment A
+108.68473423776094,Treatment A
+117.06741543682486,Treatment A
+105.52457932461866,Treatment A
+105.83267124251076,Treatment A
+99.90635904143036,Treatment A
+111.95171767724713,Treatment A
+106.34254811273425,Treatment A
+110.08164097322322,Treatment A
+113.0934513968928,Treatment A
+114.0016085263609,Treatment A
+105.06790451523239,Treatment A
+95.98649300297343,Treatment A
+112.35855426045038,Treatment A
+116.23336827204116,Treatment A
+120.88840988791453,Treatment A
+113.95413936536364,Treatment A
+113.41649791688864,Treatment A
+105.76100929284239,Treatment A
+115.2984080121701,Treatment A
+108.63832524140003,Treatment A
+110.35488773374348,Treatment A
+112.43608452967126,Treatment A
+112.59263831750731,Treatment A
+106.37696678852454,Treatment A
+108.32991033514773,Treatment A
+111.34548663767772,Treatment A
+100.74234778432591,Treatment A
+106.6838397622781,Treatment A
+107.4381824003396,Treatment A
+99.94120911246976,Treatment B
+103.55088928141033,Treatment B
+98.44566634261224,Treatment B
+93.73926530019068,Treatment B
+97.6168055126396,Treatment B
+93.8859079669921,Treatment B
+90.48683917355359,Treatment B
+91.22789596532273,Treatment B
+100.41156347912734,Treatment B
+94.07642450343816,Treatment B
+93.203001025321,Treatment B
+96.12000982241177,Treatment B
+94.77824695905024,Treatment B
+93.32198323691395,Treatment B
+93.54977697717527,Treatment B
+90.91437880206071,Treatment B
+97.57143429363323,Treatment B
+97.2791891769461,Treatment B
+95.43193631731515,Treatment B
+96.01580848138272,Treatment B
+96.16826689074568,Treatment B
+91.41910261395508,Treatment B
+100.58528699357207,Treatment B
+91.18683517517395,Treatment B
+98.69775320939416,Treatment B
+97.76430753896628,Treatment B
+98.5363986354344,Treatment B
+92.53579793472481,Treatment B
+86.98102098819999,Treatment B
+92.76750480880351,Treatment B
+100.1222082244188,Treatment B
+91.80344784417075,Treatment B
+96.81112975073756,Treatment B
+94.44578917222027,Treatment B
+104.27893346218978,Treatment B
+97.57675150284179,Treatment B
+102.95912658911307,Treatment B
+92.46062164874807,Treatment B
+91.44832821994281,Treatment B
+101.19222065282165,Treatment B
+102.9892477381898,Treatment B
+93.99139144274507,Treatment B
+90.57518579866682,Treatment B
+90.08333078494964,Treatment B
+95.43482260721136,Treatment B
+91.08294009205483,Treatment B
+91.75220742542517,Treatment B
+102.26633401129281,Treatment B
+97.32201796424279,Treatment B
+95.58187647412646,Treatment B
+93.78031872128433,Treatment B
+92.2232178267453,Treatment B
+94.76584331413028,Treatment B
+99.01189439454325,Treatment B
+94.37790423296875,Treatment B
+91.9828614268585,Treatment B
+90.65116361292576,Treatment B
+100.57144054531481,Treatment B
+97.47845710152778,Treatment B
+93.94920406648362,Treatment B
+89.33762857619422,Treatment B
+89.93122900628919,Treatment B
+89.39731115337804,Treatment B
+91.29878559776216,Treatment B
+93.10324579665989,Treatment B
+93.92677310142928,Treatment B
+95.04335906583752,Treatment B
+94.91911840981166,Treatment B
+101.62574861629773,Treatment B
+98.65408137706288,Treatment B
+96.40048701141639,Treatment B
+90.58874756785045,Treatment B
+94.62100510009083,Treatment B
+93.69932841817244,Treatment B
+99.17467529270769,Treatment B
+92.482255594846,Treatment B
+95.95817034603502,Treatment B
+95.33981285696458,Treatment B
+98.21276766189169,Treatment B
+100.7621794634268,Treatment B
+104.10302488943744,Treatment B
+94.16968273172584,Treatment B
+96.40441168745069,Treatment B
+103.94039193649816,Treatment B
+95.82133720961707,Treatment B
+99.06949797223888,Treatment B
+97.81616768146765,Treatment B
+89.18220344716006,Treatment B
+95.86888038325242,Treatment B
+99.88154837212252,Treatment B
+93.28865102991205,Treatment B
+90.61210798162051,Treatment B
+96.7302713488943,Treatment B
+92.27229328976077,Treatment B
+94.06439891623627,Treatment B
+90.07283740226589,Treatment B
+93.71486900879842,Treatment B
+93.53231592666208,Treatment B
+99.4761256987128,Treatment B
+99.3713159355696,Treatment B
+88.54767283006416,Treatment B
+91.59960060720852,Treatment B
+97.3579485839602,Treatment B
+96.79741879909008,Treatment B
+95.84597884170977,Treatment B
+93.59214603617986,Treatment B
+95.68051680628176,Treatment B
+94.12810077468367,Treatment B
+91.59422392404755,Treatment B
+98.92781012544573,Treatment B
+96.07258669548598,Treatment B
+98.88569764082256,Treatment B
+95.26871535590979,Treatment B
+92.40152158538729,Treatment B
+91.56388168862468,Treatment B
+90.76428821969031,Treatment B
+92.85925917966571,Treatment B
+101.05592539316787,Treatment B
+90.07339576486802,Treatment B
+97.58224557034586,Treatment B
+95.67445009359922,Treatment B
+100.7494395668982,Treatment B
+96.68120808521346,Treatment B
+102.85445793681039,Treatment B
+99.03460854258832,Treatment B
+94.87407964219669,Treatment B
+101.3506143443464,Treatment B
+90.3567345876251,Treatment B
+95.89576983420936,Treatment B
+93.88321204591433,Treatment B
+95.525527949846,Treatment B
+98.81801384525058,Treatment B
+93.79530131815221,Treatment B
+98.99265452507946,Treatment B
+99.48861589503306,Treatment B
+91.4224349083923,Treatment B
+102.13420527142323,Treatment B
+100.78318724767529,Treatment B
+88.61235711444864,Treatment B
+97.8863032470852,Treatment B
+91.56522608314154,Treatment B
+93.25536930239355,Treatment B
+91.18776797120374,Treatment B
+90.3796487173385,Treatment B
+92.63950158546304,Treatment B
+88.80637387167046,Treatment B
+98.7785236929471,Treatment B
+103.77537047538802,Treatment B
+93.16572607402944,Treatment B
+95.95840660300242,Treatment B
+98.21290391689394,Treatment B
+99.86181641603687,Treatment B
+83.48777438431732,Treatment B
+96.83071129867999,Treatment B
+94.43776632407115,Treatment B
+93.56282323165276,Treatment B
+89.19436212167793,Treatment B
+96.61330674262746,Treatment B
+95.04526918940203,Treatment B
+86.29899018859967,Treatment B
+93.67098182267394,Treatment B
+94.8212920767104,Treatment B
+92.50702996181445,Treatment B
+95.65641765807163,Treatment B
+94.5162600053887,Treatment B
+93.03350798517572,Treatment B
+95.88496829939702,Treatment B
+93.242367873797,Treatment B
+96.32545320893028,Treatment B
+95.31657242126816,Treatment B
+101.8761279624016,Treatment B
+90.29940735922915,Treatment B
+98.2199505017175,Treatment B
+91.75509191308201,Treatment B
+98.4288418385651,Treatment B
+104.92873056024825,Treatment B
+99.84819485089979,Treatment B
+83.26329723815404,Treatment B
+94.7988158280938,Treatment B
+90.90574660676782,Treatment B
+98.89195871213276,Treatment B
+92.51426335259875,Treatment B
+88.4828493236577,Treatment B
+98.58538557007782,Treatment B
+93.49608465854752,Treatment B
+92.64072113156345,Treatment B
+93.41103049017578,Treatment B
+95.06290326320591,Treatment B
+99.85486059438769,Treatment B
+94.1980117343854,Treatment B
+96.21558506705632,Treatment B
+92.54116280945527,Treatment B
+89.84675759049392,Treatment B
+96.31255401519867,Treatment B
+100.0611788369031,Treatment B
+96.41671993465927,Treatment B
+94.26099753082904,Treatment B
+95.70316227195649,Treatment B
+92.21607459732671,Treatment B
+94.17160994351855,Treatment B
+100.48685751472343,Treatment B
+96.6030477942872,Treatment B
+86.3928819452344,Treatment B
+95.51929269130245,Treatment B
+93.53657838261576,Treatment B
+88.31152892028913,Treatment B
+92.84738300215201,Treatment B
+95.27671873256621,Treatment B
+94.53978119942958,Treatment B
+86.9329252336499,Treatment B
+92.85448355534265,Treatment B
+98.46847480044487,Treatment B
+89.31499736104914,Treatment B
+97.07446219138271,Treatment B
+91.57835664495767,Treatment B
+103.80317280663893,Treatment B
+95.77788827042198,Treatment B
+101.81938716601415,Treatment B
+97.6346826429237,Treatment B
+95.00590643190108,Treatment B
+83.1680964999776,Treatment B
+88.2071879495651,Treatment B
+94.93991373272391,Treatment B
+98.64848884628006,Treatment B
+93.67731342591006,Treatment B
+95.29886939646995,Treatment B
+89.61862669445007,Treatment B
+95.63322641888945,Treatment B
+93.6535217312658,Treatment B
+95.81675400770274,Treatment B
+90.47890108630835,Treatment B
+91.10998410526919,Treatment B
+97.62113884663789,Treatment B
+89.52235837122048,Treatment B
+93.98010631980847,Treatment B
+97.39123579359617,Treatment B
+92.15371621252622,Treatment B
+101.63144293722134,Treatment B
+97.54357823968593,Treatment B
+92.10450969302146,Treatment B
+99.05201524587858,Treatment B
+97.48589921295957,Treatment B
+97.4556369478126,Treatment B
+97.933184459145,Treatment B
+103.67155812821555,Treatment B
+101.61623320471381,Treatment B
+96.00903455255569,Treatment B
+95.31993675765972,Treatment B
+90.58591394405785,Treatment B
+90.36965978482321,Treatment B
+93.07237972554701,Treatment B
+97.54237046405379,Treatment B
+91.73138536642941,Treatment B
+97.49103150658436,Treatment B
+97.49199418941276,Treatment B
+93.32623147747739,Treatment B
+95.55451904201463,Treatment B
+80.90406004432478,Treatment B
+98.23757016592754,Treatment B
+91.9858521096534,Treatment B
+85.12584199252248,Treatment B
+96.69919656532592,Treatment B
+88.72575161110645,Treatment B
+97.93395571554123,Treatment B
+102.1691346688274,Treatment B
+89.9474418929731,Treatment B
+94.52099692609282,Treatment B
+93.98346958537269,Treatment B
+96.08531888468852,Treatment B
+91.88393155329923,Treatment B
+90.94034888779406,Treatment B
+90.31774751093604,Treatment B
+97.68237090360174,Treatment B
+96.54526853965993,Treatment B
+96.82990137816603,Treatment B
+92.48894267236315,Treatment B
+102.18823180259649,Treatment B
+93.61581890932871,Treatment B
+97.43325507938683,Treatment B
+99.11051600113919,Treatment B
+98.2819732214486,Treatment B
+97.69217249097376,Treatment B
+95.37846247450133,Treatment B
+94.24506227041799,Treatment B
+92.75682323159397,Treatment B
+95.98112127096799,Treatment B
+97.59510129560238,Treatment B
+94.38635881789081,Treatment B
+91.43605240921086,Treatment B
+95.29033732066068,Treatment B
+94.34432445237715,Treatment B
+92.40950387967239,Treatment B
+90.46154139601197,Treatment B
+99.95451562247142,Treatment B
+94.5241928682858,Treatment B
+85.21599172039585,Treatment B
+94.90789053038642,Treatment B
+95.93922734587588,Treatment B
+93.78093375188477,Treatment B
+100.87328725603875,Treatment B
+95.53315256786938,Treatment B
+98.25464587659994,Treatment B
+92.4476522419745,Treatment B
+90.60690240878152,Treatment B
+99.0278522074257,Treatment B
+95.19304926879397,Treatment B
+90.36720386134854,Treatment B
+91.76456661582907,Treatment B
+91.47606509585589,Treatment B
+95.44832413677172,Treatment B
+90.98882070997344,Treatment B
+99.33249209012027,Treatment B
+96.98618507671173,Treatment B
+95.38300650004403,Treatment B
+88.29417558025989,Treatment B
+92.75062351634769,Treatment B
+95.08429036242258,Treatment B
+100.15467662720054,Treatment B
+93.11347171758375,Treatment B
+96.66759999176423,Treatment B
+93.43407364908126,Treatment B
+91.61388335252721,Treatment B
+98.8012636461458,Treatment B
+92.15351375254872,Treatment B
+98.21480777888567,Treatment B
+100.45843679427416,Treatment B
+88.92781393910383,Treatment B
+89.44768701031073,Treatment B
+91.88393127586684,Treatment B
+94.4915518912434,Treatment B
+93.00900812344759,Treatment B
+91.33963176925707,Treatment B
+97.65179793081322,Treatment B
+101.30466952209859,Treatment B
+96.13160245129725,Treatment B
+100.03746508239853,Treatment B
+100.71417911310742,Treatment B
+91.52377750073136,Treatment B
+98.01796967445382,Treatment B
+90.83213481970458,Treatment B
+98.88890198324043,Treatment B
+95.24846777698947,Treatment B
+98.41141939637328,Treatment B
+93.0869293918187,Treatment B
+95.31653761465486,Treatment B
+90.97178139558349,Treatment B
+95.03711322952928,Treatment B
+94.42243301074068,Treatment B
+102.49511717641427,Treatment B
+89.83249815699152,Treatment B
+92.31802783945422,Treatment B
+98.88952120597384,Treatment B
+89.4915367534221,Treatment B
+99.56190595825723,Treatment B
+89.53779378894468,Treatment B
+92.86078583836584,Treatment B
+99.57040919163614,Treatment B
+84.10542444769567,Treatment B
+90.27446587185239,Treatment B
+96.18031293770426,Treatment B
+94.86989611872491,Treatment B
+100.11774467363725,Treatment B
+96.02961801045149,Treatment B
+92.56060882155063,Treatment B
+99.17961658812519,Treatment B
+100.78248634352163,Treatment B
+96.639229861214,Treatment B
+101.15862210650374,Treatment B
+97.61141427900249,Treatment B
+95.05066946909393,Treatment B
+101.17505453186138,Treatment B
+97.09105019489526,Treatment B
+85.03674043217258,Treatment B
+92.91754649074099,Treatment B
+101.43802449596932,Treatment B
+97.65363317073145,Treatment B
+97.27744344148351,Treatment B
+94.95696782162416,Treatment B
+96.25622451960912,Treatment B
+96.68824800311852,Treatment B
+95.19299852652124,Treatment B
+93.67781192717636,Treatment B
+100.3281378307303,Treatment B
+95.1492445012237,Treatment B
+94.72661255012162,Treatment B
+100.99711436426784,Treatment B
+87.69985084520013,Treatment B
+94.930118471922,Treatment B
+88.93102868062823,Treatment B
+94.67006606880419,Treatment B
+101.22455053263165,Treatment B
+91.16998258896616,Treatment B
+85.74373098904627,Treatment B
+99.58762143121105,Treatment B
+97.49053574671456,Treatment B
+100.58174882822007,Treatment B
+96.28534741060646,Treatment B
+91.69671842189095,Treatment B
+91.7672156224718,Treatment B
+90.18483434400962,Treatment B
+93.1008009489657,Treatment B
+92.91662680781079,Treatment B
+99.33339796764189,Treatment B
+91.06937251660968,Treatment B
+86.9048854388045,Treatment B
+90.29268617446586,Treatment B
+98.121654485303,Treatment B
+98.25853626773363,Treatment B
+99.6899189637083,Treatment B
+88.44046626634854,Treatment B
+89.57083698698683,Treatment B
+89.62471675586816,Treatment B
+96.52325287448458,Treatment B
+96.5183116592036,Treatment B
+92.14537408899484,Treatment B
+89.21749577167476,Treatment B
+91.57334504846945,Treatment B
+94.73255617356703,Treatment B
+101.06232856800392,Treatment B
+96.04816511622008,Treatment B
+99.05770059102296,Treatment B
+81.35018254219091,Treatment B
+93.48261878855378,Treatment B
+95.68351538853044,Treatment B
+94.28517064639028,Treatment B
+94.79628642083269,Treatment B
+94.77054988378089,Treatment B
+91.29211497584814,Treatment B
+91.76539936181311,Treatment B
+96.85291403153555,Treatment B
+93.67368922170044,Treatment B
+92.86012240585286,Treatment B
+95.77509963632566,Treatment B
+90.11718898251763,Treatment B
+87.0200991316086,Treatment B
+97.19378295002524,Treatment B
+96.13623495418224,Treatment B
+94.62366449927266,Treatment B
+90.90513133365172,Treatment B
+92.32896303506021,Treatment B
+93.79312823291149,Treatment B
+96.84648458125861,Treatment B
+93.1272348401713,Treatment B
+97.65121912889587,Treatment B
+94.42390887274358,Treatment B
+95.7944933140065,Treatment B
+97.32409920577926,Treatment B
+90.2656268657651,Treatment B
+91.09868520949306,Treatment B
+97.16960999188765,Treatment B
+92.9278515278156,Treatment B
+96.96276897197215,Treatment B
+98.33625546795793,Treatment B
+92.5380341255416,Treatment B
+92.54369821786038,Treatment B
+88.10949818801606,Treatment B
+101.24369411136324,Treatment B
+93.2399603916363,Treatment B
+91.14767089408997,Treatment B
+94.0972543418288,Treatment B
+92.20181571850893,Treatment B
+98.39785420864598,Treatment B
+91.33221228006761,Treatment B
+91.58268461465127,Treatment B
+91.44637131887403,Treatment B
+95.02313119411302,Treatment B
+96.6122504413861,Treatment B
+96.15086082283042,Treatment B
+88.84870251172889,Treatment B
+93.7371436321861,Treatment B
+99.72926968595269,Treatment B
+97.04461978519167,Treatment B
+94.37994538255384,Treatment B
+93.02164707133153,Treatment B
+98.46574604993137,Treatment B
+101.19655795692924,Treatment B
+94.88561986361061,Treatment B
+99.33832359549801,Treatment B
+86.91516271497117,Treatment B
+97.37412845909144,Treatment B
+87.29292666115013,Treatment B
+86.1230904157657,Treatment B
+98.49955968375292,Treatment B
+93.37445441954556,Treatment B
+94.78236169509366,Treatment B
+96.22950035896712,Treatment B
+95.35116872033332,Treatment B
+92.87056625869923,Treatment B
+101.31725807844667,Treatment B
+99.6789448939938,Treatment B
+92.47965262102012,Treatment B
+97.94700513743597,Treatment B
+99.24039982232848,Treatment B
+97.9897677809376,Treatment B
+97.24685432969855,Treatment B
+87.2587478337496,Treatment B
+90.7982658946994,Treatment B
+90.65011026700502,Treatment B
+82.31881451917442,Treatment B
+91.82339964915867,Treatment B
+
+</script><script type="text/plain" id="df3" data-format="csv_embedded" data-src="">
+score,age,department
+62.39121965865436,48,Engineering
+85.8990952804508,38,HR
+68.29410943309186,63,Sales
+79.82580212638977,25,Sales
+72.70786543587849,30,Sales
+73.9614569858893,75,Sales
+39.485051674803415,46,HR
+52.77360904621683,65,HR
+41.09526374518991,67,Marketing
+63.0591808498396,62,HR
+95.76729074078207,72,HR
+78.43480831737648,51,Sales
+58.77786768219114,62,Sales
+65.97350204284702,64,Sales
+71.6633916775889,67,HR
+88.47445928644298,19,HR
+63.938998576283936,43,Marketing
+104.38827092091246,72,Marketing
+87.16494342797515,75,HR
+61.144487545798256,53,HR
+88.89491684924107,42,Marketing
+73.06274900643031,44,Sales
+81.89966897483572,32,Sales
+70.04305162746364,48,Marketing
+68.06784712978998,43,Engineering
+66.45438279135533,63,Engineering
+82.5387664007506,63,Engineering
+63.70899858523341,66,HR
+56.88999207248851,46,HR
+62.8908936563213,54,Marketing
+56.215240872394766,23,HR
+62.973146054245895,25,Sales
+54.97421372908511,75,Sales
+76.8242339388035,59,Sales
+77.99015617611235,48,Marketing
+66.07803065411775,70,Sales
+77.54143916612516,30,Marketing
+52.70895191480476,45,Marketing
+84.05014998784134,66,HR
+37.15980422810034,19,HR
+52.31898148313985,44,Sales
+54.41691845960729,53,Marketing
+52.99367453452526,67,Engineering
+90.70728975783058,22,Sales
+78.0030805451795,52,Engineering
+87.73796798827087,28,HR
+49.181632043163475,31,Sales
+56.16777587345531,57,Sales
+88.28660872375744,66,HR
+69.56391713017565,31,Marketing
+77.42072760220573,62,Marketing
+62.88120126091865,22,HR
+52.08873131249642,23,HR
+52.99920763070167,37,Sales
+76.89582271784035,71,HR
+81.26186417911516,18,HR
+44.134298286810754,39,Marketing
+83.74041338572223,52,Marketing
+74.78754784081733,44,Marketing
+71.35415256265378,25,Marketing
+70.42054762738817,70,Sales
+68.52307142865394,34,Engineering
+75.36328824827214,75,Marketing
+104.26361561151009,55,Marketing
+74.07568476612083,18,Sales
+55.43845815986873,76,Engineering
+71.27689341569965,64,HR
+70.12169765095895,20,Engineering
+76.86127700131473,39,Engineering
+81.8274958371803,51,Marketing
+27.311367630602803,26,Engineering
+80.1960254167014,62,Marketing
+80.25690324452381,79,Sales
+62.123580549221515,74,HR
+87.26167309273472,56,HR
+69.70225449594231,53,Sales
+67.86412666584182,77,Engineering
+57.10819413090435,26,Engineering
+76.1827436710516,27,HR
+74.31266737245821,64,Engineering
+79.04552517121533,50,HR
+52.978571443890786,25,Sales
+43.04156590422116,57,Engineering
+79.53187172779232,54,Sales
+52.69853154504965,54,Engineering
+86.83265484485777,70,HR
+58.678943418584986,54,Sales
+50.02777953710934,52,Marketing
+85.64135330583953,45,HR
+72.15864888157961,75,HR
+39.70424859204455,57,HR
+34.38447290189197,36,Sales
+62.17185341647793,48,Marketing
+63.19979245924578,43,Engineering
+55.88400124751999,20,Sales
+66.5660043030875,56,Marketing
+83.63098096573576,80,Marketing
+66.83556410177914,70,HR
+74.07063406194345,41,Engineering
+75.61998143502595,22,Engineering
+63.89258094844368,38,Marketing
+57.22504459877279,78,Sales
+85.66295203364984,72,Engineering
+87.34301660888,33,Sales
+60.21829284463695,73,HR
+74.10506218626355,35,HR
+89.53173393545657,69,Engineering
+67.23067630759544,64,Sales
+73.46367137527388,78,Sales
+63.01170839949673,37,Sales
+61.29357851688941,49,HR
+101.91364453654029,32,Marketing
+69.80187568551077,78,HR
+70.24645341452477,72,Marketing
+68.57843420695733,78,Sales
+78.63931877154388,31,Engineering
+71.1583156343458,71,HR
+55.89733362637938,46,Sales
+59.07721514249899,79,Engineering
+84.37916342627823,50,Sales
+32.91645760105517,62,Engineering
+64.36659773885548,56,HR
+73.75590830464408,27,Sales
+95.31664557582324,18,HR
+69.30611777316646,27,HR
+65.67466398382577,74,Engineering
+87.43234740570219,53,HR
+70.59125977652442,78,HR
+54.88572668228808,36,Marketing
+56.197939825447534,79,Marketing
+79.94442430368741,35,Marketing
+80.41891255997899,49,HR
+60.54922453265163,62,Sales
+50.03631420988323,41,Sales
+57.57038634417056,34,Engineering
+93.58904749545023,24,Marketing
+64.00736076696711,74,Marketing
+70.88579965076599,33,HR
+55.015800114741104,44,Sales
+50.54397315096821,29,Sales
+61.43685103907771,46,Sales
+68.33895282093732,36,Marketing
+74.60142070238086,63,Marketing
+59.763345103744314,28,HR
+55.19366154875753,76,HR
+66.4868011569586,69,HR
+75.60548578299871,46,Marketing
+69.78666120261863,59,Sales
+91.5750751780132,20,HR
+38.49862539393702,66,Marketing
+80.32694002553245,54,Sales
+68.76566603095566,23,Marketing
+92.60668744613186,33,Engineering
+95.66220960232702,32,HR
+61.214766036831,42,Marketing
+68.53349194981303,79,Marketing
+100.87669708180516,46,Marketing
+65.38660235656816,23,Engineering
+89.31694800459712,39,Engineering
+72.85848838048085,26,HR
+68.20990579254392,41,Marketing
+55.9696053072254,40,HR
+56.72717308111735,26,Sales
+71.29158593786453,65,Sales
+70.17267728691428,77,HR
+59.512953848986314,33,Engineering
+74.80739104351487,68,Sales
+50.584261525276965,64,Engineering
+61.58532523748168,36,Engineering
+78.49092226155724,37,Sales
+92.67273367051217,70,Marketing
+69.33774918178644,77,Engineering
+56.16065827357889,72,Sales
+66.08416919368855,36,HR
+41.44188785904305,21,HR
+86.1843303699645,33,Sales
+100.32011202341837,52,Sales
+43.81103694475118,44,Marketing
+85.8579103809751,30,Marketing
+51.81384466708768,43,HR
+45.42868350431403,47,Engineering
+69.61055725714382,80,Sales
+83.1910917105828,35,Sales
+72.38698961617983,80,Sales
+81.71811080836929,58,HR
+63.622329482484176,45,HR
+82.33019046507408,52,Marketing
+95.81188017478999,73,Sales
+82.75717056544701,67,Marketing
+67.2184997697032,49,HR
+69.28835339812585,59,Engineering
+75.57187673018674,50,Marketing
+45.163144797374045,65,HR
+73.34710602191132,44,Sales
+49.64246849931269,29,Sales
+51.663216640539204,35,Engineering
+80.68539368784307,26,Sales
+56.782865995945066,35,Marketing
+65.74037858073243,74,HR
+77.68288130939993,75,HR
+66.47637360371095,65,Sales
+55.67971606034211,45,HR
+48.72975226576672,55,HR
+73.36573784476214,21,Sales
+68.79472447305248,77,Engineering
+73.1576519551609,31,HR
+67.49742926671718,38,HR
+72.73935970656834,57,HR
+51.53261562656135,57,Sales
+57.69195841617732,51,Sales
+72.20411608129425,54,Engineering
+70.33214020215966,69,Engineering
+79.74490680053897,66,Engineering
+52.11027942673917,46,HR
+55.13414175124862,62,Engineering
+39.38965947518328,40,Sales
+66.94344857869223,33,Marketing
+75.89899365072543,65,HR
+51.490208680592346,20,Sales
+72.31715929658311,79,Engineering
+75.4247808683424,49,HR
+81.70588768420592,18,Engineering
+66.24672439620791,49,Engineering
+71.35248786689519,61,Engineering
+96.76208584616691,64,Engineering
+69.5638561609219,44,Sales
+48.52352624370313,28,Sales
+57.56174347829296,18,Marketing
+71.72051575771451,31,Sales
+49.142239712832705,75,HR
+66.25212868677815,58,Sales
+43.29170568715928,50,Engineering
+80.88951548043843,73,Sales
+82.70961226218355,60,Sales
+77.23373692920836,34,HR
+90.52411435346498,34,HR
+50.5424250659113,45,Engineering
+78.71912493391484,33,Sales
+79.82729098653354,25,Marketing
+73.11542585310342,49,Engineering
+73.76011131988702,41,HR
+72.96675703144618,72,Engineering
+50.714649156640036,44,Marketing
+80.00549716515731,77,Marketing
+77.45375816302116,24,Marketing
+50.34300242107148,60,Marketing
+76.60448607888479,51,HR
+72.7748914812457,43,Marketing
+98.44747763770691,26,Marketing
+71.03825325718128,32,Engineering
+75.90150944671207,58,Engineering
+37.48958921682804,79,HR
+84.00757829109531,57,Marketing
+81.14841376393142,72,Marketing
+40.02053474353897,25,HR
+64.30570638103953,24,Engineering
+88.10172780219662,67,Sales
+71.95239035975487,50,Marketing
+87.61708513503831,42,Marketing
+105.13086028329903,34,Sales
+60.3116776120203,48,Sales
+55.219691175515976,21,Engineering
+62.82899725801792,39,HR
+51.022512754681834,30,Engineering
+64.11719441074992,78,HR
+62.50527587602379,22,HR
+70.54194317165523,63,HR
+72.75797959196179,69,Sales
+60.79725481914035,75,Marketing
+90.50318433464673,25,Sales
+87.76130801480831,18,Sales
+59.717477742306045,28,HR
+73.11257780450434,66,HR
+69.54905516270739,36,Marketing
+52.75467160605637,76,Marketing
+73.7842055493881,31,Engineering
+95.5461770474769,75,Engineering
+84.50516539135594,55,Sales
+79.05131588929767,48,Sales
+88.23560082841482,24,Sales
+72.90347386600983,80,Engineering
+63.33208284799723,41,Sales
+97.30804391000102,67,Marketing
+96.4932978557005,26,Sales
+81.24085037056355,18,Sales
+77.2662015752382,78,Engineering
+65.76986319968242,34,Engineering
+59.97473772923375,35,Marketing
+79.68749056206333,44,HR
+74.36557787558033,62,HR
+86.39727753550993,76,Engineering
+54.485608175659536,40,HR
+72.64930252147082,35,Sales
+37.296672758716156,41,Sales
+99.0135632655365,34,Engineering
+83.85182874116136,79,Engineering
+65.61955676219961,32,HR
+66.18089826890524,52,Engineering
+83.33279743808644,67,Engineering
+70.12831956179576,18,Sales
+94.69108006383897,49,Marketing
+62.89621253373926,23,Sales
+67.9777495026496,47,Sales
+61.270897971845436,73,Sales
+92.73081538014873,56,Sales
+78.59578234652216,42,Sales
+89.82872239691343,43,Engineering
+50.26527296869255,41,Sales
+42.20781367186926,47,Sales
+68.58035253524501,52,Engineering
+86.9260186205683,25,Sales
+101.75653880962133,63,HR
+113.14611810771297,20,Sales
+89.06525796189405,36,Marketing
+62.85680709077651,30,Engineering
+59.832337707262504,70,HR
+55.66266429503287,56,HR
+66.1292474945946,55,Sales
+40.29355215277142,18,Engineering
+87.75239978620434,56,Sales
+74.34209157763033,63,Marketing
+65.89751398258294,72,Marketing
+69.00609409906833,20,Engineering
+81.81817407615907,25,HR
+46.61709753244112,65,Sales
+56.523485932408,26,HR
+73.65938149401018,18,Sales
+79.67153007012405,29,Marketing
+37.61971961008598,28,Engineering
+74.18936150934516,25,Engineering
+77.87243336285486,31,HR
+84.8784614517714,25,Engineering
+67.51988727753299,78,Engineering
+52.785357403815595,77,Engineering
+77.64726248554533,20,Marketing
+55.24311643705944,59,Marketing
+41.59077112564137,54,Engineering
+52.2884192887456,61,Engineering
+58.24872917309568,35,Engineering
+67.16012318975002,32,Sales
+46.259815618134255,66,Marketing
+64.95472046081105,23,Engineering
+77.14805824050138,29,HR
+87.12259839549617,18,HR
+58.26732895519159,39,Engineering
+81.87497983566443,47,HR
+54.38928461162986,30,Sales
+28.73390435902443,59,Sales
+56.83732561344752,41,HR
+77.77930107056713,63,Engineering
+64.95488841643697,74,Marketing
+66.13165887641627,41,Marketing
+57.848191349338336,47,HR
+76.45984304583618,56,HR
+50.020753319088215,50,HR
+82.71023472120928,73,Sales
+58.697518107549016,58,Engineering
+56.805212387194565,35,Marketing
+70.95169177102727,59,Marketing
+103.22662985840593,47,Sales
+62.488326743676076,48,Sales
+48.435082327589576,65,HR
+47.66848627473574,25,Sales
+88.71390111247179,79,Engineering
+55.57418211906443,30,Engineering
+63.92633865162145,32,Engineering
+51.49477432095424,47,Marketing
+52.81463884711724,49,Marketing
+86.56358127066065,76,Marketing
+41.95750925652104,69,Sales
+63.733642803806084,52,Marketing
+77.08249347936803,64,Engineering
+43.08453770724584,57,Marketing
+84.4696623078598,24,Engineering
+69.11937947396927,78,Engineering
+80.77710120100757,63,Sales
+61.88768383435097,28,Engineering
+72.79476342018592,71,HR
+74.260417112584,39,HR
+78.47523877031146,70,Sales
+76.81764158438479,35,Engineering
+75.89437234389777,45,Sales
+75.11225449814141,35,Engineering
+63.89689689067382,62,Engineering
+91.58121084182689,20,Sales
+86.68988638488499,46,HR
+67.62431737480097,51,Engineering
+56.304909773287804,69,Sales
+49.491109626115545,75,HR
+79.71880180865448,72,Marketing
+100.99308526686463,48,HR
+71.36088267837327,59,HR
+53.74594692104975,59,Sales
+55.49867391423261,60,Engineering
+69.90420522364866,25,Sales
+80.59876926596176,29,Marketing
+46.49218159633801,30,HR
+83.33218762023662,38,Marketing
+68.12103149902885,55,HR
+53.908125051514716,41,Marketing
+98.98419227017921,33,HR
+69.21389154198025,46,Sales
+81.07874968062984,45,Sales
+83.47664578879343,76,HR
+60.86307845206521,32,Marketing
+53.47780614642854,78,Sales
+94.03849685124413,19,Sales
+76.29284038819401,74,HR
+81.64686260405875,59,Marketing
+91.47127466829531,38,HR
+41.64127117709343,27,Sales
+64.35944049626602,56,Sales
+52.12045285733,50,HR
+44.59005485703932,19,Sales
+87.73222194195655,24,Marketing
+61.84745711580753,55,HR
+80.48267632701837,45,Sales
+81.33064700308954,56,HR
+78.2713955766067,31,HR
+86.61268923497636,28,Sales
+68.51252177659082,57,Sales
+63.42359794489792,21,Engineering
+49.56207344994665,57,Engineering
+82.30622344657176,80,HR
+79.33692715867538,56,Sales
+73.0111020661471,70,HR
+71.02853294562024,50,Engineering
+55.23604771908121,33,HR
+47.19965099468679,32,HR
+61.38459431428603,22,HR
+67.66196555699874,40,Marketing
+73.8736902102083,65,HR
+69.85246015221983,69,Sales
+76.89855405301437,74,Marketing
+58.57152144503125,24,Engineering
+57.49078021726521,60,Sales
+63.525559932626834,70,Sales
+53.71153916048381,51,Marketing
+58.46015927574902,26,HR
+49.21388893568392,36,Marketing
+59.717202280614345,70,Sales
+72.63522098700386,44,Engineering
+74.92540493590589,56,Engineering
+83.65905192120172,79,Engineering
+74.25070080677672,72,Engineering
+73.61460332191943,42,Sales
+66.25381741053828,66,HR
+77.37994270874296,63,Engineering
+65.27485952264382,34,HR
+76.97199556486353,38,Marketing
+87.90222258174074,33,Engineering
+65.44946399333739,48,Engineering
+91.20525360231176,78,HR
+85.15816980204362,70,Marketing
+71.76959877339112,24,Engineering
+69.81713196669372,73,Marketing
+46.997185665178336,43,Engineering
+82.45548881338848,59,Sales
+61.44390494349021,26,HR
+47.6570589263845,62,Sales
+67.9320602923788,78,Engineering
+51.91901967415789,59,HR
+83.99441110051642,24,HR
+71.22753872690186,33,Sales
+50.089743245093274,65,Engineering
+79.28258102033851,72,Sales
+63.57656223636123,21,Engineering
+76.6893459347997,66,HR
+70.1673411201978,23,Marketing
+60.55106283146243,38,Marketing
+105.6475163313215,69,HR
+59.08312669917456,45,Sales
+47.07901584305162,24,HR
+43.709000808114325,36,HR
+47.161099149299716,59,Engineering
+63.05630447239165,45,HR
+87.98767546740825,56,Sales
+72.34802833792197,47,HR
+85.79025239712996,36,Marketing
+92.4241221561831,48,Sales
+48.47485290975179,24,HR
+74.67492833185213,27,HR
+91.50919695587187,54,HR
+73.1305332521756,66,Engineering
+41.333359109750845,80,HR
+86.54268191850052,23,Sales
+77.72833042969832,78,Marketing
+79.4507900709977,44,HR
+77.10672977579581,65,Engineering
+89.35068189814845,60,HR
+85.45625882670858,59,HR
+67.8456015967775,51,Engineering
+36.82324778544601,73,Sales
+62.94060328972427,50,Marketing
+46.64191586160344,78,Engineering
+67.66853160141433,46,Marketing
+64.85160933644741,33,Sales
+82.32631493932098,25,Marketing
+72.88365186248444,68,Marketing
+64.7506119720077,28,Sales
+70.89166267760727,70,Engineering
+68.62241770183779,21,Sales
+96.1359828960538,55,HR
+101.33423200259679,54,Sales
+67.23417761837365,41,Engineering
+58.95242115316877,46,Marketing
+63.083140425483535,18,Engineering
+80.02248501056341,56,HR
+62.12437344887837,28,Engineering
+60.24023637231633,73,Sales
+51.74069343815019,66,Engineering
+68.07174325434146,75,Sales
+73.2588535212751,41,Marketing
+66.92852139267998,66,Engineering
+70.46464167375163,32,Sales
+44.13000110113584,19,Engineering
+83.25025215300386,23,HR
+71.17987862605399,21,Marketing
+98.2969182540871,60,HR
+89.34479685239371,28,Marketing
+60.96981568854124,19,Sales
+81.67406734091662,62,Marketing
+75.39809576118225,67,Marketing
+46.317937866122385,62,Engineering
+73.566117505896,58,Marketing
+69.93514801697434,53,Sales
+88.8807176607288,59,Marketing
+60.30774166506029,43,Sales
+77.09610014294508,23,Sales
+70.31047662425169,23,Sales
+81.52315475618434,77,Sales
+105.1829099146816,63,HR
+99.43274755589673,70,Engineering
+56.72013003505569,18,Engineering
+71.65417145954434,50,Engineering
+55.20448167833142,55,HR
+86.26416041876664,62,Marketing
+97.02122034978213,48,HR
+90.77253123351929,55,Sales
+58.805211714102384,21,Sales
+45.534503037654815,52,Sales
+77.15207968838922,53,HR
+40.28023827057257,78,Sales
+78.5374324014254,24,HR
+73.29614723901287,46,Sales
+47.16379353797878,52,Sales
+97.1411841568944,46,Engineering
+55.94589456375525,52,Marketing
+97.0357146944502,75,Engineering
+96.30117430819121,70,Marketing
+75.89287716440727,79,Engineering
+73.89243979968967,65,Sales
+65.40811147836563,62,Sales
+87.72046259710368,77,HR
+40.677893626046654,69,Engineering
+58.21687005072847,22,Marketing
+75.84606728813397,32,Engineering
+59.08894813072638,26,Marketing
+72.88054322271125,39,Sales
+49.475702177007705,51,Engineering
+82.20158333222388,27,Sales
+48.370884774702226,50,Marketing
+49.966724119311536,47,HR
+57.16932863261267,42,Marketing
+58.6728430818902,56,Sales
+86.4057842977017,37,Sales
+85.8211199535548,71,Engineering
+54.033117962332256,78,Sales
+93.77855554955516,46,Engineering
+74.52590002145148,23,HR
+60.813412073731406,55,Engineering
+64.6412267681653,48,Engineering
+102.11181105464973,26,Marketing
+87.47292185249022,74,Sales
+54.072381314027965,35,Sales
+68.23449713762284,34,Sales
+83.329722024488,62,Engineering
+77.37908528806835,44,Marketing
+81.42291522144998,51,Engineering
+59.158490180367394,75,HR
+41.584096671833976,68,Sales
+88.09274464245277,35,Sales
+88.68697748631479,76,Marketing
+69.13262866441562,80,Marketing
+83.27523495304618,22,HR
+59.8138878111955,30,Engineering
+66.28245440768497,19,HR
+71.65683300080791,62,Sales
+76.75167729319867,58,Engineering
+64.69757963628484,30,HR
+60.385893096716686,75,HR
+43.936620418686864,47,Engineering
+79.87248153331946,51,Sales
+98.28228912451488,19,Engineering
+84.48295598170968,55,Engineering
+82.55249372613048,47,Engineering
+64.89412400273687,61,HR
+81.6207519247847,43,HR
+68.01414059301037,57,Sales
+54.70020090788766,58,HR
+89.96694186482172,23,Engineering
+62.09680532375854,57,Sales
+70.5677039475987,46,Marketing
+61.09271191646144,51,Sales
+68.82565285632408,47,Marketing
+58.35442815146526,74,Marketing
+75.9244985042892,40,Marketing
+103.35806875610383,59,Sales
+61.74974001674751,18,Engineering
+61.2495071601812,79,Marketing
+70.46083152911373,79,Marketing
+60.31685167811132,73,Engineering
+58.71431910673883,20,Marketing
+91.80089602407705,50,Sales
+72.60455232770998,76,HR
+81.87117408551796,58,Marketing
+79.6301868529276,50,Engineering
+67.67601076340422,77,Marketing
+81.69120104498796,76,Marketing
+62.10232277980174,53,HR
+49.397582955649966,73,Marketing
+51.647293612404376,42,Sales
+52.636579575626165,26,HR
+65.64403502291412,32,HR
+78.85763217226527,76,Marketing
+63.74457791699727,62,Engineering
+87.1219870075184,19,Marketing
+47.277687106667166,36,Engineering
+67.12484385381305,60,Sales
+78.65902162031377,55,Sales
+71.4545505090099,48,Sales
+55.01915453917461,63,HR
+77.52099441657452,48,Engineering
+64.92329045193533,79,Marketing
+61.270236574281164,72,Sales
+72.660882629079,56,Sales
+48.39637586861727,53,HR
+70.03105105586464,56,Engineering
+105.03660890974528,48,HR
+95.88807422641979,20,Marketing
+43.43095824830967,27,HR
+78.60970315479557,69,Sales
+96.76891450893541,69,Marketing
+63.485024542940245,50,Marketing
+84.82841701282706,23,Sales
+88.65303066894985,28,Sales
+32.130528840436455,47,Marketing
+89.5422158262439,20,Sales
+90.97655598194386,57,Sales
+85.8305802524037,76,Sales
+81.38413707155448,29,Sales
+74.78725771901215,23,HR
+75.66536777615124,36,Engineering
+100.30114838998006,79,HR
+62.24942614728833,54,HR
+89.30158832755343,23,Sales
+76.29500358150774,45,Sales
+90.4661877086621,32,HR
+90.03895858599252,26,Marketing
+102.62001200148782,55,Marketing
+65.31864342166993,50,Engineering
+95.7128113621514,64,Engineering
+68.89567210063665,80,Engineering
+68.28922074501662,50,Engineering
+68.90934047112322,38,HR
+58.61755061996715,49,Sales
+64.40178644510489,25,Sales
+60.28011396040654,28,Sales
+58.39234439991924,71,Engineering
+86.12895604560597,40,Engineering
+75.78829336552229,53,Marketing
+65.24338033433735,32,HR
+56.26688425064205,74,HR
+58.36793842890036,22,Engineering
+75.42270669032708,26,HR
+83.36068774257035,43,Marketing
+73.10108767941901,20,Sales
+97.74021828738282,80,Engineering
+89.41227553101591,19,Sales
+72.2402477628438,47,Sales
+65.03376048001908,51,Sales
+54.8846532426985,77,Sales
+89.99578243301926,51,Engineering
+71.22751854551848,50,Sales
+84.38306123376786,56,Engineering
+84.91522943560042,50,Engineering
+39.18557183042538,28,Sales
+74.50301558839735,27,Engineering
+43.33307718671345,50,Marketing
+44.093076902746425,57,HR
+85.57673674359677,20,Engineering
+83.36722844117557,35,Engineering
+94.87152933799274,75,Marketing
+79.5294898519008,75,HR
+74.17201058905104,58,Sales
+68.68894830069834,42,Sales
+60.84238801673658,50,HR
+66.77653808897941,79,Engineering
+69.66931605283375,48,Engineering
+57.111416166616735,24,Sales
+53.71748143773513,52,Engineering
+67.68296552738427,24,Sales
+69.9468447818922,46,Engineering
+48.90259631178908,22,Sales
+60.055561434991304,72,Engineering
+71.15976711385224,34,Marketing
+52.22639288283662,21,Sales
+53.752958629270935,57,Engineering
+59.77113157501035,39,HR
+56.89390809263864,21,Sales
+71.04678703287028,66,HR
+81.36892270754004,62,Sales
+79.29918426029579,45,Sales
+51.50979403762709,74,HR
+76.15849919424718,28,Engineering
+71.36365368467486,64,HR
+59.341655329332546,70,Engineering
+93.25582339760564,18,Marketing
+60.758154154117165,67,Engineering
+65.71494151337319,63,HR
+76.75257011697204,78,Engineering
+60.08118100632189,48,Engineering
+54.48978426589967,29,Sales
+79.743600844632,42,Sales
+60.917855670951475,20,Sales
+85.80798038843139,25,HR
+53.23987256642794,74,Sales
+80.74593488378288,50,Marketing
+91.32790185049701,42,Sales
+44.87957682741596,54,Engineering
+95.2542479924523,51,HR
+77.39911207847157,79,Marketing
+72.87578745636063,60,HR
+77.74857691441075,60,HR
+104.36823772024403,37,HR
+76.56414278592453,52,Engineering
+53.672403141139185,54,HR
+67.00354141612047,62,Engineering
+73.0824954045557,28,HR
+55.973791065989104,51,Engineering
+56.2253211880831,40,Marketing
+70.15824402175097,43,Marketing
+70.95501074273021,54,Sales
+95.90454621520465,79,Engineering
+92.65472857967268,38,Sales
+60.84989801624054,77,Engineering
+56.96128041697845,37,Marketing
+62.47841041975604,62,Marketing
+71.824625396022,26,HR
+78.12316939899301,73,Engineering
+93.90535791507777,27,Marketing
+60.055484404588725,52,HR
+86.2730134294489,78,Engineering
+69.66042735721271,61,Engineering
+62.04900651938141,44,Sales
+57.503669152317926,28,Engineering
+73.80412238837164,48,Sales
+81.91951051112831,46,Marketing
+77.40558794162393,65,Marketing
+66.99081850579053,46,Marketing
+76.17970232172254,68,Marketing
+49.12552056450947,63,Sales
+99.67583714971119,23,HR
+57.8722032346238,24,Engineering
+53.58583303391764,34,HR
+81.52604412664233,23,Marketing
+56.04789244197282,76,Engineering
+65.54533890347085,79,HR
+59.20435492223332,63,Marketing
+68.68196063236948,64,Sales
+64.567499622386,32,Sales
+83.80977667865943,44,Marketing
+73.26793794831653,77,Sales
+65.71227226662602,46,HR
+81.4894811679852,72,Sales
+72.68034148680346,67,Marketing
+79.44733119816578,43,HR
+68.71693306842987,39,Engineering
+86.24987317893272,46,HR
+71.37951328847258,29,Marketing
+72.46521777730347,75,Sales
+41.710066697471014,55,Engineering
+51.016519898702796,65,HR
+105.22635264431258,36,HR
+52.19085408415975,43,Marketing
+93.39872597920333,21,Marketing
+91.87242621677998,77,Marketing
+49.5067046225354,54,HR
+70.28473636350706,68,Marketing
+73.78231856515893,50,HR
+56.74118263974998,62,HR
+87.88512344675831,63,Marketing
+58.30664173278485,62,HR
+80.99852280191129,33,HR
+54.74841925619438,63,HR
+62.16699546308398,27,Engineering
+60.0545912380255,71,Engineering
+59.69546979582136,57,Marketing
+74.90429711113862,79,Engineering
+81.8628427167861,28,Engineering
+72.19825596969555,75,HR
+67.1845558207103,36,Engineering
+77.39227437501324,26,Engineering
+56.14019828264773,47,Engineering
+65.16624410399464,53,Marketing
+66.53864766353387,61,Engineering
+56.95859114341067,64,Sales
+68.22135106889078,50,HR
+50.47855986855612,65,Sales
+58.74428138567115,77,Sales
+86.14832958609307,52,Marketing
+57.161613041597036,52,Engineering
+77.07478937895866,26,HR
+58.43133868651081,40,Marketing
+90.6492789544204,40,Sales
+101.85738585006345,60,Marketing
+51.883369459110476,62,Sales
+63.76840166039763,33,Engineering
+65.3301112256496,22,Marketing
+52.3743481601814,69,HR
+30.41956062932438,28,HR
+47.290940274543274,32,Engineering
+71.08328101638264,69,Engineering
+63.361149917881185,34,HR
+81.31507974772677,39,Marketing
+64.0164810857109,54,Engineering
+56.385169467099864,35,Engineering
+84.53733180211196,37,HR
+62.478618692031375,31,Engineering
+91.61096923086328,50,Engineering
+49.246515795755855,23,Sales
+47.93824617406862,70,Marketing
+47.24342541704622,51,Engineering
+77.31644905334231,66,HR
+55.00421603275055,19,Marketing
+33.71907458143048,63,Marketing
+68.44745261523943,51,Marketing
+47.42317097896171,20,HR
+57.176699289051186,46,HR
+87.43377269596853,55,Sales
+49.63077590551174,31,HR
+83.88132955542676,66,Marketing
+52.80743303228476,62,Sales
+66.76651796722273,65,HR
+77.85283260226697,72,Sales
+73.64493312262628,67,HR
+80.028995465078,18,HR
+80.3120723411677,45,Engineering
+66.98950140787743,34,Sales
+80.62172167249321,74,Sales
+64.05056272428048,40,Marketing
+78.77497533773293,54,HR
+55.48810759543073,44,HR
+70.02654488666722,54,Marketing
+71.4584170429676,20,Sales
+88.15449034927786,35,HR
+73.11656058372883,62,HR
+68.73631203751333,73,Engineering
+65.70239065234267,54,HR
+96.98108276314377,65,HR
+89.37557729235212,54,Engineering
+87.18324936213816,73,Engineering
+64.4332285570819,58,Marketing
+48.79980076612856,33,Marketing
+88.3955884874799,79,HR
+48.6361225602903,43,Marketing
+81.27710246395986,61,Marketing
+57.32353057013836,78,HR
+37.209195063912304,79,HR
+98.9420695803002,79,Marketing
+84.96479996468051,20,Engineering
+53.75984474807886,52,Marketing
+80.63036039384126,61,HR
+50.69835764646136,75,Engineering
+40.223906245223965,60,Sales
+92.2080519977521,73,Engineering
+91.37979464356903,60,Sales
+77.2563691255978,37,Sales
+72.08131945146836,21,Engineering
+73.72994502273745,29,Sales
+53.72167141982385,74,Marketing
+72.75163241144354,64,Sales
+73.22642312426078,46,Sales
+83.2267761713264,25,Engineering
+68.04530651657058,38,Marketing
+74.00044267059187,60,Marketing
+95.29311506293804,24,HR
+83.34950951269273,67,Sales
+58.15332558859476,18,Sales
+75.82892518123492,58,HR
+69.13218531299933,73,Sales
+53.99914197768757,47,Marketing
+68.43782530300338,38,HR
+60.39169247971209,67,Sales
+53.763808893646754,52,Marketing
+45.50804408334102,42,Marketing
+82.59442367373752,42,Engineering
+49.44145070569239,64,Marketing
+53.876114644468345,62,Sales
+55.314534974186415,67,Marketing
+54.67587511325188,66,Sales
+64.71162906210786,78,Engineering
+84.09766289424817,75,Marketing
+93.26214585286874,39,Engineering
+39.7300220604583,25,Marketing
+44.932703327763534,38,Engineering
+61.2531955587561,35,Sales
+75.74282025915608,74,Engineering
+49.214534233332536,76,Sales
+59.336997276401675,23,Engineering
+80.62626741338032,50,Marketing
+72.4972958242247,65,Sales
+68.52797990522213,65,Marketing
+86.08267388747936,21,HR
+68.40404624927116,19,HR
+68.28169728309919,68,Marketing
+45.92066326927305,35,Engineering
+76.77782144783788,63,HR
+65.82946216300076,52,Sales
+90.43869748769353,64,Marketing
+63.87607975917984,48,Marketing
+56.52819817842312,47,HR
+55.510170829478106,79,Sales
+62.58984270314861,18,Sales
+58.0047635419519,33,HR
+56.99215463866801,42,Sales
+65.13551074853176,70,Engineering
+38.667196997806215,47,Marketing
+65.44703155783067,62,Marketing
+70.38742832140085,50,Marketing
+29.488703673761563,47,Sales
+92.97244592986638,70,HR
+51.834706839950485,19,Engineering
+65.80692160865134,65,Sales
+69.81443733763469,50,Marketing
+78.75681695701977,26,Engineering
+66.18502441014064,37,Marketing
+69.04639136491079,45,HR
+81.03275782579192,68,HR
+76.20439585804459,49,Sales
+69.21901432746627,57,HR
+55.24034244095914,18,Sales
+73.53756781258681,74,Marketing
+110.15051306091684,21,Engineering
+60.572501138773106,53,HR
+45.6668842010252,33,Marketing
+53.50769797558418,59,Engineering
+77.78232557919539,72,Engineering
+92.52548297855833,73,Sales
+83.12087083220516,73,Sales
+85.38570939616378,36,Marketing
+47.92265815684803,44,Engineering
+56.45351754781616,45,Engineering
+52.07455785837289,58,Marketing
+72.10195734513972,40,Marketing
+61.69594178655203,57,HR
+54.56859349836967,63,HR
+79.49238809554504,37,Engineering
+70.49337806874168,50,HR
+60.097391025016826,19,Engineering
+82.65628988381096,42,Engineering
+79.59573552570134,67,Sales
+62.51588953907852,22,HR
+94.92360605919163,58,Marketing
+72.72864100298847,60,Engineering
+110.97659858922358,68,Marketing
+63.512896393562784,49,Engineering
+61.18846726495203,59,Engineering
+67.47608424533334,74,HR
+66.92831879017774,51,Marketing
+68.91332764122886,71,HR
+68.02459090508968,66,Marketing
+69.92890060363207,24,Marketing
+80.35526755729643,29,Engineering
+63.74697096322211,72,Marketing
+76.60185986835882,71,Engineering
+44.41999881726829,66,Sales
+66.94278909482621,22,HR
+80.31155935323895,53,Sales
+62.4549837862348,43,Sales
+55.15307832569579,77,HR
+61.541514101057984,48,Engineering
+58.769110774538525,75,Sales
+57.171317251812134,61,HR
+78.05593838443549,33,Engineering
+69.80665434636774,59,Marketing
+67.02627559368665,34,HR
+87.64197619345784,53,Sales
+66.72911745844327,49,Marketing
+67.86011117918468,24,Engineering
+60.2313429306002,50,Engineering
+73.97879705360519,39,HR
+67.41303681580708,45,HR
+94.54867003969308,29,HR
+39.86997139029858,50,HR
+69.0588407561067,76,HR
+60.434000233746396,22,Marketing
+72.4245716230442,40,Marketing
+66.0867668864607,74,Engineering
+40.486004455959346,64,Engineering
+77.18485437884601,39,Marketing
+58.83391394423395,24,HR
+73.49092027804144,54,Engineering
+61.58013358333207,74,Engineering
+61.01782031776947,37,Sales
+79.77269922508998,65,Engineering
+82.1865862453113,76,Engineering
+75.71416288280608,70,HR
+88.45584456438006,77,Marketing
+66.02612105186073,68,Marketing
+94.1159563495537,69,Sales
+81.83171782163168,26,Marketing
+42.4603706110815,43,HR
+76.9891981654992,45,HR
+58.38160683781699,59,Engineering
+62.64644036816871,40,Marketing
+47.45769072953713,26,HR
+63.68083600695731,43,Sales
+66.09083537668607,47,Sales
+97.97469731461874,71,Engineering
+78.39569583490979,27,Sales
+81.31034482057382,20,Marketing
+60.97648302176543,34,HR
+46.801955126520184,18,Sales
+57.17042490144121,24,Sales
+76.98075707783256,66,Engineering
+52.18199642373182,18,HR
+69.64207808783684,66,Engineering
+76.59096392217985,37,Engineering
+88.29781941456733,37,Marketing
+95.45637731044415,67,HR
+53.93944324437318,38,HR
+74.86056396341941,57,Sales
+68.77106941541749,48,Engineering
+40.58236982232679,71,Sales
+50.64241102528676,76,Engineering
+43.61117608842514,57,Marketing
+50.612629533756106,33,Engineering
+83.77429754261742,57,HR
+68.65719642917387,18,Engineering
+102.05765761516165,78,Engineering
+102.301108582215,58,Marketing
+34.61610222355116,61,HR
+73.53423949865356,79,Engineering
+72.08847096737146,20,Sales
+67.36675295596632,80,Engineering
+72.00960797475096,69,Engineering
+51.720738925825955,69,Engineering
+72.6896433067867,56,Marketing
+64.60053058977091,63,Sales
+66.78749771267341,66,Sales
+50.42572868773203,26,Marketing
+61.745183215592625,28,HR
+41.44764463115639,20,HR
+59.01616507694081,40,Sales
+83.37681965023842,74,Engineering
+55.35438263663675,30,Marketing
+67.57935775978119,79,HR
+79.02060880264466,65,Marketing
+63.60717315797975,34,HR
+86.22824154312187,39,Marketing
+85.44810636963439,48,Marketing
+57.29107261866227,45,Sales
+71.80046439312603,74,Marketing
+74.47177780451409,57,HR
+101.2581476613624,71,Marketing
+85.78385695906711,77,Sales
+90.76063691047355,80,Sales
+89.6536571781856,26,HR
+77.1005393128788,37,Marketing
+45.6318653081989,47,Marketing
+71.96743602133817,62,Sales
+68.23324198826981,44,Engineering
+73.76319004913186,52,Marketing
+78.64806585155146,33,HR
+93.11268211786803,34,Engineering
+87.91010383909304,57,Sales
+62.57519784683351,76,HR
+69.08889769169974,59,Marketing
+73.67767954605262,32,HR
+60.70998295466059,30,Engineering
+75.25293328433925,21,Marketing
+48.740180008275644,34,HR
+87.16753995231949,18,Engineering
+46.98120100808979,65,Marketing
+61.02635257640054,77,Marketing
+72.74624316936254,44,HR
+61.59215838184319,78,Marketing
+60.8238429296692,35,Engineering
+75.30769688555256,23,Marketing
+80.5781844638653,72,Marketing
+71.86001735564972,74,Marketing
+55.81899908253227,25,Sales
+89.88332404224164,44,HR
+78.60002268362518,49,Engineering
+48.236991950421434,51,Sales
+61.771269725488345,28,HR
+86.0161806783029,39,Sales
+69.83380502792951,48,Sales
+89.31112441317481,36,Marketing
+52.04890590768753,61,Sales
+80.09045959249076,46,HR
+58.05318177632378,78,Marketing
+70.53351000102364,53,HR
+52.99489927817463,42,Sales
+79.44511824993748,69,Sales
+74.20157303716302,67,Marketing
+57.761376784838966,21,Marketing
+68.6685485315748,72,HR
+71.23744050056169,21,Engineering
+69.53550828539298,45,Marketing
+37.19051026843787,28,HR
+89.23862639780802,77,HR
+72.70452227465013,67,HR
+86.44766784563416,40,Marketing
+69.3119317528088,32,Engineering
+90.02944599002664,47,Marketing
+67.23687555695001,49,Sales
+79.65711978183147,58,Marketing
+73.34686420511635,28,Sales
+76.58071948968178,62,Sales
+62.64141792789314,78,Marketing
+50.77502971287163,75,Marketing
+57.94855127271535,75,Marketing
+43.361134504016874,64,Engineering
+75.10363733071547,76,Sales
+74.01045900078894,60,Engineering
+64.14930057290691,37,Sales
+74.287105244738,35,Engineering
+71.33319072464938,18,Marketing
+81.87326006232655,29,Marketing
+77.88581127802593,77,Engineering
+71.28988829723897,51,HR
+44.558923547387096,56,Engineering
+66.33278203242565,39,Marketing
+59.82144211090004,70,HR
+62.54384297373958,40,HR
+55.6188064909946,41,Sales
+72.27736875758131,27,Engineering
+66.92652229089293,59,Marketing
+64.43017997202324,64,Engineering
+66.46701560431369,46,Sales
+80.31560928740035,73,Sales
+57.925587734809476,80,Marketing
+60.02336565914342,58,Sales
+70.3476001532314,79,HR
+70.2644828230127,68,Marketing
+108.32366956859974,67,HR
+86.0459810757541,62,HR
+61.7099856966138,33,HR
+60.120188447836675,21,Engineering
+74.5552491365454,57,Engineering
+93.02379335735839,46,Engineering
+47.51289260639244,56,Marketing
+82.74940267892093,40,Sales
+67.11431822486712,74,Engineering
+63.942697320265246,39,Engineering
+59.59127036344733,67,Engineering
+63.92162740205931,21,Sales
+70.53976931501741,37,Marketing
+84.62093475480853,56,Marketing
+77.87842667381562,21,Engineering
+81.48567291955318,73,Engineering
+73.88645962574071,80,HR
+77.38177983302461,37,Engineering
+89.4854354330283,51,Marketing
+60.666783525889734,71,Marketing
+92.73255926636962,28,HR
+14.571368082272272,35,HR
+75.0194882908193,45,Sales
+77.99996753959475,19,Sales
+68.72269599609015,46,Sales
+88.94828364761395,48,Engineering
+34.31054323535499,69,HR
+80.60702645688141,50,Engineering
+79.10845597257556,39,Marketing
+71.10280690194598,26,Sales
+64.66318564626859,35,HR
+56.09022789496229,74,Engineering
+55.2702774319927,73,Engineering
+61.78579395998459,67,HR
+90.66926451541028,47,HR
+37.80103263278709,31,HR
+82.1600940439975,72,Marketing
+53.88010591551188,55,Engineering
+58.109963843346456,64,Engineering
+52.63560417191768,23,HR
+55.07270099638425,50,HR
+60.261222043321254,33,Sales
+60.38171949069949,29,Sales
+77.81218416537214,50,Marketing
+89.23268482456777,61,Engineering
+49.61406219730553,29,Sales
+86.81662652223132,68,Marketing
+67.26615740643236,65,Sales
+66.1451619089436,79,HR
+71.13345510341529,75,HR
+65.24345362218104,39,Engineering
+91.32622213325169,19,HR
+68.04584183464488,20,Marketing
+
+</script><script type="text/plain" id="df4" data-format="csv_embedded" data-src="">
+measurement,time_point
+107.17650497230335,Baseline
+106.83210300611975,Baseline
+105.45622875613952,Baseline
+107.49394802642503,Baseline
+101.54726602843375,Baseline
+120.36961782272292,Baseline
+90.01860901793874,Baseline
+95.70693657425787,Baseline
+96.83773768111315,Baseline
+85.93945718515799,Baseline
+98.9422354410023,Baseline
+108.50226402316845,Baseline
+100.76339192381576,Baseline
+112.13791315442563,Baseline
+105.58343150651883,Baseline
+100.06213273197079,Baseline
+113.60961966340419,Baseline
+106.35244476052523,Baseline
+89.39470283687052,Baseline
+93.94173266737688,Baseline
+94.69873706781875,Baseline
+99.31504679175619,Baseline
+98.70868648144317,Baseline
+85.96269849330123,Baseline
+105.66616147331946,Baseline
+102.39426642713633,Baseline
+97.99020440138518,Baseline
+103.14062433059317,Baseline
+88.97142047423037,Baseline
+107.43422426311122,Baseline
+93.04861397884417,Baseline
+104.1449504925204,Baseline
+96.26650160937594,Baseline
+84.17855897655436,Baseline
+99.35970897341456,Baseline
+95.1419731371862,Baseline
+93.99934309767191,Baseline
+122.8633344273794,Baseline
+111.438113235453,Baseline
+100.90674502767753,Baseline
+98.63556313090729,Baseline
+119.23601078874829,Baseline
+96.43920954065179,Baseline
+107.41205269823516,Baseline
+102.7915376922367,Baseline
+106.7818709778018,Baseline
+92.3109207932881,Baseline
+106.7241414558642,Baseline
+103.82020936747571,Baseline
+109.36353464265935,Baseline
+101.22161986278985,Baseline
+111.1943100580546,Baseline
+112.50434416798235,Baseline
+113.66978592346909,Baseline
+92.1809074478126,Baseline
+104.64101121217206,Baseline
+92.80459463974158,Baseline
+97.31996063013678,Baseline
+110.73795910943636,Baseline
+108.81842093472606,Baseline
+100.74315000961656,Baseline
+100.42103794544111,Baseline
+90.58449206493289,Baseline
+99.95043471041237,Baseline
+93.94802399473681,Baseline
+96.66337645213666,Baseline
+103.45104192398811,Baseline
+113.72714478415557,Baseline
+95.0211907135468,Baseline
+98.06292405835855,Baseline
+94.8990134125345,Baseline
+88.21747934934852,Baseline
+91.07421365799989,Baseline
+103.2284475402942,Baseline
+101.84112295069899,Baseline
+90.12157293771607,Baseline
+105.23411956949901,Baseline
+90.8251425342224,Baseline
+91.71479608384611,Baseline
+108.49967450662547,Baseline
+90.60940301611987,Baseline
+97.3489232463377,Baseline
+83.77286299915941,Baseline
+112.70309718181298,Baseline
+108.6781985216073,Baseline
+96.64087439807767,Baseline
+92.40100997488058,Baseline
+88.01480990961504,Baseline
+99.99297076861498,Baseline
+104.91293879858333,Baseline
+102.69000964646868,Baseline
+96.93779413652386,Baseline
+103.34126015433245,Baseline
+106.95357197887982,Baseline
+92.25079613405086,Baseline
+104.16078095721406,Baseline
+93.3775996474161,Baseline
+99.89811091029144,Baseline
+114.42345397843712,Baseline
+94.3387582498341,Baseline
+109.73190172935523,Baseline
+96.4594542642647,Baseline
+85.55001274995301,Baseline
+106.2892909166082,Baseline
+86.13407418962518,Baseline
+99.35126305305509,Baseline
+99.02631635013175,Baseline
+99.68540976517058,Baseline
+100.66913005821542,Baseline
+91.82507610305655,Baseline
+105.43693836471382,Baseline
+104.04241083947593,Baseline
+86.39004766047927,Baseline
+89.85810152292315,Baseline
+105.39210066767093,Baseline
+105.00943006463324,Baseline
+115.19251456676959,Baseline
+103.83809681001321,Baseline
+117.214850489365,Baseline
+108.873938253948,Baseline
+94.28100157211126,Week 1
+107.83746622358032,Week 1
+110.72485314657034,Week 1
+109.81668769952505,Week 1
+107.61061388770688,Week 1
+111.78688258715131,Week 1
+98.42912328443295,Week 1
+102.4235027895215,Week 1
+89.49088095216909,Week 1
+103.59062034415422,Week 1
+109.50037487475561,Week 1
+98.28977503285903,Week 1
+91.86609681412884,Week 1
+98.21099049599472,Week 1
+102.83297808058784,Week 1
+115.92003466765898,Week 1
+102.22699887181663,Week 1
+97.7758644255942,Week 1
+100.78872617117202,Week 1
+112.09318837969198,Week 1
+109.01567593599866,Week 1
+112.8885466445444,Week 1
+107.95854662008112,Week 1
+108.16521273584293,Week 1
+99.16729601763957,Week 1
+99.59048231646443,Week 1
+105.0538334531141,Week 1
+104.77756067202701,Week 1
+101.70512951854826,Week 1
+111.08343405372956,Week 1
+90.43080463631138,Week 1
+103.46661991817905,Week 1
+102.319948333988,Week 1
+113.41143441468645,Week 1
+104.88830492844004,Week 1
+95.21844376937602,Week 1
+93.98542676104279,Week 1
+98.68681129343986,Week 1
+104.64018050107754,Week 1
+118.05670022504293,Week 1
+109.34352593164482,Week 1
+108.06033843452457,Week 1
+107.67446600644774,Week 1
+95.692330459372,Week 1
+96.50110186450526,Week 1
+111.53040755351192,Week 1
+105.34202146442816,Week 1
+117.24316406842928,Week 1
+104.03614492500131,Week 1
+118.98694516874217,Week 1
+103.1671150603297,Week 1
+105.05431593319062,Week 1
+107.35526610764448,Week 1
+103.58065746238773,Week 1
+110.89497187518364,Week 1
+119.16482874328885,Week 1
+109.64718822722037,Week 1
+93.2890052134903,Week 1
+113.7695365725106,Week 1
+100.6919533119393,Week 1
+95.9130705505042,Week 1
+105.51479019910393,Week 1
+104.51977924659276,Week 1
+99.44343656506194,Week 1
+98.79832564255679,Week 1
+107.20111645321408,Week 1
+104.25555237580124,Week 1
+105.06173753382492,Week 1
+108.40830335850713,Week 1
+100.99626402988912,Week 1
+104.70227087401821,Week 1
+108.5544406896093,Week 1
+112.23592447918301,Week 1
+111.9895132306405,Week 1
+105.35907072221151,Week 1
+103.41038682940363,Week 1
+96.63505482052099,Week 1
+112.7158098148692,Week 1
+109.86666931557758,Week 1
+108.96531992568583,Week 1
+102.41345142966195,Week 1
+103.47995782758827,Week 1
+104.33639122661326,Week 1
+102.04996133088463,Week 1
+97.39554210839346,Week 1
+112.33323887872433,Week 1
+109.35986908708426,Week 1
+90.89632720706976,Week 1
+103.46471457369375,Week 1
+114.13560794588966,Week 1
+99.21715559165035,Week 1
+112.05784395423531,Week 1
+112.86248840599178,Week 1
+101.66534583525211,Week 1
+107.79018312886205,Week 1
+107.55735341114867,Week 1
+98.54582493765463,Week 1
+102.13538388372541,Week 1
+103.08274618848135,Week 1
+114.93779677244129,Week 1
+113.76859110850637,Week 1
+103.29158176511005,Week 1
+95.59351398961063,Week 1
+107.57518987082248,Week 1
+107.6882617846152,Week 1
+115.23879534302738,Week 1
+105.53650324556538,Week 1
+100.98762147405965,Week 1
+111.57956812826384,Week 1
+109.44966385396631,Week 1
+110.6035686382573,Week 1
+113.2394749689685,Week 1
+101.79421321853441,Week 1
+111.76296379560459,Week 1
+116.25950759140953,Week 1
+110.11732123042839,Week 1
+89.5352880134879,Week 1
+104.35244570123491,Week 1
+107.8715859328205,Week 1
+107.25850421064976,Week 1
+114.41661138451073,Week 2
+104.25342878016784,Week 2
+98.29418254683954,Week 2
+110.11412447924555,Week 2
+95.78644705326784,Week 2
+105.7331533169892,Week 2
+101.89007778737205,Week 2
+113.31354699996152,Week 2
+107.58034639062424,Week 2
+111.57291895310287,Week 2
+100.38676600379348,Week 2
+111.37772168008382,Week 2
+109.67387101908709,Week 2
+99.41117220099504,Week 2
+102.32824831503851,Week 2
+96.23392444281123,Week 2
+112.36631967105049,Week 2
+111.56281451762077,Week 2
+102.4833754333097,Week 2
+108.8227945256636,Week 2
+106.27491314970037,Week 2
+96.18148344583523,Week 2
+102.12259479716433,Week 2
+106.33861496046869,Week 2
+114.14308674691097,Week 2
+109.6920692197822,Week 2
+101.90360148347784,Week 2
+108.28307242025701,Week 2
+109.22640425251652,Week 2
+115.2779679786134,Week 2
+99.55269397751522,Week 2
+110.88655274769681,Week 2
+103.22515393549669,Week 2
+110.36741500319,Week 2
+102.35788188037569,Week 2
+115.29958735065446,Week 2
+114.94942113443739,Week 2
+104.72722198461162,Week 2
+105.98414896003686,Week 2
+100.03398095113651,Week 2
+111.96626421217545,Week 2
+97.91625780668696,Week 2
+113.85798901862532,Week 2
+103.32552474611782,Week 2
+113.81262708089511,Week 2
+104.98614386074493,Week 2
+107.39475459500419,Week 2
+112.42404262863775,Week 2
+108.63981618402238,Week 2
+99.71912972427319,Week 2
+113.33035897599387,Week 2
+108.91475719330863,Week 2
+106.23967991891466,Week 2
+105.63108625529333,Week 2
+103.63234209280179,Week 2
+103.87775850507587,Week 2
+102.20400693703745,Week 2
+120.56811583035963,Week 2
+104.50143917026917,Week 2
+99.17453478780808,Week 2
+95.86871998232627,Week 2
+111.49662258509609,Week 2
+109.5022567415493,Week 2
+110.44512031299121,Week 2
+106.92814988946604,Week 2
+108.81181798611851,Week 2
+112.7458705651034,Week 2
+104.44297028658144,Week 2
+108.21991715837021,Week 2
+105.5549250332354,Week 2
+114.10964191904787,Week 2
+103.52901401699464,Week 2
+106.89800101701634,Week 2
+105.01690277548651,Week 2
+103.73212410856186,Week 2
+110.71862989973384,Week 2
+105.40005551075824,Week 2
+112.73482453998139,Week 2
+107.75080881467338,Week 2
+107.23390642212789,Week 2
+111.82897068258305,Week 2
+99.94989282482246,Week 2
+113.8968825226195,Week 2
+100.85173132801575,Week 2
+113.47388893565467,Week 2
+120.36288324633367,Week 2
+100.73469925299435,Week 2
+105.99836223113331,Week 2
+94.76162204283602,Week 2
+106.52090462374859,Week 2
+107.90539465663666,Week 2
+101.7003000928227,Week 2
+104.62451527046494,Week 2
+111.39258363420751,Week 2
+111.53068685301083,Week 2
+114.01409194459812,Week 2
+104.96844752442854,Week 2
+98.7573335878592,Week 2
+111.34961148154628,Week 2
+104.52249681479616,Week 2
+104.06635511635768,Week 2
+107.8755857259447,Week 2
+110.00544430725766,Week 2
+112.00613016908068,Week 2
+109.08730836842642,Week 2
+115.47582166690238,Week 2
+105.06672015789206,Week 2
+106.777330736302,Week 2
+110.52393538037147,Week 2
+114.5010637840745,Week 2
+112.54053788854317,Week 2
+103.85928116561843,Week 2
+109.84886715918108,Week 2
+104.98499470145155,Week 2
+109.67719922856216,Week 2
+115.3983878505556,Week 2
+107.16698649670599,Week 2
+109.49913762357276,Week 2
+109.10504290965966,Week 2
+106.91423924180296,Week 2
+115.25783295683614,Week 3
+113.38967652707976,Week 3
+114.20628452964924,Week 3
+100.38422049024813,Week 3
+105.36091930996669,Week 3
+113.91027407860277,Week 3
+110.99255814089783,Week 3
+116.87183518205394,Week 3
+114.81231587824402,Week 3
+108.48017706564414,Week 3
+107.25972350428788,Week 3
+111.05451390567488,Week 3
+115.30423192512562,Week 3
+94.435038342635,Week 3
+104.118429598769,Week 3
+111.2885866381314,Week 3
+103.50777625235116,Week 3
+111.58611188152067,Week 3
+104.00709013244179,Week 3
+105.84032363469531,Week 3
+111.20564229999762,Week 3
+103.87793265701856,Week 3
+102.44634689618204,Week 3
+113.29874716048758,Week 3
+114.30640143398207,Week 3
+101.09682088963747,Week 3
+108.0683051776875,Week 3
+108.31557997786778,Week 3
+99.50302772263717,Week 3
+108.0017455517755,Week 3
+109.99062356476468,Week 3
+103.8409811829852,Week 3
+112.03971290819852,Week 3
+110.00875479504535,Week 3
+112.11387585956938,Week 3
+112.25602278482522,Week 3
+98.25590208827165,Week 3
+104.09494422674452,Week 3
+106.07060395364007,Week 3
+109.82728634239524,Week 3
+107.54862089415123,Week 3
+106.60065449012703,Week 3
+124.69938684038824,Week 3
+108.98783512386935,Week 3
+108.00068839657041,Week 3
+117.70430393763695,Week 3
+114.2569192773179,Week 3
+111.74187007641927,Week 3
+117.4487473760338,Week 3
+107.8542310814886,Week 3
+117.8373082995967,Week 3
+113.15616760155066,Week 3
+113.60369482763947,Week 3
+106.4794301063658,Week 3
+106.87233349723344,Week 3
+110.97150015709116,Week 3
+109.95163301912511,Week 3
+104.63348087743081,Week 3
+105.93427397357843,Week 3
+105.90532356593795,Week 3
+98.58046141558633,Week 3
+106.83200876589898,Week 3
+112.84164188379391,Week 3
+119.41426722555134,Week 3
+110.51969537931072,Week 3
+111.85845915308914,Week 3
+114.96212742327658,Week 3
+96.22007314532074,Week 3
+106.99922215584846,Week 3
+110.71546788655273,Week 3
+113.24517590083627,Week 3
+118.00750382857028,Week 3
+112.56159487895063,Week 3
+108.92221639152211,Week 3
+110.63786108008652,Week 3
+117.40059559334003,Week 3
+114.06247348771731,Week 3
+103.91224012768448,Week 3
+109.58688787482478,Week 3
+111.41327616229825,Week 3
+115.5971162792557,Week 3
+108.69288045158622,Week 3
+114.91899841133211,Week 3
+114.46726365510534,Week 3
+122.25698373747365,Week 3
+103.72146090478378,Week 3
+115.91200230780147,Week 3
+113.00554667405505,Week 3
+113.44660346137118,Week 3
+113.20391489472269,Week 3
+103.63729028008265,Week 3
+117.51337800275248,Week 3
+104.97928062395961,Week 3
+108.7579741474018,Week 3
+105.61573986124718,Week 3
+106.07939830001135,Week 3
+104.19964200839414,Week 3
+123.29329251076048,Week 3
+92.43449694869551,Week 3
+116.94031289959881,Week 3
+103.54130171946822,Week 3
+112.07727430871329,Week 3
+118.23912722789059,Week 3
+105.53666039899105,Week 3
+104.39363165545717,Week 3
+112.31184226951493,Week 3
+113.04345407646974,Week 3
+113.554015418223,Week 3
+104.36634231009181,Week 3
+108.55058428110202,Week 3
+112.46644038670209,Week 3
+111.90627214355234,Week 3
+101.34603746161524,Week 3
+116.31993150079019,Week 3
+116.01974890203675,Week 3
+114.81168297985974,Week 3
+120.438570791892,Week 3
+104.92269935475001,Week 3
+104.41681225054329,Week 3
+98.86886727106439,Week 3
+116.04944070356385,Week 4
+112.53617732046366,Week 4
+101.85936780296983,Week 4
+103.83790240764256,Week 4
+117.96191470415074,Week 4
+108.2107027298398,Week 4
+124.20082245375163,Week 4
+114.11413573518927,Week 4
+112.33689890638176,Week 4
+113.03650989520514,Week 4
+103.06255074663794,Week 4
+118.461144817693,Week 4
+111.17280975607514,Week 4
+110.45753945743955,Week 4
+112.6800324303553,Week 4
+112.24488968459875,Week 4
+111.39115430421161,Week 4
+110.71384092580338,Week 4
+106.32839664178393,Week 4
+108.49971192676406,Week 4
+109.50575713156785,Week 4
+113.70047394857127,Week 4
+115.7222545935688,Week 4
+115.8776100593089,Week 4
+109.30501342139814,Week 4
+115.98021741380288,Week 4
+108.44190374806156,Week 4
+105.49673408927472,Week 4
+106.63679726502454,Week 4
+106.92982065001891,Week 4
+108.12497890887032,Week 4
+112.76470473142396,Week 4
+115.79282390107697,Week 4
+108.01252630900318,Week 4
+106.6480952946185,Week 4
+110.27882048111763,Week 4
+100.99537401732475,Week 4
+106.90020945672522,Week 4
+112.10826825504573,Week 4
+110.22947992629253,Week 4
+112.41720430034765,Week 4
+116.37708102559624,Week 4
+116.90194781105282,Week 4
+103.65614252876748,Week 4
+106.23408852625863,Week 4
+110.8468166984309,Week 4
+119.53201967562268,Week 4
+107.04073094016027,Week 4
+113.51258487621844,Week 4
+111.7919025226718,Week 4
+120.31857025326208,Week 4
+110.14719944875674,Week 4
+107.0208509770464,Week 4
+109.72615017941055,Week 4
+106.27596391036258,Week 4
+111.45586729979554,Week 4
+118.51855757551407,Week 4
+112.65363202077413,Week 4
+110.2449502078537,Week 4
+109.38079085685472,Week 4
+122.83860766323886,Week 4
+109.80043579701187,Week 4
+113.09242486075496,Week 4
+108.70038610424851,Week 4
+106.17314681410873,Week 4
+107.06945394403729,Week 4
+112.84324102165405,Week 4
+103.29068521531116,Week 4
+124.69773509982122,Week 4
+108.45950840071893,Week 4
+111.61739363151652,Week 4
+113.29602574729307,Week 4
+112.47416975072743,Week 4
+106.53722689629085,Week 4
+118.11163959141534,Week 4
+104.82408412124875,Week 4
+118.54346147984162,Week 4
+115.44352086854187,Week 4
+101.03539351133301,Week 4
+117.32044084909364,Week 4
+110.49114241623381,Week 4
+109.04162443495909,Week 4
+111.97551168104965,Week 4
+108.14742801390742,Week 4
+111.58525242419547,Week 4
+113.47729221394555,Week 4
+104.26524529298075,Week 4
+103.24259567678855,Week 4
+119.78926451576976,Week 4
+115.31316869785667,Week 4
+109.10230487950317,Week 4
+113.15938542027308,Week 4
+117.79697065201867,Week 4
+113.34038724386254,Week 4
+116.23146770111317,Week 4
+113.77893623909877,Week 4
+113.55509983377783,Week 4
+102.56299680245417,Week 4
+115.98380779817002,Week 4
+110.97372195502405,Week 4
+108.14294837829107,Week 4
+115.86171907484683,Week 4
+112.17716330191658,Week 4
+111.74171932481548,Week 4
+113.44753291426007,Week 4
+108.47782206037718,Week 4
+116.08086077320749,Week 4
+114.96412034789758,Week 4
+110.65190965762237,Week 4
+111.78237566572558,Week 4
+116.31918425309632,Week 4
+109.8194400804417,Week 4
+111.99571536670938,Week 4
+106.31026081574107,Week 4
+107.71228102295886,Week 4
+118.41206422091732,Week 4
+113.36141124452561,Week 4
+108.25847548863037,Week 4
+110.85872082915886,Week 4
+113.5076514611438,Week 4
+
+</script><script type="text/plain" id="df1" data-format="csv_embedded" data-src="">
+value
+46.36642518548223
+52.517372155742294
+46.85012028831044
+46.887475986755796
+58.163067649323274
+54.76738379831878
+41.40444617938379
+35.30711794493453
+28.85665168869015
+50.43781662030611
+41.74665450024931
+58.40288523245819
+54.33885874304861
+46.045601592462546
+55.17130881450359
+64.47223891581876
+49.069220788098036
+37.27414429622308
+46.892561269162655
+49.03418978037352
+36.17189298316299
+35.3755320408271
+63.009715392603624
+72.66279712266208
+65.12392007786764
+56.488490404135206
+58.99944309750922
+52.84157910215343
+61.035883018237676
+56.63882732472989
+51.712706546095944
+61.19918298106998
+69.20754074052525
+58.00648860675196
+46.14388951479607
+45.6027491820699
+56.298828493988104
+49.30387803480774
+42.21088012088673
+41.212580139658996
+52.44052731217479
+53.22372937280016
+70.41100938637203
+48.34765637310378
+48.29040556512385
+41.848847513906776
+40.994546958093615
+48.06992836037747
+40.01625806535458
+34.58937604976372
+43.80294908366817
+56.357047126615356
+45.21377189380798
+59.94695672738108
+53.3033522855509
+53.77489040241215
+32.66816590239348
+40.92629067425811
+63.110173557334996
+50.239511424488505
+62.25297058394369
+63.04371943276669
+45.599827548940425
+32.20057085723364
+59.58348006310128
+38.26747581004381
+55.41542454844385
+28.74874547620933
+45.089854043104964
+44.55652525777829
+39.489655787310795
+61.979596698125405
+59.300043221624534
+49.67970276723977
+41.08421813395066
+59.14778491444802
+34.0438571554307
+45.45951615962935
+50.44951404790818
+42.077165731447266
+53.732453333416736
+35.95342989203594
+37.65231017490843
+48.746931354979885
+42.1434317021993
+45.91901301861059
+32.73200519701861
+55.57076569727597
+46.08546352389517
+47.49237496294576
+60.218390547808816
+49.99060237806356
+34.99223868878377
+52.62924744304348
+39.38882246039759
+60.364206513956816
+57.234646890415945
+58.54160433674487
+53.682069358154834
+49.534390590791624
+67.08184319050805
+39.689525933844635
+48.555863767568816
+33.73081873055653
+49.37825090686339
+52.14392340939201
+65.29444250287855
+52.74372913279139
+67.2907792714422
+41.214873589146194
+45.71941771204073
+47.27281587340798
+41.6481715905832
+59.55253702990005
+62.438797492400724
+56.0916627021336
+46.59211741216149
+31.376389709041938
+31.92843314073054
+46.97848095673737
+55.23545835151104
+53.16563104055178
+47.62951622756655
+40.039046550794296
+51.98833601128541
+51.37106523220558
+51.192799618013936
+48.54444768064158
+54.455260266672
+46.98659073029638
+58.18663023821684
+52.82963750627123
+43.13987747743965
+34.64290714727683
+41.51603365157091
+55.53141226891978
+38.96245646537663
+64.4154821635863
+41.37027578922649
+45.91285635141565
+50.9472381288389
+46.72401381428774
+65.20678029368986
+54.82168737647699
+53.48033100718651
+60.797802284882934
+57.199706419742405
+45.96006611170145
+39.63419459095685
+39.5431421390587
+51.56893820381165
+45.09605612169728
+52.41658195509373
+39.04684494520556
+45.97663268819491
+35.93427683214314
+40.57793879076602
+54.95559721933649
+62.45624056068868
+33.71740902236867
+58.635357629273365
+58.545802452952614
+41.27615672320213
+64.23140036851285
+41.0115342449981
+55.95226188016123
+59.11608413286185
+46.74775175158257
+39.317155951333085
+73.9172420705783
+48.358706727302184
+58.95277283183169
+46.17590453458784
+48.787752644168165
+55.39812851092183
+57.037362204876274
+22.51975186212295
+45.021194322435974
+62.29175182451629
+73.10305988208175
+52.840473457895655
+59.61592040158872
+51.88041724404368
+62.484853684055295
+53.68984830785284
+55.461122257697326
+53.698087097799146
+40.17570924518722
+57.36969382947795
+52.84768369630804
+29.43630110461331
+55.668389180267624
+57.178715862640516
+38.86253295226385
+41.9289089475881
+41.91420184921482
+67.99535030861718
+41.55931856613073
+34.70676152774734
+48.04900921788825
+43.987015122236144
+50.70192551152934
+32.15156168300967
+48.33765299907415
+32.545516011593605
+40.196889899902786
+61.688617265928364
+59.20524806288261
+54.60454261147625
+52.53295537165084
+56.95552055571328
+57.92046770808466
+51.36566169541548
+56.57593874460894
+51.21598978175066
+60.884252178081695
+37.69067685330163
+48.47446720420676
+39.90701835615085
+50.190855046160614
+52.28698259920601
+47.47210170487943
+36.489248642399055
+52.41512766613969
+43.48589538814137
+34.5092270335252
+59.53526658913856
+56.17816992389488
+61.336108590501816
+51.05007055394723
+58.20378217190155
+48.60357390408983
+50.13268820764114
+47.20106550692523
+30.05916107089446
+40.03328878359388
+41.01181688118008
+66.20605868828918
+50.27122328299695
+36.77820096242819
+48.88038557503161
+45.461710451388306
+54.397291722976405
+55.65646116540957
+36.37657655523764
+30.48015399510695
+39.52804524735188
+53.52472893738838
+38.07837178917693
+36.5297166170017
+41.950566686230786
+48.828266974183386
+47.41076941843088
+49.62598969256175
+42.3216242988234
+48.922692443183394
+50.619313329084555
+69.25136257746264
+47.32085863549754
+41.78385814142965
+62.64540832604326
+43.538256255425964
+45.61265574070461
+45.726167006568694
+50.89434730606345
+43.73986951828547
+48.50137322248557
+21.491528614263558
+51.805470864998135
+33.206233477790974
+48.96965474298077
+67.71370893032902
+58.74472047473846
+49.306613899547386
+43.17936342174828
+63.52969664709202
+51.16941057248493
+38.566152993959285
+49.188991465256066
+47.94854401244801
+45.267725436753096
+41.39759698937293
+49.98123520384247
+31.949621909401127
+34.21226930191897
+37.6716453038253
+51.767643450544085
+53.51093828487154
+59.604269666416336
+55.27234032410901
+47.96574887147772
+43.247686892513045
+61.552220378016
+49.069341686177474
+55.09414468769532
+58.82482074431299
+54.97299798080829
+27.0735948644975
+65.50867405905313
+50.092122372505564
+53.97490350695708
+51.54737174398312
+59.1989706304303
+44.464071024721214
+55.041372794022585
+60.994279383264725
+48.585626899020404
+23.01347849861431
+45.62398647232934
+65.00091079870306
+41.156480388217766
+58.09898512068221
+55.20280879684346
+46.88240476288107
+41.81996985069996
+54.61312983296495
+35.955745615477134
+41.789780034473004
+44.633581482947356
+40.53761901583063
+50.294768512404
+58.56941113190072
+43.47022095200618
+53.01372751486533
+57.639182193840924
+44.01552439054782
+51.989481906612575
+47.780582367465335
+57.11634917987355
+52.500969111992404
+48.27151973586779
+53.70233593567639
+53.259987055827914
+44.14771567610321
+52.07342227786013
+64.58588771196983
+55.285007037947544
+50.09182868944347
+36.75017689326246
+58.89695431064695
+47.922028953599046
+49.92690545178755
+51.66072646164098
+57.99321768828288
+51.339385650982614
+33.76778693178851
+26.64835266810488
+34.00234596091975
+27.977515094761483
+38.508331040501645
+64.44841510990565
+35.10372506324988
+48.91600545068299
+30.631254253970862
+49.02750856553059
+29.852636511479048
+63.824526593576294
+34.34466438366921
+35.78837717790505
+49.99288157319025
+49.57875332893993
+39.36832327769466
+53.724644825211506
+59.54098630145067
+52.66181209840906
+47.029866296039785
+42.747904877500254
+55.025762818263594
+40.409710607443785
+54.1977550176826
+53.841088650527226
+53.94937419959694
+67.12990792228905
+53.78568403840753
+33.043182459549755
+25.71712721324701
+44.059038973979554
+64.69680740037116
+52.01227280498373
+34.657789363086
+44.1571555854112
+37.114697461525125
+48.70923917217195
+56.73807633035652
+71.08085962639217
+68.12891727139036
+60.012128111923545
+39.0181127772095
+40.66995827161682
+47.59309196773174
+54.91920949484832
+50.51753487233099
+44.43385148032685
+38.02070530117834
+39.05048679932598
+51.37800568048744
+58.73207804421057
+50.397046891424935
+45.84056956187432
+52.037853755896066
+73.83501748450554
+50.05378309758897
+56.04078137555844
+63.23975871605075
+41.95858422078797
+38.34490088402815
+40.753772652217044
+73.07654154860997
+60.27552544274336
+33.82892610002217
+51.76197189571341
+36.672064969648105
+63.97517341384828
+35.76130128609474
+57.06613915659085
+42.08094586833626
+43.8052925710535
+63.217826653606195
+46.06468603718098
+54.49501290012144
+59.21186304276529
+43.590035491637806
+55.34234215353013
+50.935748411989984
+57.491657589973485
+60.66361047920074
+69.77331287458031
+70.99484519441438
+46.360108040334744
+41.44260019582035
+49.433311732032664
+38.38559367938163
+40.4374271904784
+54.1521315114548
+36.843601395332556
+49.49128907762385
+60.334495056036175
+58.62064783736288
+70.80896327577072
+28.84988200683518
+40.96658958629369
+47.35337433888786
+59.04707080965298
+63.94730125199389
+44.000791918200534
+50.50898172281642
+55.437826547935465
+44.432921198973645
+62.85389089955202
+50.59617440705237
+56.57338589755039
+39.91670344133779
+45.8807493162412
+58.03380744442236
+59.4204930128682
+54.6891746655613
+45.89825386908052
+54.521132749302396
+51.51937698678481
+48.52355946419858
+50.32822560470662
+46.182577281558316
+47.77763931038456
+47.19344564092666
+43.454686412712604
+40.787933010016474
+42.02543068034461
+32.31885263045602
+65.59220205974819
+63.234147762643246
+67.66910805848974
+80.92335453036495
+50.58933562670804
+58.12224240242555
+54.1665666642112
+63.56724585899607
+36.21271132763507
+54.45102764356313
+35.012203508670225
+59.87710213155335
+41.31330236197665
+27.09971121338502
+51.956452607063696
+52.252020631506596
+56.57120097937938
+51.700599834925015
+26.454666535818
+56.120152107233054
+65.2258475180774
+55.08189677265763
+43.43089186844288
+64.70988828638112
+50.555053672190084
+47.394815938481024
+45.71618233480818
+72.97266110742721
+45.54703751977023
+49.693533389414576
+54.191518318023434
+53.77641960839737
+45.90507369416441
+59.74231874450346
+52.97407689794335
+52.35291945406892
+58.634660777105374
+67.6073599614437
+49.434489354939004
+47.13342479765353
+47.27778168870193
+47.35039778138695
+55.96306980112822
+49.998663257607646
+43.92912168164302
+72.24396176764023
+52.37722869707832
+56.18867485183403
+39.235770681743176
+53.866769552346085
+35.40814590746119
+41.499547520898425
+45.68620337502346
+33.75782898605184
+46.29873715454106
+32.37449909315894
+44.38893827075272
+47.10443116328945
+56.75469301641394
+49.73839076013919
+43.233411250045066
+38.81452304165655
+35.53995638150337
+56.56159194761059
+34.013900438613206
+38.78787750554159
+60.00728954535848
+51.36021121579384
+39.59952484664924
+51.867179704477486
+56.56669361725034
+54.87436639489165
+40.9536435409468
+61.73082320758572
+33.416000214595634
+27.442965288141842
+38.81490924078293
+60.55588255211319
+43.71263330419638
+51.21849108437684
+55.449485890722734
+64.48439846398688
+44.59815630798988
+62.72923295074383
+53.27145392550716
+49.175671581304584
+29.76002958242026
+73.30716660559953
+58.41070900164472
+55.0842641494238
+56.06611989675059
+50.359415326360235
+46.454506389967705
+50.136702413923786
+40.764668000969024
+40.527446052019656
+46.255315136246494
+59.23060406619727
+52.4171437891303
+40.377301580508096
+44.764909900642934
+41.21704947121654
+37.40830267476842
+49.92496126804323
+56.860692241305415
+56.286294990558304
+47.373123710185915
+50.72408905961732
+45.17857052294472
+56.238132766456985
+43.31194984312985
+75.63442589935342
+52.66750914248168
+57.027050476756315
+41.38311263965812
+40.62291882972855
+64.07692157378422
+51.542970956226775
+41.00765646006675
+62.416062196010316
+50.135240751953894
+59.020650961416244
+48.04431716179963
+41.608348568682864
+56.50065171049226
+44.2966608022859
+53.22534314400089
+27.917619771638506
+50.941844853424925
+54.89248160241015
+34.459623813368864
+42.78147228540054
+59.496220843298175
+62.954891329795444
+56.874478958312565
+40.67495398890763
+41.54425478046519
+37.67756892671426
+56.08527403427604
+45.36127390841706
+46.66919947363222
+41.50560406486686
+67.30737943134062
+48.74635683374544
+59.114292786113516
+50.12819952569734
+65.04978525269847
+40.72129664675468
+51.28087910566326
+50.37049491850932
+22.664235033072345
+66.14973280899468
+37.61081715493078
+33.36987917595112
+35.92956571383684
+49.30663509269347
+46.07431070547278
+39.057607144058835
+50.175724120924265
+50.67504014230368
+48.31402179694207
+41.13934830342522
+39.374063281072196
+66.42923407460289
+30.3206064439752
+35.322869474648485
+56.938747994080316
+58.34180614885198
+59.40927572338949
+45.627073825622944
+35.781001973087676
+54.78497476129142
+46.75724809532726
+28.794852438477776
+55.19572363353745
+57.490506108796524
+46.585611334294825
+51.59274588346064
+73.0561170206731
+52.41270263697178
+56.428622228489516
+46.75102989228523
+57.52965896711785
+53.322108235544874
+59.40747548732847
+55.97425262071549
+54.38827413180843
+52.356175606956185
+47.61285839117969
+50.85279541730525
+32.00555935028988
+54.04993255330474
+25.959990573834585
+41.09322768214349
+65.93137353360393
+42.39973832130275
+38.145090044036465
+49.29081171711218
+58.23034739130726
+40.698697563273356
+48.772482012185584
+49.490579910046506
+51.70487555814208
+58.180982324595576
+43.36256551878901
+33.20953231260876
+32.449418124442424
+47.22489994570472
+59.04062732736448
+42.132769228815
+30.086326354782848
+50.974755946986946
+27.09761641377664
+51.10289086632172
+45.3137407864819
+47.82503716567957
+31.680139197936576
+51.4095024345656
+44.05468104943368
+50.89120781656564
+33.71264545835797
+57.39828039042875
+51.31869975276406
+38.535480646055746
+56.137811704734055
+37.94416258725859
+36.74280397696446
+50.40473413882145
+55.784351745992446
+43.530326208766844
+57.871356748556046
+59.133985445023576
+63.816112414496835
+47.4974362341679
+33.38172089006201
+57.407602054919934
+49.672667657189926
+53.43494748745903
+54.45041322972499
+48.91488319944577
+50.84921345659487
+59.01261046372544
+55.40911729419723
+48.13377087099385
+48.16366269150766
+49.39751856490449
+45.87949362738001
+56.79321687675158
+33.49044265658641
+51.266868015397925
+55.04272416888483
+53.086079619353384
+45.37062435308673
+49.418965626235355
+49.40627633019696
+47.22550338924534
+37.97147690200194
+52.20865593191166
+44.71917519112153
+40.07599568014831
+43.32258725784297
+48.235277356400424
+71.04610611935689
+52.98520873347579
+52.860205908517244
+64.38803947935007
+54.9306747277833
+55.851049303300066
+44.674975404389485
+55.532940998513084
+45.73870188845595
+48.70102850817799
+53.64785121467922
+48.416463601605
+42.94004845934284
+46.19203246453614
+65.24110543081952
+33.063923151553865
+48.38695916163777
+49.870761980746316
+42.98039915680159
+37.88942991266514
+47.680688823035936
+52.26027095901009
+59.77602245114867
+71.53054090073691
+38.29809230281593
+56.54600222798373
+52.334328603506755
+42.5052313950206
+36.95170893595662
+49.52387717581533
+51.427600051123854
+34.558544805849884
+43.375088308231454
+47.89294843840599
+23.535164622056254
+47.908609917438916
+61.95896549353581
+41.09329389244258
+37.16826695707046
+48.88054924654974
+49.535827082408375
+61.68110446906331
+53.139211427601616
+52.92399404652518
+59.86362083484401
+54.23966916626771
+44.552173069017506
+63.020588658625456
+39.00525858826154
+63.69276712162026
+61.085668277002
+49.90495563301722
+67.93661240719607
+50.11473169653639
+58.74799120038916
+41.10814305339127
+68.87662351536974
+47.1452472342093
+39.8242736239527
+66.37451214330497
+56.7854350128716
+42.391051304046826
+54.440379569751684
+58.65606547635862
+26.192159942339728
+57.89652745498408
+42.896814137629356
+47.677903004274654
+31.57200826884855
+71.10530957889435
+36.516350369533036
+52.42598665131542
+64.26716620463809
+42.50460793104119
+43.35198273268218
+44.43810388304669
+56.77861318012031
+24.453020746531106
+50.264061208304575
+64.83956112991986
+40.31009636275708
+79.98435377100384
+39.123567476644965
+58.23977533669569
+39.41440614744442
+56.94465732594096
+65.37057721142737
+47.73643802321785
+38.020710933005375
+69.31494304739286
+48.02013909961009
+50.70611700750577
+40.881328091153314
+43.487518658652064
+43.01580669911387
+46.33503253768875
+43.353814313305335
+49.94385674234345
+54.07060909533073
+49.979540632801616
+52.6937497431904
+39.560268570010074
+47.41667108574151
+52.37608588983935
+42.088763910891686
+47.1795326565218
+46.99538076494479
+59.28028817563158
+56.950989701699584
+66.5522966615203
+47.71390001060334
+50.33904390971584
+61.3379713110771
+55.04991624573576
+61.95950416761765
+50.09502974513504
+47.50216396171977
+30.684899161957404
+56.79247888305321
+31.703306359829018
+48.521426589001166
+50.391813110481955
+60.195820248650676
+40.40217424108696
+64.8118619827082
+37.58421244319777
+42.88401446403212
+44.055681785581356
+57.272324179207466
+48.85763224237677
+53.8200139609098
+43.565925022365256
+43.90919513054318
+54.90307390788644
+63.88271542167309
+26.848602479914945
+60.89241736031975
+55.71946438069803
+60.01149858273173
+46.2553747105311
+48.02251933129899
+48.48163735785487
+42.95187975253236
+37.50871459301334
+61.7176149595103
+64.33023054764898
+52.69662374014278
+43.49582832951655
+40.13318612265119
+51.994064778893666
+57.696697110565935
+50.79847485399316
+51.009386674024555
+42.36348456986383
+66.62160744849497
+38.85857613238283
+45.59050619904312
+45.60463766605706
+36.037178111641396
+62.15004351881209
+44.89065356801299
+62.16104625784503
+43.3741472183887
+38.05871336882204
+27.20976080946361
+50.54816174910145
+63.494413350178256
+42.545894697465236
+35.82599196064458
+58.74795731651255
+46.5960010677554
+56.82261652786585
+48.00377568066237
+42.77301902943039
+58.41009250752198
+48.19745675867437
+35.85726800915033
+45.931096248034194
+53.52555998716769
+56.85832590100081
+58.56846399659747
+50.77632933822206
+47.24059701744377
+46.76197687672809
+51.27525889117621
+45.67796436990767
+60.696432039790636
+68.75583862241731
+41.091807640496086
+49.65208271784144
+46.251963670488976
+45.16141012665245
+46.495690492332855
+60.1395770316137
+61.82728689848899
+60.40486399873057
+40.83330624836027
+44.76943710641862
+50.23881383694111
+35.91661211422776
+52.3881259554507
+33.552874605890224
+41.03424450709743
+56.884521009029875
+32.52451397186524
+43.616671289980005
+34.59694915063724
+67.36055158484507
+40.98662775170828
+41.57202344851362
+45.23282748848712
+51.12277176473302
+63.530673819853114
+51.97651209480684
+45.482823716511106
+62.44661592140417
+63.275550930189695
+48.536068159031934
+50.034849631749644
+38.16111843138617
+61.344608863705645
+42.29219615476284
+64.35940638101592
+55.32196044419881
+41.59401879073823
+64.42167533672311
+49.49362114315907
+61.206467943403545
+46.27356201996423
+57.24770809575101
+52.07329939308912
+62.21741766000742
+54.55921487071236
+46.03846914676634
+45.45734219330952
+48.76745098500982
+41.124057576869454
+40.12934688056802
+49.663851956987045
+44.98389516334902
+59.34498639657769
+45.4802643992529
+36.34051499662931
+44.687450786715395
+58.13960653857419
+49.80682763066527
+59.83037520453516
+37.64244140704207
+40.00325039114062
+43.01779938445372
+50.40662055001428
+47.28907410899407
+45.1562019248416
+56.36194433313605
+46.35351531370585
+61.09644225458405
+61.36172916176422
+51.78931268682065
+57.55614002152906
+32.963505051467216
+52.79999852751709
+55.50026929788757
+50.07365170012581
+45.29123893000996
+47.5508793353124
+53.16979893073546
+58.25475168958168
+30.740036022801178
+59.76857186915991
+47.53656125069508
+
+</script>
+
+<!-- ACTUAL CONTENT -->
+
+<h1></h1>
+<p></p>
+
+    <div class="textblock-content">
+        <h1>DistPlot Examples</h1>
+<p>This page demonstrates distribution visualization combining histogram, box plot, and rug plot.</p>
+<ul>
+    <li><strong>Single distribution:</strong> Basic histogram + box plot + rug plot</li>
+    <li><strong>Group comparison:</strong> Compare distributions across multiple groups</li>
+    <li><strong>Interactive filters:</strong> Slider controls for categorical and numeric ranges</li>
+    <li><strong>Customization:</strong> Toggle histogram, box, and rug plot visibility</li>
+</ul>
+<p><em>Use sliders and multi-select controls to filter and explore the data!</em></p>
+
+    </div>
+
+    <br><hr><br>
+<h2>Simple Distribution Plot</h2>
+<p>Basic distribution showing histogram, box plot, and rug plot for a normal distribution</p>
+
+<div style="margin: 20px 0;">
+    <button id="simple_dist_histogram_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Histogram
+    </button>
+    <button id="simple_dist_box_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Box Plot
+    </button>
+    <button id="simple_dist_rug_toggle" style="padding: 5px 15px; cursor: pointer;">
+        Hide Rug Plot
+    </button>
+</div>
+
+
+<!-- Chart -->
+<div id="simple_dist"></div>
+<br><hr><br>
+<h2>Treatment Effect Comparison</h2>
+<p>Compare distributions across different treatment groups using group_col</p>
+
+<div style="margin: 20px 0;">
+    <button id="multi_group_dist_histogram_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Histogram
+    </button>
+    <button id="multi_group_dist_box_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Box Plot
+    </button>
+    <button id="multi_group_dist_rug_toggle" style="padding: 5px 15px; cursor: pointer;">
+        Hide Rug Plot
+    </button>
+</div>
+
+
+<!-- Chart -->
+<div id="multi_group_dist"></div>
+<br><hr><br>
+<h2>Score Distribution with Interactive Filters</h2>
+<p>Use age range slider and department multi-select to filter data dynamically</p>
+
+<div style="margin: 20px 0;">
+    <button id="filtered_dist_histogram_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Histogram
+    </button>
+    <button id="filtered_dist_box_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Box Plot
+    </button>
+    <button id="filtered_dist_rug_toggle" style="padding: 5px 15px; cursor: pointer;">
+        Hide Rug Plot
+    </button>
+</div>
+<div style="margin: 20px 0;">
+    <label>Filter by age: </label>
+    <span id="filtered_dist_age_slider_label">18.0 to 80.0</span>
+    <div id="filtered_dist_age_slider" style="width: 300px; margin: 10px 0;"></div>
+</div>
+<div style="margin: 20px 0;">
+    <label for="filtered_dist_department_slider">Filter by department: </label>
+    <select id="filtered_dist_department_slider" multiple style="width: 300px; height: 100px;">
+        <option value="Engineering" selected>Engineering</option>
+<option value="HR" selected>HR</option>
+<option value="Marketing" selected>Marketing</option>
+<option value="Sales" selected>Sales</option>
+    </select>
+    <p style="margin: 5px 0;"><em>Hold Ctrl/Cmd to select multiple values</em></p>
+</div>
+
+
+<!-- Chart -->
+<div id="filtered_dist"></div>
+<br><hr><br>
+<h2>Customized DistPlot - Longitudinal Study</h2>
+<p>Demonstrates customization options: rug plot hidden, increased box opacity, custom bin count</p>
+
+<div style="margin: 20px 0;">
+    <button id="custom_appearance_histogram_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Histogram
+    </button>
+    <button id="custom_appearance_box_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Box Plot
+    </button>
+    <button id="custom_appearance_rug_toggle" style="padding: 5px 15px; cursor: pointer;">
+        Show Rug Plot
+    </button>
+</div>
+
+
+<!-- Chart -->
+<div id="custom_appearance"></div>
+<br><hr><br>
+    <div class="textblock-content">
+        <h2>Key Features Summary</h2>
+<ul>
+    <li><strong>Three-in-one visualization:</strong> Histogram, box plot, and rug plot combined</li>
+    <li><strong>Group comparison:</strong> Overlay distributions for different groups with color coding</li>
+    <li><strong>Interactive filtering:</strong> Range sliders for numeric columns, multi-select for categorical</li>
+    <li><strong>Customization options:</strong> Control visibility and appearance of each component</li>
+    <li><strong>Statistical insight:</strong> See shape, central tendency, spread, and outliers at once</li>
+</ul>
+<p><strong>Tip:</strong> The rug plot (tick marks at the bottom) shows individual data points!</p>
+
+    </div>
+
+    <br><hr><br>
+
+
+<hr><p align="right"><small>This page was created using <a href="https://github.com/s-baumann/JSPlots.jl">JSPlots.jl</a>.</small></p>
+</body>
+</html>

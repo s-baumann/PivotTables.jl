@@ -31,10 +31,10 @@ const FULL_PAGE_TEMPLATE = raw"""
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
     <style>
-        body { 
-            margin: 0; 
-            padding: 20px; 
-            font-family: Arial, sans-serif; 
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
         }
         #controls {
             display: flex;
@@ -44,11 +44,12 @@ const FULL_PAGE_TEMPLATE = raw"""
             background-color: #f0f0f0;
             border-radius: 5px;
         }
-        #$div_id { 
-            width: 100%; 
-            height: 600px; 
+        #$div_id {
+            width: 100%;
+            height: 600px;
         }
     </style>
+    ___EXTRA_STYLES___
 
     <!-- external libs -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.11/c3.min.css">
@@ -293,6 +294,7 @@ ___DATASETS___
 
 ___PIVOT_TABLES___
 
+<hr><p align="right"><small>This page was created using <a href="https://github.com/s-baumann/JSPlots.jl">JSPlots.jl</a>.</small></p>
 </body>
 </html>
 """
@@ -473,6 +475,22 @@ function generate_sh_launcher(html_filename::String)
 end
 
 function create_html(pt::JSPlotPage, outfile_path::String="pivottable.html")
+    # Collect extra styles needed for TextBlock, Picture, and Table
+    extra_styles = ""
+    has_textblock = any(p -> isa(p, TextBlock), pt.pivot_tables)
+    has_picture = any(p -> isa(p, Picture), pt.pivot_tables)
+    has_table = any(p -> isa(p, Table), pt.pivot_tables)
+
+    if has_textblock
+        extra_styles *= TEXTBLOCK_STYLE
+    end
+    if has_picture
+        extra_styles *= PICTURE_STYLE
+    end
+    if has_table
+        extra_styles *= TABLE_STYLE
+    end
+
     # Handle external formats (csv_external, json_external, parquet) differently
     if pt.dataformat in [:csv_external, :json_external, :parquet]
         # For external formats, create a subfolder structure
@@ -540,16 +558,29 @@ function create_html(pt::JSPlotPage, outfile_path::String="pivottable.html")
             end
         end
 
-        # Generate HTML content
+        # Generate HTML content - handle Picture types specially
         data_set_bit   = isempty(pt.dataframes) ? "" : reduce(*, [dataset_to_html(k, v, pt.dataformat) for (k,v) in pt.dataframes])
-        functional_bit = isempty(pt.pivot_tables) ? "" : reduce(*, [pti.functional_html for pti in pt.pivot_tables])
-        table_bit      = isempty(pt.pivot_tables) ? "" : reduce(*, [pti.appearance_html for pti in pt.pivot_tables])
+        functional_bit = ""
+        table_bit = ""
+
+        for pti in pt.pivot_tables
+            if isa(pti, Picture)
+                # Generate Picture HTML based on dataformat
+                table_bit *= generate_picture_html(pti, pt.dataformat, project_dir)
+                # Picture has no functional HTML
+            else
+                functional_bit *= pti.functional_html
+                table_bit *= pti.appearance_html
+            end
+        end
+
         full_page_html = replace(FULL_PAGE_TEMPLATE, "___DATASETS___" => data_set_bit)
         full_page_html = replace(full_page_html, "___PIVOT_TABLES___" => table_bit)
         full_page_html = replace(full_page_html, "___FUNCTIONAL_BIT___" => functional_bit)
         full_page_html = replace(full_page_html, "___TITLE_OF_PAGE___" => pt.tab_title)
         full_page_html = replace(full_page_html, "___PAGE_HEADER___" => pt.page_header)
         full_page_html = replace(full_page_html, "___NOTES___" => pt.notes)
+        full_page_html = replace(full_page_html, "___EXTRA_STYLES___" => extra_styles)
 
         # Save HTML file
         open(actual_html_path, "w") do outfile
@@ -587,14 +618,27 @@ function create_html(pt::JSPlotPage, outfile_path::String="pivottable.html")
     else
         # Original embedded format logic
         data_set_bit   = isempty(pt.dataframes) ? "" : reduce(*, [dataset_to_html(k, v, pt.dataformat) for (k,v) in pt.dataframes])
-        functional_bit = isempty(pt.pivot_tables) ? "" : reduce(*, [pti.functional_html for pti in pt.pivot_tables])
-        table_bit      = isempty(pt.pivot_tables) ? "" : reduce(*, [pti.appearance_html for pti in pt.pivot_tables])
+        functional_bit = ""
+        table_bit = ""
+
+        for pti in pt.pivot_tables
+            if isa(pti, Picture)
+                # Generate Picture HTML based on dataformat (embedded)
+                table_bit *= generate_picture_html(pti, pt.dataformat, "")
+                # Picture has no functional HTML
+            else
+                functional_bit *= pti.functional_html
+                table_bit *= pti.appearance_html
+            end
+        end
+
         full_page_html = replace(FULL_PAGE_TEMPLATE, "___DATASETS___" => data_set_bit)
         full_page_html = replace(full_page_html, "___PIVOT_TABLES___" => table_bit)
         full_page_html = replace(full_page_html, "___FUNCTIONAL_BIT___" => functional_bit)
         full_page_html = replace(full_page_html, "___TITLE_OF_PAGE___" => pt.tab_title)
         full_page_html = replace(full_page_html, "___PAGE_HEADER___" => pt.page_header)
         full_page_html = replace(full_page_html, "___NOTES___" => pt.notes)
+        full_page_html = replace(full_page_html, "___EXTRA_STYLES___" => extra_styles)
 
         open(outfile_path, "w") do outfile
             write(outfile, full_page_html)
@@ -602,9 +646,32 @@ function create_html(pt::JSPlotPage, outfile_path::String="pivottable.html")
 
         println("Pivot table page saved to $outfile_path")
     end
+
+    # Clean up temporary files for Picture objects
+    for pti in pt.pivot_tables
+        if isa(pti, Picture) && pti.is_temp
+            try
+                rm(pti.image_path, force=true)
+            catch e
+                @warn "Could not delete temporary file $(pti.image_path): $e"
+            end
+        end
+    end
 end
 
 function create_html(pt::JSPlotsType, dd::DataFrame, outfile_path::String="pivottable.html")
     pge = JSPlotPage(Dict{Symbol,DataFrame}(pt.data_label => dd), [pt])
+    create_html(pge,outfile_path)
+end
+
+# Convenience method for Table (no DataFrame needed - it's embedded in the Table)
+function create_html(pt::Table, outfile_path::String="pivottable.html")
+    pge = JSPlotPage(Dict{Symbol,DataFrame}(), [pt])
+    create_html(pge,outfile_path)
+end
+
+# Convenience method for Picture (no DataFrame needed)
+function create_html(pt::Picture, outfile_path::String="pivottable.html")
+    pge = JSPlotPage(Dict{Symbol,DataFrame}(), [pt])
     create_html(pge,outfile_path)
 end

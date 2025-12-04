@@ -1,11 +1,10 @@
 module JSPlots
 
-
-    using CSV, DataFrames, JSON, Dates, DuckDB, DBInterface
+    using CSV, DataFrames, JSON, Dates, DuckDB, DBInterface, Base64
 
     abstract type JSPlotsType end
 
-    include("tables.jl")
+    include("pivottables.jl")
     export PivotTable
 
     include("linechart.jl")
@@ -22,6 +21,12 @@ module JSPlots
 
     include("textblock.jl")
     export TextBlock
+
+    include("picture.jl")
+    export Picture
+
+    include("table.jl")
+    export Table
 
     include("make_html.jl")
     export JSPlotPage, create_html

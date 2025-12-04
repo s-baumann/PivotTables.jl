@@ -1,6 +1,40 @@
 using JSPlots, DataFrames, Dates, Random
 
-# Create sample data
+println("Creating External Formats examples...")
+
+# Prepare header
+header = TextBlock("""
+<h1>External Data Format Examples</h1>
+<p>This page demonstrates different data storage formats available in JSPlots.</p>
+<p>By default, data is embedded directly in the HTML file. For larger datasets, external formats can be more efficient.</p>
+""")
+
+format_explanation = TextBlock("""
+<h2>Available Data Formats</h2>
+<h3>JSON External (:json_external)</h3>
+<p>Data is stored as .json files in a data/ subdirectory.</p>
+<ul>
+    <li><strong>Pros:</strong> Human-readable, widely compatible</li>
+    <li><strong>Cons:</strong> Larger file size than Parquet</li>
+</ul>
+
+<h3>Parquet (:parquet)</h3>
+<p>Data is stored as .parquet files in a data/ subdirectory.</p>
+<ul>
+    <li><strong>Pros:</strong> Binary format, smallest size, fastest loading</li>
+    <li><strong>Cons:</strong> Not human-readable</li>
+    <li><strong>Recommended:</strong> Best choice for production use</li>
+</ul>
+
+<h3>CSV External (:csv_external)</h3>
+<p>Data is stored as .csv files in a data/ subdirectory.</p>
+<ul>
+    <li><strong>Pros:</strong> Human-readable, can be opened in spreadsheet applications</li>
+    <li><strong>Cons:</strong> Moderate file size</li>
+</ul>
+""")
+
+# Create sample data for time series
 Random.seed!(42)
 df = DataFrame(
     date = Date(2024, 1, 1):Day(1):Date(2024, 1, 31),
@@ -19,29 +53,7 @@ line_chart = LineChart(:timeseries, df, :df;
     y_label = "Value"
 )
 
-# Example 1: JSON External format
-println("Creating JSON external format example...")
-page_json = JSPlotPage(
-    Dict{Symbol,DataFrame}(:df => df),
-    [line_chart],
-    tab_title = "JSON External Format",
-    dataformat = :json_external
-)
-create_html(page_json, "generated_html_examples/json_external_example.html")
-println()
-
-# Example 2: Parquet format
-println("Creating Parquet format example...")
-page_parquet = JSPlotPage(
-    Dict{Symbol,DataFrame}(:df => df),
-    [line_chart],
-    tab_title = "Parquet Format",
-    dataformat = :parquet
-)
-create_html(page_parquet, "generated_html_examples/parquet_example.html")
-println()
-
-# Example 3: Comparison - create the same visualization with all external formats
+# Create stock data for scatter plot
 stock_data = DataFrame(
     date = repeat(Date(2024, 1, 1):Day(1):Date(2024, 3, 31), inner=3),
     symbol = repeat(["AAPL", "GOOGL", "MSFT"], outer=91),
@@ -58,45 +70,51 @@ scatter_chart = ScatterPlot(:stock_scatter, stock_data, :stock_data;
     y_label = "Price"
 )
 
-# CSV External
-println("Creating CSV external format comparison...")
-page_csv = JSPlotPage(
-    Dict{Symbol,DataFrame}(:stock_data => stock_data),
-    [scatter_chart],
-    tab_title = "CSV External Format",
-    dataformat = :csv_external
-)
-create_html(page_csv, "generated_html_examples/comparison_csv.html")
+usage_notes = TextBlock("""
+<h2>Usage Notes</h2>
+<p>This example uses Parquet format (the recommended format for production use).</p>
+<p>To use external formats, simply set the <code>dataformat</code> parameter when creating a JSPlotPage:</p>
+<pre><code>page = JSPlotPage(
+    data_dict,
+    plot_elements,
+    dataformat = :parquet  # or :json_external, :csv_external
+)</code></pre>
+<p><strong>Important:</strong> When using external formats, you must use the provided launcher scripts (open.sh or open.bat) to avoid CORS errors when viewing files locally.</p>
+""")
 
-# JSON External
-println("Creating JSON external format comparison...")
-page_json_comp = JSPlotPage(
-    Dict{Symbol,DataFrame}(:stock_data => stock_data),
-    [scatter_chart],
-    tab_title = "JSON External Format",
-    dataformat = :json_external
-)
-create_html(page_json_comp, "generated_html_examples/comparison_json.html")
+conclusion = TextBlock("""
+<h2>Summary</h2>
+<p>This page demonstrated external data formats:</p>
+<ul>
+    <li><strong>JSON External:</strong> Human-readable, widely compatible</li>
+    <li><strong>Parquet:</strong> Binary format, smallest size, fastest loading (recommended)</li>
+    <li><strong>CSV External:</strong> Human-readable, spreadsheet-compatible</li>
+</ul>
+<p><strong>File size comparison:</strong> Parquet is typically the smallest, followed by JSON, then CSV.</p>
+<p><strong>Recommendation:</strong> Use Parquet format for production applications with larger datasets.</p>
+""")
 
-# Parquet
-println("Creating Parquet format comparison...")
-page_parquet_comp = JSPlotPage(
-    Dict{Symbol,DataFrame}(:stock_data => stock_data),
-    [scatter_chart],
-    tab_title = "Parquet Format",
+# Create single combined page using Parquet format (most efficient)
+page = JSPlotPage(
+    Dict{Symbol,DataFrame}(:df => df, :stock_data => stock_data),
+    [header, format_explanation, line_chart, scatter_chart, usage_notes, conclusion],
+    tab_title = "External Format Examples",
     dataformat = :parquet
 )
-create_html(page_parquet_comp, "generated_html_examples/comparison_parquet.html")
+
+create_html(page, "generated_html_examples/external_formats_examples.html")
 
 println("\n" * "="^70)
 println("External format examples created successfully!")
 println("="^70)
-println("\nFormats created:")
-println("  1. JSON External - data stored as .json files")
-println("  2. Parquet - data stored as .parquet files (most efficient)")
-println("  3. CSV External - data stored as .csv files (baseline)")
-println("\nAll formats include launcher scripts (open.sh and open.bat)")
-println("Use the launcher scripts to avoid CORS errors!")
+println("\nFile created: generated_html_examples/external_formats_examples.html")
+println("\nThis page demonstrates:")
+println("  • Explanation of available formats (JSON, Parquet, CSV)")
+println("  • Time series chart with external data")
+println("  • Scatter plot with external data")
+println("  • Usage notes and recommendations")
+println("\nFormat used: Parquet (recommended for production)")
+println("\nImportant: Use launcher scripts (open.sh or open.bat) to avoid CORS errors!")
 println("\nFile size comparison:")
 println("  - CSV: Human-readable, moderate size")
 println("  - JSON: Human-readable, similar to CSV")
