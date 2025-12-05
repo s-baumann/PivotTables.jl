@@ -10,6 +10,7 @@ header = TextBlock("""
     <li><strong>Basic time series:</strong> Simple line chart with date axis</li>
     <li><strong>Multiple series:</strong> Comparing multiple lines with color dimension</li>
     <li><strong>Interactive filters:</strong> Dropdown menus to filter data dynamically</li>
+    <li><strong>Faceting:</strong> Facet wrap (1 variable) and facet grid (2 variables)</li>
     <li><strong>Integration:</strong> Combining charts with images and text</li>
 </ul>
 """)
@@ -91,12 +92,80 @@ example_image = joinpath(@__DIR__, "pictures", "images.jpeg")
 pic = Picture(:example_visual, example_image;
              notes = "Example visualization image")
 
+# Example 5: Facet Wrap (1 facet variable)
+# Create data with multiple products across regions
+facet_df = DataFrame()
+products = ["Product A", "Product B", "Product C", "Product D"]
+regions = ["North", "South", "East", "West"]
+
+for product in products
+    for region in regions
+        for month in 1:12
+            push!(facet_df, (
+                Month = month,
+                Sales = 100 + rand() * 50 + (month - 1) * 5,
+                Product = product,
+                Region = region,
+                color = region
+            ))
+        end
+    end
+end
+
+chart5 = LineChart(:facet_wrap_example, facet_df, :facet_data;
+    x_col = :Month,
+    y_col = :Sales,
+    color_col = :color,
+    facet_cols = :Product,
+    title = "Sales by Product (Facet Wrap)",
+    x_label = "Month",
+    y_label = "Sales",
+    notes = "Facet wrap creates a grid of subplots, one for each product. Similar to ggplot2's facet_wrap."
+)
+
+# Example 6: Facet Grid (2 facet variables)
+# Using the same data, create a grid by Product (rows) and Region (columns)
+# For a cleaner example, let's use fewer categories
+facet_grid_df = DataFrame()
+products_small = ["Product A", "Product B"]
+regions_small = ["North", "South"]
+years = ["2023", "2024"]
+
+for product in products_small
+    for region in regions_small
+        for year in years
+            for month in 1:12
+                push!(facet_grid_df, (
+                    Month = month,
+                    Sales = 100 + rand() * 50 + (month - 1) * 5,
+                    Product = product,
+                    Region = region,
+                    Year = year,
+                    color = year
+                ))
+            end
+        end
+    end
+end
+
+chart6 = LineChart(:facet_grid_example, facet_grid_df, :facet_grid_data;
+    x_col = :Month,
+    y_col = :Sales,
+    color_col = :color,
+    facet_cols = [:Product, :Region],
+    title = "Sales by Product and Region (Facet Grid)",
+    x_label = "Month",
+    y_label = "Sales",
+    notes = "Facet grid creates a 2D grid of subplots. First facet variable (Product) defines rows, second (Region) defines columns. Similar to ggplot2's facet_grid."
+)
+
 conclusion = TextBlock("""
 <h2>Key Features Summary</h2>
 <ul>
     <li><strong>Time series support:</strong> Automatic date formatting and axis scaling</li>
     <li><strong>Color grouping:</strong> Distinguish multiple series by color</li>
     <li><strong>Interactive filters:</strong> Dropdown menus for dynamic data filtering</li>
+    <li><strong>Faceting:</strong> Split data into multiple subplots (facet_wrap for 1 variable, facet_grid for 2 variables)</li>
     <li><strong>Customization:</strong> Control titles, labels, line width, and markers</li>
     <li><strong>Integration:</strong> Combine with other plot types, images, and text</li>
 </ul>
@@ -108,9 +177,11 @@ page = JSPlotPage(
     Dict{Symbol,DataFrame}(
         :revenue_data => df1,
         :sales_data => df2,
-        :metrics => metrics_df
+        :metrics => metrics_df,
+        :facet_data => facet_df,
+        :facet_grid_data => facet_grid_df
     ),
-    [header, chart1, chart2, chart3, pic, conclusion],
+    [header, chart1, chart2, chart3, pic, chart5, chart6, conclusion],
     tab_title = "LineChart Examples"
 )
 
@@ -124,4 +195,6 @@ println("\nThis page includes:")
 println("  • Basic time series chart")
 println("  • Multiple series with color grouping")
 println("  • Interactive filtered chart")
+println("  • Facet wrap (1 variable)")
+println("  • Facet grid (2 variables)")
 println("  • Integration with images and text")

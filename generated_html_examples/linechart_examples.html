@@ -381,6 +381,7 @@ $(function(){
     const Y_COL = 'Revenue';
     const COLOR_COL = 'color';
     const FILTER_COLS = [];
+    const FACET_COLS = [];
     const COLOR_MAP = {'Revenue': '#636efa'};
     const X_LABEL = 'Date';
     const Y_LABEL = 'Revenue ($)';
@@ -406,44 +407,235 @@ $(function(){
             return true;
         });
 
-        const groupedData = {};
-        filteredData.forEach(row => {
-            const colorVal = row[COLOR_COL];
-            if (!groupedData[colorVal]) {
-                groupedData[colorVal] = [];
-            }
-            groupedData[colorVal].push(row);
-        });
-
-        const traces = [];
-        for (let colorVal in groupedData) {
-            const group = groupedData[colorVal];
-            group.sort((a, b) => a[X_COL] - b[X_COL]);
-
-            traces.push({
-                x: group.map(row => row[X_COL]),
-                y: group.map(row => row[Y_COL]),
-                type: 'scatter',
-                mode: 'lines+markers',
-                name: colorVal,
-                line: {
-                    color: COLOR_MAP[colorVal] || '#000000',
-                    width: 1
-                },
-                marker: { size: 1 }
+        if (FACET_COLS.length === 0) {
+            // No faceting - original behavior
+            const groupedData = {};
+            filteredData.forEach(row => {
+                const colorVal = row[COLOR_COL];
+                if (!groupedData[colorVal]) {
+                    groupedData[colorVal] = [];
+                }
+                groupedData[colorVal].push(row);
             });
+
+            const traces = [];
+            for (let colorVal in groupedData) {
+                const group = groupedData[colorVal];
+                group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                traces.push({
+                    x: group.map(row => row[X_COL]),
+                    y: group.map(row => row[Y_COL]),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: colorVal,
+                    line: {
+                        color: COLOR_MAP[colorVal] || '#000000',
+                        width: 1
+                    },
+                    marker: { size: 1 }
+                });
+            }
+
+            const layout = {
+                xaxis: { title: X_LABEL || X_COL },
+                yaxis: { title: Y_LABEL || Y_COL },
+                hovermode: 'closest',
+                showlegend: true
+            };
+
+            Plotly.newPlot('revenue_trend', traces, layout, {responsive: true});
+
+        } else if (FACET_COLS.length === 1) {
+            // Facet wrap
+            const facetCol = FACET_COLS[0];
+            const facetValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nFacets = facetValues.length;
+
+            // Calculate grid dimensions (prefer wider grids)
+            const nCols = Math.ceil(Math.sqrt(nFacets * 1.5));
+            const nRows = Math.ceil(nFacets / nCols);
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            facetValues.forEach((facetVal, idx) => {
+                const facetData = filteredData.filter(row => row[facetCol] === facetVal);
+
+                // Group by color within this facet
+                const groupedData = {};
+                facetData.forEach(row => {
+                    const colorVal = row[COLOR_COL];
+                    if (!groupedData[colorVal]) {
+                        groupedData[colorVal] = [];
+                    }
+                    groupedData[colorVal].push(row);
+                });
+
+                const row = Math.floor(idx / nCols) + 1;
+                const col = (idx % nCols) + 1;
+                const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                for (let colorVal in groupedData) {
+                    const group = groupedData[colorVal];
+                    group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                    traces.push({
+                        x: group.map(row => row[X_COL]),
+                        y: group.map(row => row[Y_COL]),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: colorVal,
+                        legendgroup: colorVal,
+                        showlegend: idx === 0,
+                        xaxis: xaxis,
+                        yaxis: yaxis,
+                        line: {
+                            color: COLOR_MAP[colorVal] || '#000000',
+                            width: 1
+                        },
+                        marker: { size: 1 }
+                    });
+                }
+
+                // Add axis configuration
+                layout[xaxis] = {
+                    title: row === nRows ? (X_LABEL || X_COL) : '',
+                    anchor: yaxis
+                };
+                layout[yaxis] = {
+                    title: col === 1 ? (Y_LABEL || Y_COL) : '',
+                    anchor: xaxis
+                };
+
+                // Add annotation for facet label
+                if (!layout.annotations) layout.annotations = [];
+                layout.annotations.push({
+                    text: facetCol + ': ' + facetVal,
+                    showarrow: false,
+                    xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                    yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                    x: 0.5,
+                    y: 1.05,
+                    xanchor: 'center',
+                    yanchor: 'bottom',
+                    font: {size: 10}
+                });
+            });
+
+            Plotly.newPlot('revenue_trend', traces, layout, {responsive: true});
+
+        } else {
+            // Facet grid (2 facet columns)
+            const facetRow = FACET_COLS[0];
+            const facetCol = FACET_COLS[1];
+            const rowValues = [...new Set(filteredData.map(row => row[facetRow]))].sort();
+            const colValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nRows = rowValues.length;
+            const nCols = colValues.length;
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            rowValues.forEach((rowVal, rowIdx) => {
+                colValues.forEach((colVal, colIdx) => {
+                    const facetData = filteredData.filter(row =>
+                        row[facetRow] === rowVal && row[facetCol] === colVal
+                    );
+
+                    // Group by color within this facet
+                    const groupedData = {};
+                    facetData.forEach(row => {
+                        const colorVal = row[COLOR_COL];
+                        if (!groupedData[colorVal]) {
+                            groupedData[colorVal] = [];
+                        }
+                        groupedData[colorVal].push(row);
+                    });
+
+                    const idx = rowIdx * nCols + colIdx;
+                    const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                    const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                    for (let colorVal in groupedData) {
+                        const group = groupedData[colorVal];
+                        group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                        traces.push({
+                            x: group.map(row => row[X_COL]),
+                            y: group.map(row => row[Y_COL]),
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            name: colorVal,
+                            legendgroup: colorVal,
+                            showlegend: idx === 0,
+                            xaxis: xaxis,
+                            yaxis: yaxis,
+                            line: {
+                                color: COLOR_MAP[colorVal] || '#000000',
+                                width: 1
+                            },
+                            marker: { size: 1 }
+                        });
+                    }
+
+                    // Add axis configuration
+                    layout[xaxis] = {
+                        title: rowIdx === nRows - 1 ? (X_LABEL || X_COL) : '',
+                        anchor: yaxis
+                    };
+                    layout[yaxis] = {
+                        title: colIdx === 0 ? (Y_LABEL || Y_COL) : '',
+                        anchor: xaxis
+                    };
+
+                    // Add annotations for facet labels
+                    if (!layout.annotations) layout.annotations = [];
+
+                    // Column header
+                    if (rowIdx === 0) {
+                        layout.annotations.push({
+                            text: facetCol + ': ' + colVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 0.5,
+                            y: 1.1,
+                            xanchor: 'center',
+                            yanchor: 'bottom',
+                            font: {size: 10}
+                        });
+                    }
+
+                    // Row label
+                    if (colIdx === nCols - 1) {
+                        layout.annotations.push({
+                            text: facetRow + ': ' + rowVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 1.05,
+                            y: 0.5,
+                            xanchor: 'left',
+                            yanchor: 'middle',
+                            textangle: -90,
+                            font: {size: 10}
+                        });
+                    }
+                });
+            });
+
+            Plotly.newPlot('revenue_trend', traces, layout, {responsive: true});
         }
-
-        // Layout
-        const layout = {
-            xaxis: { title: X_LABEL || X_COL },
-            yaxis: { title: Y_LABEL || Y_COL },
-            hovermode: 'closest',
-            showlegend: true
-        };
-
-        // Plot
-        Plotly.newPlot('revenue_trend', traces, layout, {responsive: true});
     };
 
     // Load and parse CSV data using centralized parser
@@ -460,6 +652,7 @@ $(function(){
     const Y_COL = 'Sales';
     const COLOR_COL = 'Year';
     const FILTER_COLS = [];
+    const FACET_COLS = [];
     const COLOR_MAP = {'2022': '#636efa', '2023': '#EF553B', '2024': '#00cc96'};
     const X_LABEL = 'Month';
     const Y_LABEL = 'Sales (thousands)';
@@ -485,44 +678,235 @@ $(function(){
             return true;
         });
 
-        const groupedData = {};
-        filteredData.forEach(row => {
-            const colorVal = row[COLOR_COL];
-            if (!groupedData[colorVal]) {
-                groupedData[colorVal] = [];
-            }
-            groupedData[colorVal].push(row);
-        });
-
-        const traces = [];
-        for (let colorVal in groupedData) {
-            const group = groupedData[colorVal];
-            group.sort((a, b) => a[X_COL] - b[X_COL]);
-
-            traces.push({
-                x: group.map(row => row[X_COL]),
-                y: group.map(row => row[Y_COL]),
-                type: 'scatter',
-                mode: 'lines+markers',
-                name: colorVal,
-                line: {
-                    color: COLOR_MAP[colorVal] || '#000000',
-                    width: 1
-                },
-                marker: { size: 1 }
+        if (FACET_COLS.length === 0) {
+            // No faceting - original behavior
+            const groupedData = {};
+            filteredData.forEach(row => {
+                const colorVal = row[COLOR_COL];
+                if (!groupedData[colorVal]) {
+                    groupedData[colorVal] = [];
+                }
+                groupedData[colorVal].push(row);
             });
+
+            const traces = [];
+            for (let colorVal in groupedData) {
+                const group = groupedData[colorVal];
+                group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                traces.push({
+                    x: group.map(row => row[X_COL]),
+                    y: group.map(row => row[Y_COL]),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: colorVal,
+                    line: {
+                        color: COLOR_MAP[colorVal] || '#000000',
+                        width: 1
+                    },
+                    marker: { size: 1 }
+                });
+            }
+
+            const layout = {
+                xaxis: { title: X_LABEL || X_COL },
+                yaxis: { title: Y_LABEL || Y_COL },
+                hovermode: 'closest',
+                showlegend: true
+            };
+
+            Plotly.newPlot('multi_series', traces, layout, {responsive: true});
+
+        } else if (FACET_COLS.length === 1) {
+            // Facet wrap
+            const facetCol = FACET_COLS[0];
+            const facetValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nFacets = facetValues.length;
+
+            // Calculate grid dimensions (prefer wider grids)
+            const nCols = Math.ceil(Math.sqrt(nFacets * 1.5));
+            const nRows = Math.ceil(nFacets / nCols);
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            facetValues.forEach((facetVal, idx) => {
+                const facetData = filteredData.filter(row => row[facetCol] === facetVal);
+
+                // Group by color within this facet
+                const groupedData = {};
+                facetData.forEach(row => {
+                    const colorVal = row[COLOR_COL];
+                    if (!groupedData[colorVal]) {
+                        groupedData[colorVal] = [];
+                    }
+                    groupedData[colorVal].push(row);
+                });
+
+                const row = Math.floor(idx / nCols) + 1;
+                const col = (idx % nCols) + 1;
+                const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                for (let colorVal in groupedData) {
+                    const group = groupedData[colorVal];
+                    group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                    traces.push({
+                        x: group.map(row => row[X_COL]),
+                        y: group.map(row => row[Y_COL]),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: colorVal,
+                        legendgroup: colorVal,
+                        showlegend: idx === 0,
+                        xaxis: xaxis,
+                        yaxis: yaxis,
+                        line: {
+                            color: COLOR_MAP[colorVal] || '#000000',
+                            width: 1
+                        },
+                        marker: { size: 1 }
+                    });
+                }
+
+                // Add axis configuration
+                layout[xaxis] = {
+                    title: row === nRows ? (X_LABEL || X_COL) : '',
+                    anchor: yaxis
+                };
+                layout[yaxis] = {
+                    title: col === 1 ? (Y_LABEL || Y_COL) : '',
+                    anchor: xaxis
+                };
+
+                // Add annotation for facet label
+                if (!layout.annotations) layout.annotations = [];
+                layout.annotations.push({
+                    text: facetCol + ': ' + facetVal,
+                    showarrow: false,
+                    xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                    yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                    x: 0.5,
+                    y: 1.05,
+                    xanchor: 'center',
+                    yanchor: 'bottom',
+                    font: {size: 10}
+                });
+            });
+
+            Plotly.newPlot('multi_series', traces, layout, {responsive: true});
+
+        } else {
+            // Facet grid (2 facet columns)
+            const facetRow = FACET_COLS[0];
+            const facetCol = FACET_COLS[1];
+            const rowValues = [...new Set(filteredData.map(row => row[facetRow]))].sort();
+            const colValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nRows = rowValues.length;
+            const nCols = colValues.length;
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            rowValues.forEach((rowVal, rowIdx) => {
+                colValues.forEach((colVal, colIdx) => {
+                    const facetData = filteredData.filter(row =>
+                        row[facetRow] === rowVal && row[facetCol] === colVal
+                    );
+
+                    // Group by color within this facet
+                    const groupedData = {};
+                    facetData.forEach(row => {
+                        const colorVal = row[COLOR_COL];
+                        if (!groupedData[colorVal]) {
+                            groupedData[colorVal] = [];
+                        }
+                        groupedData[colorVal].push(row);
+                    });
+
+                    const idx = rowIdx * nCols + colIdx;
+                    const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                    const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                    for (let colorVal in groupedData) {
+                        const group = groupedData[colorVal];
+                        group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                        traces.push({
+                            x: group.map(row => row[X_COL]),
+                            y: group.map(row => row[Y_COL]),
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            name: colorVal,
+                            legendgroup: colorVal,
+                            showlegend: idx === 0,
+                            xaxis: xaxis,
+                            yaxis: yaxis,
+                            line: {
+                                color: COLOR_MAP[colorVal] || '#000000',
+                                width: 1
+                            },
+                            marker: { size: 1 }
+                        });
+                    }
+
+                    // Add axis configuration
+                    layout[xaxis] = {
+                        title: rowIdx === nRows - 1 ? (X_LABEL || X_COL) : '',
+                        anchor: yaxis
+                    };
+                    layout[yaxis] = {
+                        title: colIdx === 0 ? (Y_LABEL || Y_COL) : '',
+                        anchor: xaxis
+                    };
+
+                    // Add annotations for facet labels
+                    if (!layout.annotations) layout.annotations = [];
+
+                    // Column header
+                    if (rowIdx === 0) {
+                        layout.annotations.push({
+                            text: facetCol + ': ' + colVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 0.5,
+                            y: 1.1,
+                            xanchor: 'center',
+                            yanchor: 'bottom',
+                            font: {size: 10}
+                        });
+                    }
+
+                    // Row label
+                    if (colIdx === nCols - 1) {
+                        layout.annotations.push({
+                            text: facetRow + ': ' + rowVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 1.05,
+                            y: 0.5,
+                            xanchor: 'left',
+                            yanchor: 'middle',
+                            textangle: -90,
+                            font: {size: 10}
+                        });
+                    }
+                });
+            });
+
+            Plotly.newPlot('multi_series', traces, layout, {responsive: true});
         }
-
-        // Layout
-        const layout = {
-            xaxis: { title: X_LABEL || X_COL },
-            yaxis: { title: Y_LABEL || Y_COL },
-            hovermode: 'closest',
-            showlegend: true
-        };
-
-        // Plot
-        Plotly.newPlot('multi_series', traces, layout, {responsive: true});
     };
 
     // Load and parse CSV data using centralized parser
@@ -539,6 +923,7 @@ $(function(){
     const Y_COL = 'Productivity';
     const COLOR_COL = 'Metric';
     const FILTER_COLS = ['Department', 'Quarter'];
+    const FACET_COLS = [];
     const COLOR_MAP = {'Productivity': '#636efa'};
     const X_LABEL = 'Month';
     const Y_LABEL = 'Productivity Score';
@@ -564,44 +949,235 @@ $(function(){
             return true;
         });
 
-        const groupedData = {};
-        filteredData.forEach(row => {
-            const colorVal = row[COLOR_COL];
-            if (!groupedData[colorVal]) {
-                groupedData[colorVal] = [];
-            }
-            groupedData[colorVal].push(row);
-        });
-
-        const traces = [];
-        for (let colorVal in groupedData) {
-            const group = groupedData[colorVal];
-            group.sort((a, b) => a[X_COL] - b[X_COL]);
-
-            traces.push({
-                x: group.map(row => row[X_COL]),
-                y: group.map(row => row[Y_COL]),
-                type: 'scatter',
-                mode: 'lines+markers',
-                name: colorVal,
-                line: {
-                    color: COLOR_MAP[colorVal] || '#000000',
-                    width: 1
-                },
-                marker: { size: 1 }
+        if (FACET_COLS.length === 0) {
+            // No faceting - original behavior
+            const groupedData = {};
+            filteredData.forEach(row => {
+                const colorVal = row[COLOR_COL];
+                if (!groupedData[colorVal]) {
+                    groupedData[colorVal] = [];
+                }
+                groupedData[colorVal].push(row);
             });
+
+            const traces = [];
+            for (let colorVal in groupedData) {
+                const group = groupedData[colorVal];
+                group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                traces.push({
+                    x: group.map(row => row[X_COL]),
+                    y: group.map(row => row[Y_COL]),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: colorVal,
+                    line: {
+                        color: COLOR_MAP[colorVal] || '#000000',
+                        width: 1
+                    },
+                    marker: { size: 1 }
+                });
+            }
+
+            const layout = {
+                xaxis: { title: X_LABEL || X_COL },
+                yaxis: { title: Y_LABEL || Y_COL },
+                hovermode: 'closest',
+                showlegend: true
+            };
+
+            Plotly.newPlot('filtered_metrics', traces, layout, {responsive: true});
+
+        } else if (FACET_COLS.length === 1) {
+            // Facet wrap
+            const facetCol = FACET_COLS[0];
+            const facetValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nFacets = facetValues.length;
+
+            // Calculate grid dimensions (prefer wider grids)
+            const nCols = Math.ceil(Math.sqrt(nFacets * 1.5));
+            const nRows = Math.ceil(nFacets / nCols);
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            facetValues.forEach((facetVal, idx) => {
+                const facetData = filteredData.filter(row => row[facetCol] === facetVal);
+
+                // Group by color within this facet
+                const groupedData = {};
+                facetData.forEach(row => {
+                    const colorVal = row[COLOR_COL];
+                    if (!groupedData[colorVal]) {
+                        groupedData[colorVal] = [];
+                    }
+                    groupedData[colorVal].push(row);
+                });
+
+                const row = Math.floor(idx / nCols) + 1;
+                const col = (idx % nCols) + 1;
+                const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                for (let colorVal in groupedData) {
+                    const group = groupedData[colorVal];
+                    group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                    traces.push({
+                        x: group.map(row => row[X_COL]),
+                        y: group.map(row => row[Y_COL]),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: colorVal,
+                        legendgroup: colorVal,
+                        showlegend: idx === 0,
+                        xaxis: xaxis,
+                        yaxis: yaxis,
+                        line: {
+                            color: COLOR_MAP[colorVal] || '#000000',
+                            width: 1
+                        },
+                        marker: { size: 1 }
+                    });
+                }
+
+                // Add axis configuration
+                layout[xaxis] = {
+                    title: row === nRows ? (X_LABEL || X_COL) : '',
+                    anchor: yaxis
+                };
+                layout[yaxis] = {
+                    title: col === 1 ? (Y_LABEL || Y_COL) : '',
+                    anchor: xaxis
+                };
+
+                // Add annotation for facet label
+                if (!layout.annotations) layout.annotations = [];
+                layout.annotations.push({
+                    text: facetCol + ': ' + facetVal,
+                    showarrow: false,
+                    xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                    yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                    x: 0.5,
+                    y: 1.05,
+                    xanchor: 'center',
+                    yanchor: 'bottom',
+                    font: {size: 10}
+                });
+            });
+
+            Plotly.newPlot('filtered_metrics', traces, layout, {responsive: true});
+
+        } else {
+            // Facet grid (2 facet columns)
+            const facetRow = FACET_COLS[0];
+            const facetCol = FACET_COLS[1];
+            const rowValues = [...new Set(filteredData.map(row => row[facetRow]))].sort();
+            const colValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nRows = rowValues.length;
+            const nCols = colValues.length;
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            rowValues.forEach((rowVal, rowIdx) => {
+                colValues.forEach((colVal, colIdx) => {
+                    const facetData = filteredData.filter(row =>
+                        row[facetRow] === rowVal && row[facetCol] === colVal
+                    );
+
+                    // Group by color within this facet
+                    const groupedData = {};
+                    facetData.forEach(row => {
+                        const colorVal = row[COLOR_COL];
+                        if (!groupedData[colorVal]) {
+                            groupedData[colorVal] = [];
+                        }
+                        groupedData[colorVal].push(row);
+                    });
+
+                    const idx = rowIdx * nCols + colIdx;
+                    const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                    const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                    for (let colorVal in groupedData) {
+                        const group = groupedData[colorVal];
+                        group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                        traces.push({
+                            x: group.map(row => row[X_COL]),
+                            y: group.map(row => row[Y_COL]),
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            name: colorVal,
+                            legendgroup: colorVal,
+                            showlegend: idx === 0,
+                            xaxis: xaxis,
+                            yaxis: yaxis,
+                            line: {
+                                color: COLOR_MAP[colorVal] || '#000000',
+                                width: 1
+                            },
+                            marker: { size: 1 }
+                        });
+                    }
+
+                    // Add axis configuration
+                    layout[xaxis] = {
+                        title: rowIdx === nRows - 1 ? (X_LABEL || X_COL) : '',
+                        anchor: yaxis
+                    };
+                    layout[yaxis] = {
+                        title: colIdx === 0 ? (Y_LABEL || Y_COL) : '',
+                        anchor: xaxis
+                    };
+
+                    // Add annotations for facet labels
+                    if (!layout.annotations) layout.annotations = [];
+
+                    // Column header
+                    if (rowIdx === 0) {
+                        layout.annotations.push({
+                            text: facetCol + ': ' + colVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 0.5,
+                            y: 1.1,
+                            xanchor: 'center',
+                            yanchor: 'bottom',
+                            font: {size: 10}
+                        });
+                    }
+
+                    // Row label
+                    if (colIdx === nCols - 1) {
+                        layout.annotations.push({
+                            text: facetRow + ': ' + rowVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 1.05,
+                            y: 0.5,
+                            xanchor: 'left',
+                            yanchor: 'middle',
+                            textangle: -90,
+                            font: {size: 10}
+                        });
+                    }
+                });
+            });
+
+            Plotly.newPlot('filtered_metrics', traces, layout, {responsive: true});
         }
-
-        // Layout
-        const layout = {
-            xaxis: { title: X_LABEL || X_COL },
-            yaxis: { title: Y_LABEL || Y_COL },
-            hovermode: 'closest',
-            showlegend: true
-        };
-
-        // Plot
-        Plotly.newPlot('filtered_metrics', traces, layout, {responsive: true});
     };
 
     // Load and parse CSV data using centralized parser
@@ -610,6 +1186,548 @@ $(function(){
         window.updateChart_filtered_metrics();
     }).catch(function(error) {
         console.error('Error loading data for chart filtered_metrics:', error);
+    });
+})();
+(function() {
+    // Configuration
+    const X_COL = 'Month';
+    const Y_COL = 'Sales';
+    const COLOR_COL = 'color';
+    const FILTER_COLS = [];
+    const FACET_COLS = ['Product'];
+    const COLOR_MAP = {'East': '#00cc96', 'West': '#ab63fa', 'North': '#636efa', 'South': '#EF553B'};
+    const X_LABEL = 'Month';
+    const Y_LABEL = 'Sales';
+
+    let allData = [];
+
+    // Make it global so inline onchange can see it
+    window.updateChart_facet_wrap_example = function() {
+        const filters = {};
+        FILTER_COLS.forEach(col => {
+            const select = document.getElementById(col + '_select');
+            if (select) {
+                filters[col] = select.value;
+            }
+        });
+
+        const filteredData = allData.filter(row => {
+            for (let col in filters) {
+                if (String(row[col]) !== String(filters[col])) {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        if (FACET_COLS.length === 0) {
+            // No faceting - original behavior
+            const groupedData = {};
+            filteredData.forEach(row => {
+                const colorVal = row[COLOR_COL];
+                if (!groupedData[colorVal]) {
+                    groupedData[colorVal] = [];
+                }
+                groupedData[colorVal].push(row);
+            });
+
+            const traces = [];
+            for (let colorVal in groupedData) {
+                const group = groupedData[colorVal];
+                group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                traces.push({
+                    x: group.map(row => row[X_COL]),
+                    y: group.map(row => row[Y_COL]),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: colorVal,
+                    line: {
+                        color: COLOR_MAP[colorVal] || '#000000',
+                        width: 1
+                    },
+                    marker: { size: 1 }
+                });
+            }
+
+            const layout = {
+                xaxis: { title: X_LABEL || X_COL },
+                yaxis: { title: Y_LABEL || Y_COL },
+                hovermode: 'closest',
+                showlegend: true
+            };
+
+            Plotly.newPlot('facet_wrap_example', traces, layout, {responsive: true});
+
+        } else if (FACET_COLS.length === 1) {
+            // Facet wrap
+            const facetCol = FACET_COLS[0];
+            const facetValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nFacets = facetValues.length;
+
+            // Calculate grid dimensions (prefer wider grids)
+            const nCols = Math.ceil(Math.sqrt(nFacets * 1.5));
+            const nRows = Math.ceil(nFacets / nCols);
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            facetValues.forEach((facetVal, idx) => {
+                const facetData = filteredData.filter(row => row[facetCol] === facetVal);
+
+                // Group by color within this facet
+                const groupedData = {};
+                facetData.forEach(row => {
+                    const colorVal = row[COLOR_COL];
+                    if (!groupedData[colorVal]) {
+                        groupedData[colorVal] = [];
+                    }
+                    groupedData[colorVal].push(row);
+                });
+
+                const row = Math.floor(idx / nCols) + 1;
+                const col = (idx % nCols) + 1;
+                const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                for (let colorVal in groupedData) {
+                    const group = groupedData[colorVal];
+                    group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                    traces.push({
+                        x: group.map(row => row[X_COL]),
+                        y: group.map(row => row[Y_COL]),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: colorVal,
+                        legendgroup: colorVal,
+                        showlegend: idx === 0,
+                        xaxis: xaxis,
+                        yaxis: yaxis,
+                        line: {
+                            color: COLOR_MAP[colorVal] || '#000000',
+                            width: 1
+                        },
+                        marker: { size: 1 }
+                    });
+                }
+
+                // Add axis configuration
+                layout[xaxis] = {
+                    title: row === nRows ? (X_LABEL || X_COL) : '',
+                    anchor: yaxis
+                };
+                layout[yaxis] = {
+                    title: col === 1 ? (Y_LABEL || Y_COL) : '',
+                    anchor: xaxis
+                };
+
+                // Add annotation for facet label
+                if (!layout.annotations) layout.annotations = [];
+                layout.annotations.push({
+                    text: facetCol + ': ' + facetVal,
+                    showarrow: false,
+                    xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                    yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                    x: 0.5,
+                    y: 1.05,
+                    xanchor: 'center',
+                    yanchor: 'bottom',
+                    font: {size: 10}
+                });
+            });
+
+            Plotly.newPlot('facet_wrap_example', traces, layout, {responsive: true});
+
+        } else {
+            // Facet grid (2 facet columns)
+            const facetRow = FACET_COLS[0];
+            const facetCol = FACET_COLS[1];
+            const rowValues = [...new Set(filteredData.map(row => row[facetRow]))].sort();
+            const colValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nRows = rowValues.length;
+            const nCols = colValues.length;
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            rowValues.forEach((rowVal, rowIdx) => {
+                colValues.forEach((colVal, colIdx) => {
+                    const facetData = filteredData.filter(row =>
+                        row[facetRow] === rowVal && row[facetCol] === colVal
+                    );
+
+                    // Group by color within this facet
+                    const groupedData = {};
+                    facetData.forEach(row => {
+                        const colorVal = row[COLOR_COL];
+                        if (!groupedData[colorVal]) {
+                            groupedData[colorVal] = [];
+                        }
+                        groupedData[colorVal].push(row);
+                    });
+
+                    const idx = rowIdx * nCols + colIdx;
+                    const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                    const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                    for (let colorVal in groupedData) {
+                        const group = groupedData[colorVal];
+                        group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                        traces.push({
+                            x: group.map(row => row[X_COL]),
+                            y: group.map(row => row[Y_COL]),
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            name: colorVal,
+                            legendgroup: colorVal,
+                            showlegend: idx === 0,
+                            xaxis: xaxis,
+                            yaxis: yaxis,
+                            line: {
+                                color: COLOR_MAP[colorVal] || '#000000',
+                                width: 1
+                            },
+                            marker: { size: 1 }
+                        });
+                    }
+
+                    // Add axis configuration
+                    layout[xaxis] = {
+                        title: rowIdx === nRows - 1 ? (X_LABEL || X_COL) : '',
+                        anchor: yaxis
+                    };
+                    layout[yaxis] = {
+                        title: colIdx === 0 ? (Y_LABEL || Y_COL) : '',
+                        anchor: xaxis
+                    };
+
+                    // Add annotations for facet labels
+                    if (!layout.annotations) layout.annotations = [];
+
+                    // Column header
+                    if (rowIdx === 0) {
+                        layout.annotations.push({
+                            text: facetCol + ': ' + colVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 0.5,
+                            y: 1.1,
+                            xanchor: 'center',
+                            yanchor: 'bottom',
+                            font: {size: 10}
+                        });
+                    }
+
+                    // Row label
+                    if (colIdx === nCols - 1) {
+                        layout.annotations.push({
+                            text: facetRow + ': ' + rowVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 1.05,
+                            y: 0.5,
+                            xanchor: 'left',
+                            yanchor: 'middle',
+                            textangle: -90,
+                            font: {size: 10}
+                        });
+                    }
+                });
+            });
+
+            Plotly.newPlot('facet_wrap_example', traces, layout, {responsive: true});
+        }
+    };
+
+    // Load and parse CSV data using centralized parser
+    loadDataset('facet_data').then(function(data) {
+        allData = data;
+        window.updateChart_facet_wrap_example();
+    }).catch(function(error) {
+        console.error('Error loading data for chart facet_wrap_example:', error);
+    });
+})();
+(function() {
+    // Configuration
+    const X_COL = 'Month';
+    const Y_COL = 'Sales';
+    const COLOR_COL = 'color';
+    const FILTER_COLS = [];
+    const FACET_COLS = ['Product', 'Region'];
+    const COLOR_MAP = {'2023': '#636efa', '2024': '#EF553B'};
+    const X_LABEL = 'Month';
+    const Y_LABEL = 'Sales';
+
+    let allData = [];
+
+    // Make it global so inline onchange can see it
+    window.updateChart_facet_grid_example = function() {
+        const filters = {};
+        FILTER_COLS.forEach(col => {
+            const select = document.getElementById(col + '_select');
+            if (select) {
+                filters[col] = select.value;
+            }
+        });
+
+        const filteredData = allData.filter(row => {
+            for (let col in filters) {
+                if (String(row[col]) !== String(filters[col])) {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        if (FACET_COLS.length === 0) {
+            // No faceting - original behavior
+            const groupedData = {};
+            filteredData.forEach(row => {
+                const colorVal = row[COLOR_COL];
+                if (!groupedData[colorVal]) {
+                    groupedData[colorVal] = [];
+                }
+                groupedData[colorVal].push(row);
+            });
+
+            const traces = [];
+            for (let colorVal in groupedData) {
+                const group = groupedData[colorVal];
+                group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                traces.push({
+                    x: group.map(row => row[X_COL]),
+                    y: group.map(row => row[Y_COL]),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: colorVal,
+                    line: {
+                        color: COLOR_MAP[colorVal] || '#000000',
+                        width: 1
+                    },
+                    marker: { size: 1 }
+                });
+            }
+
+            const layout = {
+                xaxis: { title: X_LABEL || X_COL },
+                yaxis: { title: Y_LABEL || Y_COL },
+                hovermode: 'closest',
+                showlegend: true
+            };
+
+            Plotly.newPlot('facet_grid_example', traces, layout, {responsive: true});
+
+        } else if (FACET_COLS.length === 1) {
+            // Facet wrap
+            const facetCol = FACET_COLS[0];
+            const facetValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nFacets = facetValues.length;
+
+            // Calculate grid dimensions (prefer wider grids)
+            const nCols = Math.ceil(Math.sqrt(nFacets * 1.5));
+            const nRows = Math.ceil(nFacets / nCols);
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            facetValues.forEach((facetVal, idx) => {
+                const facetData = filteredData.filter(row => row[facetCol] === facetVal);
+
+                // Group by color within this facet
+                const groupedData = {};
+                facetData.forEach(row => {
+                    const colorVal = row[COLOR_COL];
+                    if (!groupedData[colorVal]) {
+                        groupedData[colorVal] = [];
+                    }
+                    groupedData[colorVal].push(row);
+                });
+
+                const row = Math.floor(idx / nCols) + 1;
+                const col = (idx % nCols) + 1;
+                const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                for (let colorVal in groupedData) {
+                    const group = groupedData[colorVal];
+                    group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                    traces.push({
+                        x: group.map(row => row[X_COL]),
+                        y: group.map(row => row[Y_COL]),
+                        type: 'scatter',
+                        mode: 'lines+markers',
+                        name: colorVal,
+                        legendgroup: colorVal,
+                        showlegend: idx === 0,
+                        xaxis: xaxis,
+                        yaxis: yaxis,
+                        line: {
+                            color: COLOR_MAP[colorVal] || '#000000',
+                            width: 1
+                        },
+                        marker: { size: 1 }
+                    });
+                }
+
+                // Add axis configuration
+                layout[xaxis] = {
+                    title: row === nRows ? (X_LABEL || X_COL) : '',
+                    anchor: yaxis
+                };
+                layout[yaxis] = {
+                    title: col === 1 ? (Y_LABEL || Y_COL) : '',
+                    anchor: xaxis
+                };
+
+                // Add annotation for facet label
+                if (!layout.annotations) layout.annotations = [];
+                layout.annotations.push({
+                    text: facetCol + ': ' + facetVal,
+                    showarrow: false,
+                    xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                    yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                    x: 0.5,
+                    y: 1.05,
+                    xanchor: 'center',
+                    yanchor: 'bottom',
+                    font: {size: 10}
+                });
+            });
+
+            Plotly.newPlot('facet_grid_example', traces, layout, {responsive: true});
+
+        } else {
+            // Facet grid (2 facet columns)
+            const facetRow = FACET_COLS[0];
+            const facetCol = FACET_COLS[1];
+            const rowValues = [...new Set(filteredData.map(row => row[facetRow]))].sort();
+            const colValues = [...new Set(filteredData.map(row => row[facetCol]))].sort();
+            const nRows = rowValues.length;
+            const nCols = colValues.length;
+
+            const traces = [];
+            const layout = {
+                hovermode: 'closest',
+                showlegend: true,
+                grid: {rows: nRows, columns: nCols, pattern: 'independent'}
+            };
+
+            rowValues.forEach((rowVal, rowIdx) => {
+                colValues.forEach((colVal, colIdx) => {
+                    const facetData = filteredData.filter(row =>
+                        row[facetRow] === rowVal && row[facetCol] === colVal
+                    );
+
+                    // Group by color within this facet
+                    const groupedData = {};
+                    facetData.forEach(row => {
+                        const colorVal = row[COLOR_COL];
+                        if (!groupedData[colorVal]) {
+                            groupedData[colorVal] = [];
+                        }
+                        groupedData[colorVal].push(row);
+                    });
+
+                    const idx = rowIdx * nCols + colIdx;
+                    const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
+                    const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
+
+                    for (let colorVal in groupedData) {
+                        const group = groupedData[colorVal];
+                        group.sort((a, b) => a[X_COL] - b[X_COL]);
+
+                        traces.push({
+                            x: group.map(row => row[X_COL]),
+                            y: group.map(row => row[Y_COL]),
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            name: colorVal,
+                            legendgroup: colorVal,
+                            showlegend: idx === 0,
+                            xaxis: xaxis,
+                            yaxis: yaxis,
+                            line: {
+                                color: COLOR_MAP[colorVal] || '#000000',
+                                width: 1
+                            },
+                            marker: { size: 1 }
+                        });
+                    }
+
+                    // Add axis configuration
+                    layout[xaxis] = {
+                        title: rowIdx === nRows - 1 ? (X_LABEL || X_COL) : '',
+                        anchor: yaxis
+                    };
+                    layout[yaxis] = {
+                        title: colIdx === 0 ? (Y_LABEL || Y_COL) : '',
+                        anchor: xaxis
+                    };
+
+                    // Add annotations for facet labels
+                    if (!layout.annotations) layout.annotations = [];
+
+                    // Column header
+                    if (rowIdx === 0) {
+                        layout.annotations.push({
+                            text: facetCol + ': ' + colVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 0.5,
+                            y: 1.1,
+                            xanchor: 'center',
+                            yanchor: 'bottom',
+                            font: {size: 10}
+                        });
+                    }
+
+                    // Row label
+                    if (colIdx === nCols - 1) {
+                        layout.annotations.push({
+                            text: facetRow + ': ' + rowVal,
+                            showarrow: false,
+                            xref: xaxis === 'x' ? 'x domain' : xaxis + ' domain',
+                            yref: yaxis === 'y' ? 'y domain' : yaxis + ' domain',
+                            x: 1.05,
+                            y: 0.5,
+                            xanchor: 'left',
+                            yanchor: 'middle',
+                            textangle: -90,
+                            font: {size: 10}
+                        });
+                    }
+                });
+            });
+
+            Plotly.newPlot('facet_grid_example', traces, layout, {responsive: true});
+        }
+    };
+
+    // Load and parse CSV data using centralized parser
+    loadDataset('facet_grid_data').then(function(data) {
+        allData = data;
+        window.updateChart_facet_grid_example();
+    }).catch(function(error) {
+        console.error('Error loading data for chart facet_grid_example:', error);
     });
 })();
 
@@ -621,239 +1739,239 @@ $(function(){
 
 <script type="text/plain" id="metrics" data-format="csv_embedded" data-src="">
 Department,Quarter,Month,Productivity,Metric
-Engineering,Q1,Jan,88.49372469390201,Productivity
-Engineering,Q1,Feb,82.11427237369877,Productivity
-Engineering,Q1,Mar,79.86975460102217,Productivity
-Engineering,Q2,Apr,77.7680875993141,Productivity
-Engineering,Q2,May,82.78410502260571,Productivity
-Engineering,Q2,Jun,83.36706264233979,Productivity
-Engineering,Q3,Jul,75.92461860191678,Productivity
-Engineering,Q3,Aug,93.1551940437295,Productivity
-Engineering,Q3,Sep,97.51313541430686,Productivity
-Engineering,Q4,Oct,91.25108755330098,Productivity
-Engineering,Q4,Nov,85.14593455721568,Productivity
-Engineering,Q4,Dec,86.13223470538279,Productivity
-Sales,Q1,Jan,90.57134369451725,Productivity
-Sales,Q1,Feb,95.23025139133297,Productivity
-Sales,Q1,Mar,86.56268960695454,Productivity
-Sales,Q2,Apr,90.0627365310379,Productivity
-Sales,Q2,May,95.66270862379356,Productivity
-Sales,Q2,Jun,87.26696503534414,Productivity
-Sales,Q3,Jul,76.50875961032354,Productivity
-Sales,Q3,Aug,78.59458127894135,Productivity
-Sales,Q3,Sep,75.49951436795948,Productivity
-Sales,Q4,Oct,93.89464199147886,Productivity
-Sales,Q4,Nov,82.94113117084807,Productivity
-Sales,Q4,Dec,77.80821456272196,Productivity
-Marketing,Q1,Jan,84.49109086024677,Productivity
-Marketing,Q1,Feb,78.95065947195639,Productivity
-Marketing,Q1,Mar,82.38151034091462,Productivity
-Marketing,Q2,Apr,72.02791263312018,Productivity
-Marketing,Q2,May,87.74496165755463,Productivity
-Marketing,Q2,Jun,88.27413951999036,Productivity
-Marketing,Q3,Jul,71.83055006047623,Productivity
-Marketing,Q3,Aug,70.84176714065276,Productivity
-Marketing,Q3,Sep,81.81231061154391,Productivity
-Marketing,Q4,Oct,87.33472577536324,Productivity
-Marketing,Q4,Nov,72.45069298301524,Productivity
-Marketing,Q4,Dec,81.77212454304157,Productivity
-Operations,Q1,Jan,80.17946091629753,Productivity
-Operations,Q1,Feb,82.09741958653257,Productivity
-Operations,Q1,Mar,98.54221837345922,Productivity
-Operations,Q2,Apr,98.78879733871163,Productivity
-Operations,Q2,May,83.53846731115168,Productivity
-Operations,Q2,Jun,88.85192479847362,Productivity
-Operations,Q3,Jul,78.90840470850678,Productivity
-Operations,Q3,Aug,85.35014016793542,Productivity
-Operations,Q3,Sep,92.29236759087651,Productivity
-Operations,Q4,Oct,90.86077890157046,Productivity
-Operations,Q4,Nov,82.29215572958532,Productivity
-Operations,Q4,Dec,80.79867689037377,Productivity
+Engineering,Q1,Jan,83.45830350827025,Productivity
+Engineering,Q1,Feb,99.68222291024681,Productivity
+Engineering,Q1,Mar,97.75979618405555,Productivity
+Engineering,Q2,Apr,75.4543754610429,Productivity
+Engineering,Q2,May,94.0376853544408,Productivity
+Engineering,Q2,Jun,77.39878227822071,Productivity
+Engineering,Q3,Jul,85.17714022122617,Productivity
+Engineering,Q3,Aug,91.929899770993,Productivity
+Engineering,Q3,Sep,81.44132332817537,Productivity
+Engineering,Q4,Oct,91.70203646566362,Productivity
+Engineering,Q4,Nov,98.44242163392872,Productivity
+Engineering,Q4,Dec,94.2558617765282,Productivity
+Sales,Q1,Jan,92.04230561477536,Productivity
+Sales,Q1,Feb,79.38063077287802,Productivity
+Sales,Q1,Mar,93.63105639903989,Productivity
+Sales,Q2,Apr,90.559697938885,Productivity
+Sales,Q2,May,90.84639752576895,Productivity
+Sales,Q2,Jun,87.78843696574923,Productivity
+Sales,Q3,Jul,83.05827396972882,Productivity
+Sales,Q3,Aug,79.24322108102739,Productivity
+Sales,Q3,Sep,85.17961243555462,Productivity
+Sales,Q4,Oct,99.49408734904536,Productivity
+Sales,Q4,Nov,72.40582854034558,Productivity
+Sales,Q4,Dec,83.13456695619448,Productivity
+Marketing,Q1,Jan,89.63573087123294,Productivity
+Marketing,Q1,Feb,95.95486598598275,Productivity
+Marketing,Q1,Mar,78.70456414473227,Productivity
+Marketing,Q2,Apr,95.76876775363505,Productivity
+Marketing,Q2,May,70.96574660800682,Productivity
+Marketing,Q2,Jun,77.33081506813454,Productivity
+Marketing,Q3,Jul,76.21254506388505,Productivity
+Marketing,Q3,Aug,83.47637194022825,Productivity
+Marketing,Q3,Sep,95.06206648852597,Productivity
+Marketing,Q4,Oct,73.32277735869872,Productivity
+Marketing,Q4,Nov,95.70068645078773,Productivity
+Marketing,Q4,Dec,70.38048790363517,Productivity
+Operations,Q1,Jan,70.92051733551067,Productivity
+Operations,Q1,Feb,70.88552489538657,Productivity
+Operations,Q1,Mar,75.91928808784222,Productivity
+Operations,Q2,Apr,80.58422597134306,Productivity
+Operations,Q2,May,92.1876700130675,Productivity
+Operations,Q2,Jun,85.09166578279962,Productivity
+Operations,Q3,Jul,77.42043536816303,Productivity
+Operations,Q3,Aug,87.84801542229452,Productivity
+Operations,Q3,Sep,70.58358637501911,Productivity
+Operations,Q4,Oct,97.03025357110005,Productivity
+Operations,Q4,Nov,70.02267073061046,Productivity
+Operations,Q4,Dec,83.21342039189827,Productivity
 
 </script><script type="text/plain" id="revenue_data" data-format="csv_embedded" data-src="">
 Date,Revenue,color
-2024-01-01,49144.89335637077,Revenue
-2024-01-02,97478.14291705556,Revenue
-2024-01-03,147273.0177729554,Revenue
-2024-01-04,196820.298813813,Revenue
-2024-01-05,246783.99525159682,Revenue
-2024-01-06,296867.7449650428,Revenue
-2024-01-07,346822.1898315089,Revenue
-2024-01-08,395171.06141688174,Revenue
-2024-01-09,444710.2852828752,Revenue
-2024-01-10,494553.3214434155,Revenue
-2024-01-11,544815.5463994732,Revenue
-2024-01-12,593068.0563625875,Revenue
-2024-01-13,642152.1370100448,Revenue
-2024-01-14,691009.2678857573,Revenue
-2024-01-15,741603.4526751128,Revenue
-2024-01-16,792488.4780447008,Revenue
-2024-01-17,841171.6575251442,Revenue
-2024-01-18,890006.5596966684,Revenue
-2024-01-19,940394.0726201623,Revenue
-2024-01-20,990798.0501790233,Revenue
-2024-01-21,1.0418727450976972e6,Revenue
-2024-01-22,1.0922126458474968e6,Revenue
-2024-01-23,1.1421200026160155e6,Revenue
-2024-01-24,1.1918339976605943e6,Revenue
-2024-01-25,1.2411513000603232e6,Revenue
-2024-01-26,1.2917063879448292e6,Revenue
-2024-01-27,1.3423958651436327e6,Revenue
-2024-01-28,1.3917682896117049e6,Revenue
-2024-01-29,1.4407628247087866e6,Revenue
-2024-01-30,1.4888837792246698e6,Revenue
-2024-01-31,1.5385299989585513e6,Revenue
-2024-02-01,1.5896295153069226e6,Revenue
-2024-02-02,1.6393291829955603e6,Revenue
-2024-02-03,1.6894439472527765e6,Revenue
-2024-02-04,1.7406460112865935e6,Revenue
-2024-02-05,1.7917288675324316e6,Revenue
-2024-02-06,1.8409651041916152e6,Revenue
-2024-02-07,1.8921479604846165e6,Revenue
-2024-02-08,1.9404682585826332e6,Revenue
-2024-02-09,1.9886221450841178e6,Revenue
-2024-02-10,2.0376875886362772e6,Revenue
-2024-02-11,2.0878141958335978e6,Revenue
-2024-02-12,2.1381528965288824e6,Revenue
-2024-02-13,2.189465353082336e6,Revenue
-2024-02-14,2.239170490215583e6,Revenue
-2024-02-15,2.289755653638611e6,Revenue
-2024-02-16,2.340895562020428e6,Revenue
-2024-02-17,2.391185850762371e6,Revenue
-2024-02-18,2.4417730951538417e6,Revenue
-2024-02-19,2.4907032713917294e6,Revenue
-2024-02-20,2.540835353680896e6,Revenue
-2024-02-21,2.591121203361219e6,Revenue
-2024-02-22,2.6407131460273075e6,Revenue
-2024-02-23,2.6929085131462407e6,Revenue
-2024-02-24,2.7430771369521767e6,Revenue
-2024-02-25,2.7923648954400253e6,Revenue
-2024-02-26,2.8428451659017736e6,Revenue
-2024-02-27,2.8935767853488117e6,Revenue
-2024-02-28,2.943642493274692e6,Revenue
-2024-02-29,2.992391207602854e6,Revenue
-2024-03-01,3.041826186622085e6,Revenue
-2024-03-02,3.092386878600116e6,Revenue
-2024-03-03,3.1428732461740053e6,Revenue
-2024-03-04,3.19177547986431e6,Revenue
-2024-03-05,3.241441602477444e6,Revenue
-2024-03-06,3.292047927566813e6,Revenue
-2024-03-07,3.342703552768396e6,Revenue
-2024-03-08,3.3928859001941252e6,Revenue
-2024-03-09,3.4414596208143025e6,Revenue
-2024-03-10,3.492399931621442e6,Revenue
-2024-03-11,3.543279864216677e6,Revenue
-2024-03-12,3.5926298271092502e6,Revenue
-2024-03-13,3.64428865259532e6,Revenue
-2024-03-14,3.6945861879002396e6,Revenue
-2024-03-15,3.744373092050487e6,Revenue
-2024-03-16,3.7934817619632133e6,Revenue
-2024-03-17,3.8428318216491747e6,Revenue
-2024-03-18,3.891133013169607e6,Revenue
-2024-03-19,3.9405093158134087e6,Revenue
-2024-03-20,3.9897898006577687e6,Revenue
-2024-03-21,4.0405890002968563e6,Revenue
-2024-03-22,4.0903745183785902e6,Revenue
-2024-03-23,4.139231488940402e6,Revenue
-2024-03-24,4.1875986318527376e6,Revenue
-2024-03-25,4.237262892564838e6,Revenue
-2024-03-26,4.285610483803022e6,Revenue
-2024-03-27,4.335874793936347e6,Revenue
-2024-03-28,4.386585320755564e6,Revenue
-2024-03-29,4.435339956321082e6,Revenue
-2024-03-30,4.484661279028057e6,Revenue
-2024-03-31,4.534475036085128e6,Revenue
-2024-04-01,4.583233091341616e6,Revenue
-2024-04-02,4.631061234504516e6,Revenue
-2024-04-03,4.681165114581342e6,Revenue
-2024-04-04,4.729623174678111e6,Revenue
-2024-04-05,4.780759052403461e6,Revenue
-2024-04-06,4.831326582572819e6,Revenue
-2024-04-07,4.881359184028864e6,Revenue
-2024-04-08,4.9313513198028235e6,Revenue
-2024-04-09,4.980155279717781e6,Revenue
-2024-04-10,5.031850589509135e6,Revenue
-2024-04-11,5.08288647235365e6,Revenue
-2024-04-12,5.130810028392339e6,Revenue
-2024-04-13,5.179937916734526e6,Revenue
-2024-04-14,5.230569624470003e6,Revenue
-2024-04-15,5.280823249146697e6,Revenue
-2024-04-16,5.331480057061912e6,Revenue
-2024-04-17,5.380198850253128e6,Revenue
-2024-04-18,5.430799336003435e6,Revenue
-2024-04-19,5.480889987537808e6,Revenue
-2024-04-20,5.531780027527968e6,Revenue
-2024-04-21,5.581839809320843e6,Revenue
-2024-04-22,5.632556220739432e6,Revenue
-2024-04-23,5.681720665983441e6,Revenue
-2024-04-24,5.729702006008436e6,Revenue
-2024-04-25,5.77750122755685e6,Revenue
-2024-04-26,5.829913285209881e6,Revenue
-2024-04-27,5.879788247342939e6,Revenue
-2024-04-28,5.929694345178306e6,Revenue
-2024-04-29,5.978291452925621e6,Revenue
-2024-04-30,6.029861808362035e6,Revenue
-2024-05-01,6.081212045920641e6,Revenue
-2024-05-02,6.13105202893823e6,Revenue
-2024-05-03,6.181460915621922e6,Revenue
-2024-05-04,6.231360801606448e6,Revenue
-2024-05-05,6.279894103512154e6,Revenue
-2024-05-06,6.329553465446231e6,Revenue
-2024-05-07,6.379205110566009e6,Revenue
-2024-05-08,6.430132944236141e6,Revenue
-2024-05-09,6.4800144593556505e6,Revenue
-2024-05-10,6.527810990576725e6,Revenue
-2024-05-11,6.5781281768522505e6,Revenue
-2024-05-12,6.627533164759765e6,Revenue
-2024-05-13,6.67575948347316e6,Revenue
-2024-05-14,6.7263967546797525e6,Revenue
-2024-05-15,6.7779864945955025e6,Revenue
-2024-05-16,6.828958441458342e6,Revenue
-2024-05-17,6.876767917116571e6,Revenue
-2024-05-18,6.927758625193046e6,Revenue
-2024-05-19,6.977100399054628e6,Revenue
-2024-05-20,7.025825077433044e6,Revenue
-2024-05-21,7.07559771412182e6,Revenue
-2024-05-22,7.126245255486329e6,Revenue
-2024-05-23,7.1771785056932885e6,Revenue
-2024-05-24,7.227209425560063e6,Revenue
-2024-05-25,7.277364246236771e6,Revenue
-2024-05-26,7.328256112243819e6,Revenue
-2024-05-27,7.378563653581214e6,Revenue
-2024-05-28,7.429094291511627e6,Revenue
-2024-05-29,7.480413104589121e6,Revenue
-2024-05-30,7.530942797088743e6,Revenue
-2024-05-31,7.581335427418698e6,Revenue
-2024-06-01,7.633567304667804e6,Revenue
-2024-06-02,7.683815266898029e6,Revenue
-2024-06-03,7.735105554481253e6,Revenue
-2024-06-04,7.784639426337039e6,Revenue
-2024-06-05,7.83453746422662e6,Revenue
-2024-06-06,7.885301519671908e6,Revenue
-2024-06-07,7.935874628843683e6,Revenue
-2024-06-08,7.987303491207729e6,Revenue
-2024-06-09,8.038996848669769e6,Revenue
-2024-06-10,8.090339956844391e6,Revenue
-2024-06-11,8.139257209363113e6,Revenue
-2024-06-12,8.187944736678813e6,Revenue
-2024-06-13,8.238085820523639e6,Revenue
-2024-06-14,8.288618046076258e6,Revenue
-2024-06-15,8.337652387935836e6,Revenue
-2024-06-16,8.388515953328754e6,Revenue
-2024-06-17,8.437111484166332e6,Revenue
-2024-06-18,8.486590389981959e6,Revenue
-2024-06-19,8.536287479568537e6,Revenue
-2024-06-20,8.58598169806595e6,Revenue
-2024-06-21,8.636356261389852e6,Revenue
-2024-06-22,8.684961912880147e6,Revenue
-2024-06-23,8.735819931835582e6,Revenue
-2024-06-24,8.786127479105024e6,Revenue
-2024-06-25,8.835507850106657e6,Revenue
-2024-06-26,8.885082361499619e6,Revenue
-2024-06-27,8.936638148278467e6,Revenue
-2024-06-28,8.986260915181037e6,Revenue
-2024-06-29,9.037217276734434e6,Revenue
-2024-06-30,9.087749115779746e6,Revenue
+2024-01-01,48884.93220325827,Revenue
+2024-01-02,99680.61124816613,Revenue
+2024-01-03,149406.25465644887,Revenue
+2024-01-04,199667.72091105292,Revenue
+2024-01-05,250181.69163332187,Revenue
+2024-01-06,301347.42932789074,Revenue
+2024-01-07,350571.8090009471,Revenue
+2024-01-08,400011.47524990194,Revenue
+2024-01-09,449450.62977232004,Revenue
+2024-01-10,498642.2401352173,Revenue
+2024-01-11,548834.8459296372,Revenue
+2024-01-12,598823.3035089155,Revenue
+2024-01-13,648108.3551876752,Revenue
+2024-01-14,697826.4962524327,Revenue
+2024-01-15,749767.1142766266,Revenue
+2024-01-16,798736.4281647473,Revenue
+2024-01-17,849288.790432404,Revenue
+2024-01-18,900210.71519556,Revenue
+2024-01-19,951267.4150317681,Revenue
+2024-01-20,1.0026736274364835e6,Revenue
+2024-01-21,1.052295009572174e6,Revenue
+2024-01-22,1.104069694463618e6,Revenue
+2024-01-23,1.1532584619082687e6,Revenue
+2024-01-24,1.2024401278490247e6,Revenue
+2024-01-25,1.2523558344323253e6,Revenue
+2024-01-26,1.3036172085247086e6,Revenue
+2024-01-27,1.3542501763653285e6,Revenue
+2024-01-28,1.4054854740696563e6,Revenue
+2024-01-29,1.4559512346899826e6,Revenue
+2024-01-30,1.5051737042807648e6,Revenue
+2024-01-31,1.5548871942664636e6,Revenue
+2024-02-01,1.6051593463361273e6,Revenue
+2024-02-02,1.655828292029241e6,Revenue
+2024-02-03,1.7056271881644907e6,Revenue
+2024-02-04,1.7549934342370764e6,Revenue
+2024-02-05,1.8050234634244842e6,Revenue
+2024-02-06,1.8532618945963238e6,Revenue
+2024-02-07,1.903323525242248e6,Revenue
+2024-02-08,1.9526656949594915e6,Revenue
+2024-02-09,2.0032677261342285e6,Revenue
+2024-02-10,2.053231307207068e6,Revenue
+2024-02-11,2.1047525776051534e6,Revenue
+2024-02-12,2.153844615405914e6,Revenue
+2024-02-13,2.2034837448947816e6,Revenue
+2024-02-14,2.253411303237347e6,Revenue
+2024-02-15,2.302627285601071e6,Revenue
+2024-02-16,2.3545109208243573e6,Revenue
+2024-02-17,2.4024592941133133e6,Revenue
+2024-02-18,2.4536853248607744e6,Revenue
+2024-02-19,2.502862465694493e6,Revenue
+2024-02-20,2.5536544517197926e6,Revenue
+2024-02-21,2.605029571035632e6,Revenue
+2024-02-22,2.6555997461670698e6,Revenue
+2024-02-23,2.70456828029144e6,Revenue
+2024-02-24,2.7554090804163497e6,Revenue
+2024-02-25,2.806212628651294e6,Revenue
+2024-02-26,2.856218683257564e6,Revenue
+2024-02-27,2.9054114959099093e6,Revenue
+2024-02-28,2.9549360544826067e6,Revenue
+2024-02-29,3.0060890221686685e6,Revenue
+2024-03-01,3.055997946376161e6,Revenue
+2024-03-02,3.104010200014844e6,Revenue
+2024-03-03,3.154741123892338e6,Revenue
+2024-03-04,3.2043981954678725e6,Revenue
+2024-03-05,3.253212353830158e6,Revenue
+2024-03-06,3.302431289363728e6,Revenue
+2024-03-07,3.3516690421805624e6,Revenue
+2024-03-08,3.4013827668418926e6,Revenue
+2024-03-09,3.452070765891023e6,Revenue
+2024-03-10,3.5032375487484112e6,Revenue
+2024-03-11,3.5542464629935836e6,Revenue
+2024-03-12,3.603781925122247e6,Revenue
+2024-03-13,3.6521826025021183e6,Revenue
+2024-03-14,3.702730656882587e6,Revenue
+2024-03-15,3.7524159589658594e6,Revenue
+2024-03-16,3.804148571780617e6,Revenue
+2024-03-17,3.8535479419688447e6,Revenue
+2024-03-18,3.903503584162093e6,Revenue
+2024-03-19,3.9527910211334187e6,Revenue
+2024-03-20,4.0021595502778306e6,Revenue
+2024-03-21,4.052247886148015e6,Revenue
+2024-03-22,4.1021718550182916e6,Revenue
+2024-03-23,4.1514114385066503e6,Revenue
+2024-03-24,4.203544049227084e6,Revenue
+2024-03-25,4.253118163413121e6,Revenue
+2024-03-26,4.304366906436636e6,Revenue
+2024-03-27,4.353765169832979e6,Revenue
+2024-03-28,4.402490605568777e6,Revenue
+2024-03-29,4.454054284146504e6,Revenue
+2024-03-30,4.504569500160176e6,Revenue
+2024-03-31,4.552738333041767e6,Revenue
+2024-04-01,4.60222743822573e6,Revenue
+2024-04-02,4.653855887733982e6,Revenue
+2024-04-03,4.705153376395525e6,Revenue
+2024-04-04,4.756338457810226e6,Revenue
+2024-04-05,4.80621580977433e6,Revenue
+2024-04-06,4.857195557738138e6,Revenue
+2024-04-07,4.908285310342249e6,Revenue
+2024-04-08,4.958861781546653e6,Revenue
+2024-04-09,5.00975017938647e6,Revenue
+2024-04-10,5.059603952245638e6,Revenue
+2024-04-11,5.110953321696907e6,Revenue
+2024-04-12,5.159952765785056e6,Revenue
+2024-04-13,5.209224922782995e6,Revenue
+2024-04-14,5.259794537709078e6,Revenue
+2024-04-15,5.308003825255996e6,Revenue
+2024-04-16,5.358925129878184e6,Revenue
+2024-04-17,5.409937513689736e6,Revenue
+2024-04-18,5.462135474605612e6,Revenue
+2024-04-19,5.510484047059941e6,Revenue
+2024-04-20,5.561585294588351e6,Revenue
+2024-04-21,5.611465006705524e6,Revenue
+2024-04-22,5.662870626858363e6,Revenue
+2024-04-23,5.712784800233541e6,Revenue
+2024-04-24,5.763210182102423e6,Revenue
+2024-04-25,5.813207457986677e6,Revenue
+2024-04-26,5.863928534919274e6,Revenue
+2024-04-27,5.915612091462151e6,Revenue
+2024-04-28,5.966678332599977e6,Revenue
+2024-04-29,6.017657737151587e6,Revenue
+2024-04-30,6.0676969795312695e6,Revenue
+2024-05-01,6.117062305918103e6,Revenue
+2024-05-02,6.167580247646432e6,Revenue
+2024-05-03,6.217986843376674e6,Revenue
+2024-05-04,6.267418590621609e6,Revenue
+2024-05-05,6.3172978159934385e6,Revenue
+2024-05-06,6.366755102143586e6,Revenue
+2024-05-07,6.4175248162667435e6,Revenue
+2024-05-08,6.466350200162922e6,Revenue
+2024-05-09,6.516976697633712e6,Revenue
+2024-05-10,6.567958517589776e6,Revenue
+2024-05-11,6.618800478152316e6,Revenue
+2024-05-12,6.6679793929183325e6,Revenue
+2024-05-13,6.71905214803192e6,Revenue
+2024-05-14,6.769767260978717e6,Revenue
+2024-05-15,6.818350148541591e6,Revenue
+2024-05-16,6.869658624459792e6,Revenue
+2024-05-17,6.918833219703341e6,Revenue
+2024-05-18,6.967417823118539e6,Revenue
+2024-05-19,7.017689936561972e6,Revenue
+2024-05-20,7.06911781063548e6,Revenue
+2024-05-21,7.118379457057569e6,Revenue
+2024-05-22,7.1688994922627285e6,Revenue
+2024-05-23,7.2187350814423e6,Revenue
+2024-05-24,7.268683331815192e6,Revenue
+2024-05-25,7.317379637400918e6,Revenue
+2024-05-26,7.3673651997554805e6,Revenue
+2024-05-27,7.418838568630403e6,Revenue
+2024-05-28,7.4670345546230795e6,Revenue
+2024-05-29,7.518228712097041e6,Revenue
+2024-05-30,7.567207050891495e6,Revenue
+2024-05-31,7.617423825137757e6,Revenue
+2024-06-01,7.668194083208436e6,Revenue
+2024-06-02,7.718895616764013e6,Revenue
+2024-06-03,7.769620604800809e6,Revenue
+2024-06-04,7.819531017016461e6,Revenue
+2024-06-05,7.869700074917305e6,Revenue
+2024-06-06,7.920084787864763e6,Revenue
+2024-06-07,7.9693857522876775e6,Revenue
+2024-06-08,8.018510785731531e6,Revenue
+2024-06-09,8.067845503868602e6,Revenue
+2024-06-10,8.118214978355876e6,Revenue
+2024-06-11,8.167392524141809e6,Revenue
+2024-06-12,8.218169432991212e6,Revenue
+2024-06-13,8.269128923708042e6,Revenue
+2024-06-14,8.319442195771371e6,Revenue
+2024-06-15,8.369117165107147e6,Revenue
+2024-06-16,8.420640929745082e6,Revenue
+2024-06-17,8.4711709334562e6,Revenue
+2024-06-18,8.521640010738954e6,Revenue
+2024-06-19,8.572442539356599e6,Revenue
+2024-06-20,8.621320789952416e6,Revenue
+2024-06-21,8.669738658675622e6,Revenue
+2024-06-22,8.719560115675287e6,Revenue
+2024-06-23,8.768824805879315e6,Revenue
+2024-06-24,8.81977931743763e6,Revenue
+2024-06-25,8.868619721980222e6,Revenue
+2024-06-26,8.918426024772286e6,Revenue
+2024-06-27,8.970015269967083e6,Revenue
+2024-06-28,9.021124560488533e6,Revenue
+2024-06-29,9.070731491493803e6,Revenue
+2024-06-30,9.120205034574067e6,Revenue
 
 </script><script type="text/plain" id="sales_data" data-format="csv_embedded" data-src="">
 Month,Sales,Year
@@ -894,6 +2012,300 @@ Oct,270,2024
 Nov,290,2024
 Dec,320,2024
 
+</script><script type="text/plain" id="facet_data" data-format="csv_embedded" data-src="">
+Month,Sales,Product,Region,color
+1,139.72472000523095,Product A,North,North
+2,111.18742702798653,Product A,North,North
+3,153.63486887626829,Product A,North,North
+4,125.13084821517158,Product A,North,North
+5,132.55492253073731,Product A,North,North
+6,173.47107865346885,Product A,North,North
+7,175.69629602545618,Product A,North,North
+8,172.56505753417125,Product A,North,North
+9,164.101716430628,Product A,North,North
+10,159.97153724828513,Product A,North,North
+11,190.90157052922177,Product A,North,North
+12,188.8126240492348,Product A,North,North
+1,115.2459154153155,Product A,South,South
+2,147.64119928913476,Product A,South,South
+3,157.96792892816046,Product A,South,South
+4,121.31867353172089,Product A,South,South
+5,157.33563322836,Product A,South,South
+6,159.05798495986903,Product A,South,South
+7,172.73937694496993,Product A,South,South
+8,147.2300533742841,Product A,South,South
+9,148.62005737831916,Product A,South,South
+10,165.74114784888104,Product A,South,South
+11,154.85373578547615,Product A,South,South
+12,192.70293675736679,Product A,South,South
+1,144.3309502979378,Product A,East,East
+2,152.78270415915574,Product A,East,East
+3,142.2984148190628,Product A,East,East
+4,128.8060731061811,Product A,East,East
+5,133.1434095713803,Product A,East,East
+6,158.71113693796397,Product A,East,East
+7,162.07525554109282,Product A,East,East
+8,162.39362930930344,Product A,East,East
+9,155.2814878637484,Product A,East,East
+10,184.4722540846974,Product A,East,East
+11,182.40153836653315,Product A,East,East
+12,160.79599617020224,Product A,East,East
+1,149.7122469045717,Product A,West,West
+2,120.30417464779856,Product A,West,West
+3,127.29936771828059,Product A,West,West
+4,118.49169164010793,Product A,West,West
+5,161.3284984535202,Product A,West,West
+6,144.96498119560346,Product A,West,West
+7,133.18279490899704,Product A,West,West
+8,176.09700948805983,Product A,West,West
+9,178.99038121998547,Product A,West,West
+10,193.34121170600426,Product A,West,West
+11,185.6099280470449,Product A,West,West
+12,182.98859868811735,Product A,West,West
+1,147.37265573383883,Product B,North,North
+2,148.36548758696665,Product B,North,North
+3,148.93967896520604,Product B,North,North
+4,142.64063089671424,Product B,North,North
+5,126.38565938496674,Product B,North,North
+6,171.33593585179852,Product B,North,North
+7,146.76885844179728,Product B,North,North
+8,171.195757328543,Product B,North,North
+9,165.21254370453022,Product B,North,North
+10,188.81177379125575,Product B,North,North
+11,168.5063012317405,Product B,North,North
+12,176.89670349184723,Product B,North,North
+1,118.06434712764073,Product B,South,South
+2,142.2263789295582,Product B,South,South
+3,122.64284229508068,Product B,South,South
+4,153.23519900307915,Product B,South,South
+5,127.55510676118261,Product B,South,South
+6,165.54861634813278,Product B,South,South
+7,172.42814730855216,Product B,South,South
+8,179.93820846227842,Product B,South,South
+9,159.1936795219175,Product B,South,South
+10,152.5267920955584,Product B,South,South
+11,163.22031802592775,Product B,South,South
+12,173.40322294674996,Product B,South,South
+1,127.02569124696205,Product B,East,East
+2,145.42292501367268,Product B,East,East
+3,134.98260502268312,Product B,East,East
+4,156.69127133844677,Product B,East,East
+5,169.9645949724785,Product B,East,East
+6,159.69937539215513,Product B,East,East
+7,171.6056967975154,Product B,East,East
+8,181.56739506490018,Product B,East,East
+9,174.69624957295937,Product B,East,East
+10,187.8058155308405,Product B,East,East
+11,177.6244975715898,Product B,East,East
+12,165.9836875397417,Product B,East,East
+1,106.51049221983025,Product B,West,West
+2,118.01233293778746,Product B,West,West
+3,134.43139691153073,Product B,West,West
+4,115.79197945901495,Product B,West,West
+5,133.07473022897295,Product B,West,West
+6,147.56687570098566,Product B,West,West
+7,169.25083848597126,Product B,West,West
+8,157.51223163462106,Product B,West,West
+9,173.57209989691694,Product B,West,West
+10,155.35164047740236,Product B,West,West
+11,186.0678910436707,Product B,West,West
+12,160.04459080594748,Product B,West,West
+1,129.15066614057253,Product C,North,North
+2,128.69538809119345,Product C,North,North
+3,111.02693790820994,Product C,North,North
+4,131.64935181428754,Product C,North,North
+5,124.90755132899082,Product C,North,North
+6,160.66359761973368,Product C,North,North
+7,159.04763938007318,Product C,North,North
+8,171.50258519864954,Product C,North,North
+9,162.87794411850626,Product C,North,North
+10,160.69577643596028,Product C,North,North
+11,167.31388565712655,Product C,North,North
+12,191.53729450651565,Product C,North,North
+1,114.42609925062504,Product C,South,South
+2,135.2840048803196,Product C,South,South
+3,115.36879147282104,Product C,South,South
+4,162.19402048899042,Product C,South,South
+5,149.41650082451017,Product C,South,South
+6,128.15715108221295,Product C,South,South
+7,173.31596677808017,Product C,South,South
+8,144.9273669814789,Product C,South,South
+9,161.46047265748138,Product C,South,South
+10,158.81693605244345,Product C,South,South
+11,157.33595004418993,Product C,South,South
+12,158.0017715224265,Product C,South,South
+1,125.29022368322622,Product C,East,East
+2,119.52850787583266,Product C,East,East
+3,124.69754665246526,Product C,East,East
+4,152.3102348774163,Product C,East,East
+5,128.25625560292298,Product C,East,East
+6,152.03478908294545,Product C,East,East
+7,133.31508566831792,Product C,East,East
+8,138.84351873368598,Product C,East,East
+9,163.9410138389132,Product C,East,East
+10,159.0012066940527,Product C,East,East
+11,199.70679597170215,Product C,East,East
+12,202.046705290072,Product C,East,East
+1,121.10261317414285,Product C,West,West
+2,127.35825289088721,Product C,West,West
+3,142.34648925625584,Product C,West,West
+4,134.92163338161996,Product C,West,West
+5,129.63911428906226,Product C,West,West
+6,134.80928724750387,Product C,West,West
+7,156.64866949569384,Product C,West,West
+8,146.64412317207902,Product C,West,West
+9,170.54996348630308,Product C,West,West
+10,186.78672854490205,Product C,West,West
+11,185.3584490655244,Product C,West,West
+12,175.10478487873152,Product C,West,West
+1,143.1051322471393,Product D,North,North
+2,154.74331509057308,Product D,North,North
+3,122.55835337169295,Product D,North,North
+4,149.57162973233085,Product D,North,North
+5,137.21179123237835,Product D,North,North
+6,146.91825192743318,Product D,North,North
+7,177.40298742789827,Product D,North,North
+8,182.78646567508954,Product D,North,North
+9,166.0785547254135,Product D,North,North
+10,168.75908292916955,Product D,North,North
+11,181.22829887818554,Product D,North,North
+12,190.58545043272673,Product D,North,North
+1,113.10618074452732,Product D,South,South
+2,128.1345787057198,Product D,South,South
+3,124.2299883864158,Product D,South,South
+4,133.73880172719055,Product D,South,South
+5,140.17329016028583,Product D,South,South
+6,153.34408588529863,Product D,South,South
+7,167.7120807365452,Product D,South,South
+8,171.61601777515972,Product D,South,South
+9,178.07299213442627,Product D,South,South
+10,174.22719585728453,Product D,South,South
+11,167.36173249540417,Product D,South,South
+12,193.68040950931044,Product D,South,South
+1,103.72864775455102,Product D,East,East
+2,118.34748466032437,Product D,East,East
+3,141.97170060198525,Product D,East,East
+4,155.92009385013344,Product D,East,East
+5,135.25197706772212,Product D,East,East
+6,161.0964131047295,Product D,East,East
+7,167.28304314861998,Product D,East,East
+8,150.38728407777506,Product D,East,East
+9,173.5873424994718,Product D,East,East
+10,190.4608080903437,Product D,East,East
+11,169.51159018415652,Product D,East,East
+12,180.43056689316555,Product D,East,East
+1,104.16612497685024,Product D,West,West
+2,134.83821719485232,Product D,West,West
+3,119.27798833209448,Product D,West,West
+4,155.7611421621922,Product D,West,West
+5,162.7228593071019,Product D,West,West
+6,163.33485490688724,Product D,West,West
+7,160.22604177072913,Product D,West,West
+8,154.50801018521383,Product D,West,West
+9,189.4373145595311,Product D,West,West
+10,193.12414718955577,Product D,West,West
+11,199.78137232811144,Product D,West,West
+12,203.85582703618869,Product D,West,West
+
+</script><script type="text/plain" id="facet_grid_data" data-format="csv_embedded" data-src="">
+Month,Sales,Product,Region,Year,color
+1,142.83768884019975,Product A,North,2023,2023
+2,127.69743868368444,Product A,North,2023,2023
+3,117.73113376406583,Product A,North,2023,2023
+4,147.4561276828196,Product A,North,2023,2023
+5,166.78285325052755,Product A,North,2023,2023
+6,132.7927089877244,Product A,North,2023,2023
+7,130.10182374744204,Product A,North,2023,2023
+8,176.2508662672415,Product A,North,2023,2023
+9,142.95329802237438,Product A,North,2023,2023
+10,193.82381293222159,Product A,North,2023,2023
+11,170.47493824248923,Product A,North,2023,2023
+12,190.69087943162359,Product A,North,2023,2023
+1,104.4217732464474,Product A,North,2024,2024
+2,113.79259916166117,Product A,North,2024,2024
+3,119.38350705911627,Product A,North,2024,2024
+4,119.90698502049511,Product A,North,2024,2024
+5,140.19596530391567,Product A,North,2024,2024
+6,172.6927078078103,Product A,North,2024,2024
+7,174.4433000945193,Product A,North,2024,2024
+8,149.47428786855687,Product A,North,2024,2024
+9,165.15674326400506,Product A,North,2024,2024
+10,169.77468457095418,Product A,North,2024,2024
+11,163.15569917768414,Product A,North,2024,2024
+12,162.11235490361273,Product A,North,2024,2024
+1,109.48725354546401,Product A,South,2023,2023
+2,152.20744714852296,Product A,South,2023,2023
+3,133.84476043636056,Product A,South,2023,2023
+4,150.6559929567886,Product A,South,2023,2023
+5,139.8391636442484,Product A,South,2023,2023
+6,130.50387493434613,Product A,South,2023,2023
+7,155.48629623730216,Product A,South,2023,2023
+8,182.42009481609554,Product A,South,2023,2023
+9,174.07950409933648,Product A,South,2023,2023
+10,145.3378695498989,Product A,South,2023,2023
+11,165.2347808579539,Product A,South,2023,2023
+12,159.71339161485474,Product A,South,2023,2023
+1,140.07128951611037,Product A,South,2024,2024
+2,148.0765747641834,Product A,South,2024,2024
+3,121.8467192216936,Product A,South,2024,2024
+4,133.0324305537549,Product A,South,2024,2024
+5,122.19460134457373,Product A,South,2024,2024
+6,140.4072367789745,Product A,South,2024,2024
+7,171.02231927088562,Product A,South,2024,2024
+8,145.21235959687522,Product A,South,2024,2024
+9,181.37821281575634,Product A,South,2024,2024
+10,179.44980700233032,Product A,South,2024,2024
+11,183.57696659844973,Product A,South,2024,2024
+12,167.32512865724604,Product A,South,2024,2024
+1,100.07052752291402,Product B,North,2023,2023
+2,121.38148275452068,Product B,North,2023,2023
+3,120.61727005869874,Product B,North,2023,2023
+4,161.18727164724856,Product B,North,2023,2023
+5,126.78267069188138,Product B,North,2023,2023
+6,165.92669462946608,Product B,North,2023,2023
+7,141.96132996602097,Product B,North,2023,2023
+8,162.45157745286468,Product B,North,2023,2023
+9,165.63240999034832,Product B,North,2023,2023
+10,156.11683670535066,Product B,North,2023,2023
+11,189.02313084023322,Product B,North,2023,2023
+12,201.06794630122715,Product B,North,2023,2023
+1,100.15990413202911,Product B,North,2024,2024
+2,109.47789831510673,Product B,North,2024,2024
+3,135.6691727561373,Product B,North,2024,2024
+4,119.18270765545196,Product B,North,2024,2024
+5,122.14570100869535,Product B,North,2024,2024
+6,163.9459110461519,Product B,North,2024,2024
+7,160.30657397719085,Product B,North,2024,2024
+8,173.12121906283312,Product B,North,2024,2024
+9,143.514085241347,Product B,North,2024,2024
+10,164.5691792019262,Product B,North,2024,2024
+11,150.18443374295066,Product B,North,2024,2024
+12,189.01362203618558,Product B,North,2024,2024
+1,134.53793690771923,Product B,South,2023,2023
+2,108.19925306564708,Product B,South,2023,2023
+3,150.33298987515604,Product B,South,2023,2023
+4,142.06500789626844,Product B,South,2023,2023
+5,129.0294155680393,Product B,South,2023,2023
+6,127.72638574956135,Product B,South,2023,2023
+7,148.40355070944742,Product B,South,2023,2023
+8,171.72605569526826,Product B,South,2023,2023
+9,158.51610655688543,Product B,South,2023,2023
+10,159.28426462378167,Product B,South,2023,2023
+11,173.63333417731144,Product B,South,2023,2023
+12,197.0308609069634,Product B,South,2023,2023
+1,127.10597731817742,Product B,South,2024,2024
+2,136.70003871844247,Product B,South,2024,2024
+3,145.24315268336858,Product B,South,2024,2024
+4,149.71572244234235,Product B,South,2024,2024
+5,141.48761188441486,Product B,South,2024,2024
+6,134.1191266112176,Product B,South,2024,2024
+7,153.89291488795746,Product B,South,2024,2024
+8,155.1138125180198,Product B,South,2024,2024
+9,172.2895404406983,Product B,South,2024,2024
+10,148.9001517683648,Product B,South,2024,2024
+11,163.52078698430608,Product B,South,2024,2024
+12,203.46491808068834,Product B,South,2024,2024
+
 </script>
 
 <!-- ACTUAL CONTENT -->
@@ -908,6 +2320,7 @@ Dec,320,2024
     <li><strong>Basic time series:</strong> Simple line chart with date axis</li>
     <li><strong>Multiple series:</strong> Comparing multiple lines with color dimension</li>
     <li><strong>Interactive filters:</strong> Dropdown menus to filter data dynamically</li>
+    <li><strong>Faceting:</strong> Facet wrap (1 variable) and facet grid (2 variables)</li>
     <li><strong>Integration:</strong> Combining charts with images and text</li>
 </ul>
 
@@ -971,12 +2384,35 @@ Dec,320,2024
         <img src="data:image/jpeg;base64,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" alt="example_visual" />
     </div>
     <br><hr><br>
+<h2>Sales by Product (Facet Wrap)</h2>
+<p>Facet wrap creates a grid of subplots, one for each product. Similar to ggplot2's facet_wrap.</p>
+
+<!-- Controls -->
+<div id="controls">
+    
+</div>
+
+<!-- Chart -->
+<div id="facet_wrap_example"></div>
+<br><hr><br>
+<h2>Sales by Product and Region (Facet Grid)</h2>
+<p>Facet grid creates a 2D grid of subplots. First facet variable (Product) defines rows, second (Region) defines columns. Similar to ggplot2's facet_grid.</p>
+
+<!-- Controls -->
+<div id="controls">
+    
+</div>
+
+<!-- Chart -->
+<div id="facet_grid_example"></div>
+<br><hr><br>
     <div class="textblock-content">
         <h2>Key Features Summary</h2>
 <ul>
     <li><strong>Time series support:</strong> Automatic date formatting and axis scaling</li>
     <li><strong>Color grouping:</strong> Distinguish multiple series by color</li>
     <li><strong>Interactive filters:</strong> Dropdown menus for dynamic data filtering</li>
+    <li><strong>Faceting:</strong> Split data into multiple subplots (facet_wrap for 1 variable, facet_grid for 2 variables)</li>
     <li><strong>Customization:</strong> Control titles, labels, line width, and markers</li>
     <li><strong>Integration:</strong> Combine with other plot types, images, and text</li>
 </ul>
