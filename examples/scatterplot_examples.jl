@@ -18,9 +18,7 @@ df1 = DataFrame(
 df1.bmi = df1.mass ./ ((df1.height ./100) .^ 2)
 
 scatter1 = ScatterPlot(:multi_dim, df1, :df1, [:mass, :height, :age, :bmi];
-    color_cols = [:color],
-    pointtype_cols = [:color],
-    pointsize_cols = [:color],
+    color_cols = [:gender],
     title = "Multi-Dimensional Health Data",
     notes = "Use the X and Y dropdowns to explore different dimension combinations. " *
            "Try: mass vs height, age vs bmi, etc. Marginal distributions show on both axes."
@@ -39,10 +37,8 @@ df2 = DataFrame(
 
 scatter2 = ScatterPlot(:multi_style, df2, :df2, [:x, :y];
     color_cols = [:region, :category, :priority],
-    pointtype_cols = [:region, :category, :priority],
-    pointsize_cols = [:region, :size_group, :priority],
     title = "Multiple Styling Options",
-    notes = "Use the Color, Point type, and Point size dropdowns to change visual encoding. " *
+    notes = "Use the Color dropdown to change visual encoding. " *
            "Try different combinations to highlight different aspects of the data."
 )
 
@@ -57,9 +53,7 @@ df3 = DataFrame(
 )
 
 scatter3 = ScatterPlot(:facet_single, df3, :df3, [:temperature, :humidity];
-    color_cols = [:color],
-    pointtype_cols = [:color],
-    pointsize_cols = [:color],
+    color_cols = [:location],
     facet_cols = [:season, :location],
     title = "Faceting Example - Weather Data",
     notes = "Use the 'Facet by' dropdown to split the data. " *
@@ -80,9 +74,7 @@ df4 = DataFrame(
 )
 
 scatter4 = ScatterPlot(:facet_grid, df4, :df4,  [:score1, :score2];
-    color_cols = [:color],
-    pointtype_cols = [:color],
-    pointsize_cols = [:color],
+    color_cols = [:performance],
     facet_cols = [:grade, :major, :semester],
     default_facet_cols = [:grade, :major],
     title = "Two-Dimensional Faceting - Student Performance",
@@ -106,12 +98,10 @@ df5 = DataFrame(
 
 scatter5 = ScatterPlot(:complex, df5, :df5,  [:var1, :var2, :var3, :var4];
     color_cols = [:group_A, :group_B, :group_C],
-    pointtype_cols = [:group_A, :group_B, :intensity],
-    pointsize_cols = [:group_A, :intensity],
     facet_cols = [:group_C, :group_B],
     title = "Complex Multi-Dimensional Exploration",
     notes = "Demonstrates all features together: " *
-           "4 dimensions for X/Y axes, multiple color/shape/size options, and faceting. " *
+           "4 dimensions for X/Y axes, multiple color options, and faceting. " *
            "Explore different combinations to find interesting patterns."
 )
 
@@ -136,13 +126,11 @@ df6 = DataFrame(
 )
 
 scatter6 = ScatterPlot(:timeseries, df6, :df6, [:value1, :value2];
-    color_cols = [:portfolio, :color],
-    pointtype_cols = [:portfolio, :color],
-    pointsize_cols = [:portfolio, :color],
+    color_cols = [:portfolio],
     slider_col = [:date, :quarter],
     title = "Time Series Scatter with Filters",
     notes = "Use date range slider and quarter filter to focus on specific time periods. " *
-           "Switch between viewing by portfolio or as aggregate using the color dropdown."
+           "Points are colored by portfolio to show different investment trajectories."
 )
 
 # Create the page
@@ -169,14 +157,14 @@ println("="^60)
 println("\nFile created: generated_html_examples/scatterplot_examples.html")
 println("\nThis page includes:")
 println("  • Multi-dimensional exploration (dimensions parameter)")
-println("  • Multiple styling options (color, point type, point size)")
+println("  • Multiple styling options (color)")
 println("  • Single faceting (marginals disappear)")
 println("  • Two-dimensional faceting (grid layout)")
 println("  • Complex multi-feature example")
 println("  • Time series with date filters")
 println("\nKey features demonstrated:")
 println("  ✓ dimensions parameter for X/Y selection")
-println("  ✓ Multiple options for color, point type, and point size")
+println("  ✓ Multiple color options")
 println("  ✓ Faceting (1D and 2D)")
 println("  ✓ Marginal distributions (appear/disappear with faceting)")
 println("  ✓ Inline controls to save space")

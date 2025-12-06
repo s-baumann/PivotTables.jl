@@ -368,7 +368,38 @@ $(function(){
 
         // Initialize buttons and sliders after data is loaded
         $(function() {
+                // Histogram toggle button
+document.getElementById('simple_dist_histogram_toggle').addEventListener('click', function() {
+    window.showHistogram_simple_dist = !window.showHistogram_simple_dist;
+    this.textContent = window.showHistogram_simple_dist ? 'Hide Histogram' : 'Show Histogram';
+    updatePlotWithFilters_simple_dist();
+});
+
+// Box plot toggle button
+document.getElementById('simple_dist_box_toggle').addEventListener('click', function() {
+    window.showBox_simple_dist = !window.showBox_simple_dist;
+    this.textContent = window.showBox_simple_dist ? 'Hide Box Plot' : 'Show Box Plot';
+    updatePlotWithFilters_simple_dist();
+});
+
+// Rug plot toggle button
+document.getElementById('simple_dist_rug_toggle').addEventListener('click', function() {
+    window.showRug_simple_dist = !window.showRug_simple_dist;
+    this.textContent = window.showRug_simple_dist ? 'Hide Rug Plot' : 'Show Rug Plot';
+    updatePlotWithFilters_simple_dist();
+});
+
+
                 
+
+                
+
+                    document.getElementById('simple_dist_bins_slider').addEventListener('input', function() {
+        var bins = parseInt(this.value);
+        document.getElementById('simple_dist_bins_label').textContent = bins;
+        updatePlotWithFilters_simple_dist();
+    });
+
 
                 
 
@@ -382,69 +413,159 @@ $(function(){
     function updatePlot_simple_dist(data) {
         var traces = [];
         
-        var values = data.map(d => d.value);
+        // Get current selections from dropdowns
+var currentValueCol = 'value';
+var currentGroupCol = null;
 
-// Box plot (top portion)
-if (window.showBox_simple_dist) {
-    traces.push({
-        x: values,
-        name: 'distribution',
-        type: 'box',
-        xaxis: 'x2',
-        yaxis: 'y2',
-        orientation: 'h',
-        marker: {
-            color: 'rgb(31, 119, 180)'
-        },
-        boxmean: 'sd',
-        opacity: 0.7,
-        showlegend: false
-    });
+// Handle "None" option for group selector
+if (currentGroupCol === '_none_') {
+    currentGroupCol = null;
 }
 
-// Histogram (bottom portion)
-if (window.showHistogram_simple_dist) {
-    traces.push({
-        x: values,
-        name: 'frequency',
-        type: 'histogram',
-        xaxis: 'x',
-        yaxis: 'y',
-        marker: {
-            color: 'rgb(31, 119, 180)'
-        },
-        opacity: 0.7,
-        nbinsx: 30,
-        showlegend: false
-    });
-}
+// Get current bins from slider
+var binsSlider = document.getElementById('simple_dist_bins_slider');
+var currentBins = binsSlider ? parseInt(binsSlider.value) : 30;
 
-// Rug plot (tick marks at bottom)
-if (window.showRug_simple_dist) {
-    traces.push({
-        x: values,
-        name: 'rug',
-        type: 'scatter',
-        mode: 'markers',
-        xaxis: 'x',
-        yaxis: 'y3',
-        marker: {
-            symbol: 'line-ns-open',
-            color: 'rgb(31, 119, 180)',
-            size: 8,
-            line: {
-                width: 1
-            }
-        },
-        showlegend: false,
-        hoverinfo: 'x'
+if (currentGroupCol) {
+    // Group data by group column
+    var groups = {};
+    data.forEach(function(row) {
+        var key = row[currentGroupCol];
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(row);
     });
+
+    var groupKeys = Object.keys(groups);
+    var numGroups = groupKeys.length;
+
+    // Create traces for each group
+    groupKeys.forEach(function(key, idx) {
+        var groupData = groups[key];
+        var values = groupData.map(d => d[currentValueCol]);
+
+        // Box plot (top portion)
+        if (window.showBox_simple_dist) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'box',
+                xaxis: 'x2',
+                yaxis: 'y2',
+                orientation: 'h',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                boxmean: 'sd',
+                opacity: 0.7,
+                showlegend: false
+            });
+        }
+
+        // Histogram (bottom portion)
+        if (window.showHistogram_simple_dist) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'histogram',
+                xaxis: 'x',
+                yaxis: 'y',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                opacity: 0.7,
+                nbinsx: currentBins
+            });
+        }
+
+        // Rug plot (tick marks at bottom)
+        if (window.showRug_simple_dist) {
+            traces.push({
+                x: values,
+                name: key + ' rug',
+                type: 'scatter',
+                mode: 'markers',
+                xaxis: 'x',
+                yaxis: 'y3',
+                marker: {
+                    symbol: 'line-ns-open',
+                    color: plotlyColors[idx % plotlyColors.length],
+                    size: 8,
+                    line: {
+                        width: 1
+                    }
+                },
+                showlegend: false,
+                hoverinfo: 'x'
+            });
+        }
+    });
+} else {
+    // No grouping
+    var values = data.map(d => d[currentValueCol]);
+
+    // Box plot (top portion)
+    if (window.showBox_simple_dist) {
+        traces.push({
+            x: values,
+            name: 'distribution',
+            type: 'box',
+            xaxis: 'x2',
+            yaxis: 'y2',
+            orientation: 'h',
+            marker: {
+                color: 'rgb(31, 119, 180)'
+            },
+            boxmean: 'sd',
+            opacity: 0.7,
+            showlegend: false
+        });
+    }
+
+    // Histogram (bottom portion)
+    if (window.showHistogram_simple_dist) {
+        traces.push({
+            x: values,
+            name: 'frequency',
+            type: 'histogram',
+            xaxis: 'x',
+            yaxis: 'y',
+            marker: {
+                color: 'rgb(31, 119, 180)'
+            },
+            opacity: 0.7,
+            nbinsx: currentBins,
+            showlegend: false
+        });
+    }
+
+    // Rug plot (tick marks at bottom)
+    if (window.showRug_simple_dist) {
+        traces.push({
+            x: values,
+            name: 'rug',
+            type: 'scatter',
+            mode: 'markers',
+            xaxis: 'x',
+            yaxis: 'y3',
+            marker: {
+                symbol: 'line-ns-open',
+                color: 'rgb(31, 119, 180)',
+                size: 8,
+                line: {
+                    width: 1
+                }
+            },
+            showlegend: false,
+            hoverinfo: 'x'
+        });
+    }
 }
 
         
-            var layout = {
+            var valueLabel = 'Values';
+    var layout = {
         title: 'Simple Distribution Plot',
-        showlegend: false,
+        showlegend: currentGroupCol !== null,
         autosize: true,
         grid: {
             rows: 3,
@@ -453,7 +574,7 @@ if (window.showRug_simple_dist) {
             roworder: 'top to bottom'
         },
         xaxis: {
-            title: 'Values',
+            title: valueLabel,
             domain: [0, 1],
             showgrid: true,
             zeroline: true
@@ -518,6 +639,17 @@ if (window.showRug_simple_dist) {
 
                 
 
+                
+
+                    document.getElementById('multi_group_dist_bins_slider').addEventListener('input', function() {
+        var bins = parseInt(this.value);
+        document.getElementById('multi_group_dist_bins_label').textContent = bins;
+        updatePlotWithFilters_multi_group_dist();
+    });
+
+
+                
+
             // Initial plot
             updatePlotWithFilters_multi_group_dist();
         });
@@ -528,68 +660,143 @@ if (window.showRug_simple_dist) {
     function updatePlot_multi_group_dist(data) {
         var traces = [];
         
-        // Group data by group column
-var groups = {};
-data.forEach(function(row) {
-    var key = row.group;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(row);
-});
+        // Get current selections from dropdowns
+var currentValueCol = 'value';
+var currentGroupCol = 'group';
 
-var groupKeys = Object.keys(groups);
-var numGroups = groupKeys.length;
+// Handle "None" option for group selector
+if (currentGroupCol === '_none_') {
+    currentGroupCol = null;
+}
 
-// Create traces for each group
-groupKeys.forEach(function(key, idx) {
-    var groupData = groups[key];
-    var values = groupData.map(d => d.value);
-    
+// Get current bins from slider
+var binsSlider = document.getElementById('multi_group_dist_bins_slider');
+var currentBins = binsSlider ? parseInt(binsSlider.value) : 30;
+
+if (currentGroupCol) {
+    // Group data by group column
+    var groups = {};
+    data.forEach(function(row) {
+        var key = row[currentGroupCol];
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(row);
+    });
+
+    var groupKeys = Object.keys(groups);
+    var numGroups = groupKeys.length;
+
+    // Create traces for each group
+    groupKeys.forEach(function(key, idx) {
+        var groupData = groups[key];
+        var values = groupData.map(d => d[currentValueCol]);
+
+        // Box plot (top portion)
+        if (window.showBox_multi_group_dist) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'box',
+                xaxis: 'x2',
+                yaxis: 'y2',
+                orientation: 'h',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                boxmean: 'sd',
+                opacity: 0.7,
+                showlegend: false
+            });
+        }
+
+        // Histogram (bottom portion)
+        if (window.showHistogram_multi_group_dist) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'histogram',
+                xaxis: 'x',
+                yaxis: 'y',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                opacity: 0.7,
+                nbinsx: currentBins
+            });
+        }
+
+        // Rug plot (tick marks at bottom)
+        if (window.showRug_multi_group_dist) {
+            traces.push({
+                x: values,
+                name: key + ' rug',
+                type: 'scatter',
+                mode: 'markers',
+                xaxis: 'x',
+                yaxis: 'y3',
+                marker: {
+                    symbol: 'line-ns-open',
+                    color: plotlyColors[idx % plotlyColors.length],
+                    size: 8,
+                    line: {
+                        width: 1
+                    }
+                },
+                showlegend: false,
+                hoverinfo: 'x'
+            });
+        }
+    });
+} else {
+    // No grouping
+    var values = data.map(d => d[currentValueCol]);
+
     // Box plot (top portion)
     if (window.showBox_multi_group_dist) {
         traces.push({
             x: values,
-            name: key,
+            name: 'distribution',
             type: 'box',
             xaxis: 'x2',
             yaxis: 'y2',
             orientation: 'h',
             marker: {
-                color: plotlyColors[idx % plotlyColors.length]
+                color: 'rgb(31, 119, 180)'
             },
             boxmean: 'sd',
             opacity: 0.7,
             showlegend: false
         });
     }
-    
+
     // Histogram (bottom portion)
     if (window.showHistogram_multi_group_dist) {
         traces.push({
             x: values,
-            name: key,
+            name: 'frequency',
             type: 'histogram',
             xaxis: 'x',
             yaxis: 'y',
             marker: {
-                color: plotlyColors[idx % plotlyColors.length]
+                color: 'rgb(31, 119, 180)'
             },
             opacity: 0.7,
-            nbinsx: 30
+            nbinsx: currentBins,
+            showlegend: false
         });
     }
-    
+
     // Rug plot (tick marks at bottom)
     if (window.showRug_multi_group_dist) {
         traces.push({
             x: values,
-            name: key + ' rug',
+            name: 'rug',
             type: 'scatter',
             mode: 'markers',
             xaxis: 'x',
             yaxis: 'y3',
             marker: {
                 symbol: 'line-ns-open',
-                color: plotlyColors[idx % plotlyColors.length],
+                color: 'rgb(31, 119, 180)',
                 size: 8,
                 line: {
                     width: 1
@@ -599,12 +806,13 @@ groupKeys.forEach(function(key, idx) {
             hoverinfo: 'x'
         });
     }
-});
+}
 
         
-            var layout = {
+            var valueLabel = 'Response Value';
+    var layout = {
         title: 'Treatment Effect Comparison',
-        showlegend: true,
+        showlegend: currentGroupCol !== null,
         autosize: true,
         grid: {
             rows: 3,
@@ -613,7 +821,7 @@ groupKeys.forEach(function(key, idx) {
             roworder: 'top to bottom'
         },
         xaxis: {
-            title: 'Response Value',
+            title: valueLabel,
             domain: [0, 1],
             showgrid: true,
             zeroline: true
@@ -676,6 +884,17 @@ groupKeys.forEach(function(key, idx) {
         $(function() {
                 
 
+                
+
+                
+
+                    document.getElementById('filtered_dist_bins_slider').addEventListener('input', function() {
+        var bins = parseInt(this.value);
+        document.getElementById('filtered_dist_bins_label').textContent = bins;
+        updatePlotWithFilters_filtered_dist();
+    });
+
+
                     $("#filtered_dist_age_slider").slider({
         range: true,
         min: 18,
@@ -704,69 +923,159 @@ groupKeys.forEach(function(key, idx) {
     function updatePlot_filtered_dist(data) {
         var traces = [];
         
-        var values = data.map(d => d.score);
+        // Get current selections from dropdowns
+var currentValueCol = 'score';
+var currentGroupCol = null;
 
-// Box plot (top portion)
-if (window.showBox_filtered_dist) {
-    traces.push({
-        x: values,
-        name: 'distribution',
-        type: 'box',
-        xaxis: 'x2',
-        yaxis: 'y2',
-        orientation: 'h',
-        marker: {
-            color: 'rgb(31, 119, 180)'
-        },
-        boxmean: 'sd',
-        opacity: 0.7,
-        showlegend: false
-    });
+// Handle "None" option for group selector
+if (currentGroupCol === '_none_') {
+    currentGroupCol = null;
 }
 
-// Histogram (bottom portion)
-if (window.showHistogram_filtered_dist) {
-    traces.push({
-        x: values,
-        name: 'frequency',
-        type: 'histogram',
-        xaxis: 'x',
-        yaxis: 'y',
-        marker: {
-            color: 'rgb(31, 119, 180)'
-        },
-        opacity: 0.7,
-        nbinsx: 40,
-        showlegend: false
-    });
-}
+// Get current bins from slider
+var binsSlider = document.getElementById('filtered_dist_bins_slider');
+var currentBins = binsSlider ? parseInt(binsSlider.value) : 40;
 
-// Rug plot (tick marks at bottom)
-if (window.showRug_filtered_dist) {
-    traces.push({
-        x: values,
-        name: 'rug',
-        type: 'scatter',
-        mode: 'markers',
-        xaxis: 'x',
-        yaxis: 'y3',
-        marker: {
-            symbol: 'line-ns-open',
-            color: 'rgb(31, 119, 180)',
-            size: 8,
-            line: {
-                width: 1
-            }
-        },
-        showlegend: false,
-        hoverinfo: 'x'
+if (currentGroupCol) {
+    // Group data by group column
+    var groups = {};
+    data.forEach(function(row) {
+        var key = row[currentGroupCol];
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(row);
     });
+
+    var groupKeys = Object.keys(groups);
+    var numGroups = groupKeys.length;
+
+    // Create traces for each group
+    groupKeys.forEach(function(key, idx) {
+        var groupData = groups[key];
+        var values = groupData.map(d => d[currentValueCol]);
+
+        // Box plot (top portion)
+        if (window.showBox_filtered_dist) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'box',
+                xaxis: 'x2',
+                yaxis: 'y2',
+                orientation: 'h',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                boxmean: 'sd',
+                opacity: 0.7,
+                showlegend: false
+            });
+        }
+
+        // Histogram (bottom portion)
+        if (window.showHistogram_filtered_dist) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'histogram',
+                xaxis: 'x',
+                yaxis: 'y',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                opacity: 0.7,
+                nbinsx: currentBins
+            });
+        }
+
+        // Rug plot (tick marks at bottom)
+        if (window.showRug_filtered_dist) {
+            traces.push({
+                x: values,
+                name: key + ' rug',
+                type: 'scatter',
+                mode: 'markers',
+                xaxis: 'x',
+                yaxis: 'y3',
+                marker: {
+                    symbol: 'line-ns-open',
+                    color: plotlyColors[idx % plotlyColors.length],
+                    size: 8,
+                    line: {
+                        width: 1
+                    }
+                },
+                showlegend: false,
+                hoverinfo: 'x'
+            });
+        }
+    });
+} else {
+    // No grouping
+    var values = data.map(d => d[currentValueCol]);
+
+    // Box plot (top portion)
+    if (window.showBox_filtered_dist) {
+        traces.push({
+            x: values,
+            name: 'distribution',
+            type: 'box',
+            xaxis: 'x2',
+            yaxis: 'y2',
+            orientation: 'h',
+            marker: {
+                color: 'rgb(31, 119, 180)'
+            },
+            boxmean: 'sd',
+            opacity: 0.7,
+            showlegend: false
+        });
+    }
+
+    // Histogram (bottom portion)
+    if (window.showHistogram_filtered_dist) {
+        traces.push({
+            x: values,
+            name: 'frequency',
+            type: 'histogram',
+            xaxis: 'x',
+            yaxis: 'y',
+            marker: {
+                color: 'rgb(31, 119, 180)'
+            },
+            opacity: 0.7,
+            nbinsx: currentBins,
+            showlegend: false
+        });
+    }
+
+    // Rug plot (tick marks at bottom)
+    if (window.showRug_filtered_dist) {
+        traces.push({
+            x: values,
+            name: 'rug',
+            type: 'scatter',
+            mode: 'markers',
+            xaxis: 'x',
+            yaxis: 'y3',
+            marker: {
+                symbol: 'line-ns-open',
+                color: 'rgb(31, 119, 180)',
+                size: 8,
+                line: {
+                    width: 1
+                }
+            },
+            showlegend: false,
+            hoverinfo: 'x'
+        });
+    }
 }
 
         
-            var layout = {
+            var valueLabel = 'Test Score';
+    var layout = {
         title: 'Score Distribution with Interactive Filters',
-        showlegend: false,
+        showlegend: currentGroupCol !== null,
         autosize: true,
         grid: {
             rows: 3,
@@ -775,7 +1084,7 @@ if (window.showRug_filtered_dist) {
             roworder: 'top to bottom'
         },
         xaxis: {
-            title: 'Test Score',
+            title: valueLabel,
             domain: [0, 1],
             showgrid: true,
             zeroline: true
@@ -845,17 +1154,301 @@ if (window.showRug_filtered_dist) {
     ];
     
     // Initialize toggle states
+    window.showHistogram_multi_dropdown = true;
+    window.showBox_multi_dropdown = true;
+    window.showRug_multi_dropdown = true;
+    
+    // Load and parse CSV data using centralized parser
+    loadDataset('df4').then(function(data) {
+        window.allData_multi_dropdown = data;
+
+        // Initialize buttons and sliders after data is loaded
+        $(function() {
+                // Histogram toggle button
+document.getElementById('multi_dropdown_histogram_toggle').addEventListener('click', function() {
+    window.showHistogram_multi_dropdown = !window.showHistogram_multi_dropdown;
+    this.textContent = window.showHistogram_multi_dropdown ? 'Hide Histogram' : 'Show Histogram';
+    updatePlotWithFilters_multi_dropdown();
+});
+
+// Box plot toggle button
+document.getElementById('multi_dropdown_box_toggle').addEventListener('click', function() {
+    window.showBox_multi_dropdown = !window.showBox_multi_dropdown;
+    this.textContent = window.showBox_multi_dropdown ? 'Hide Box Plot' : 'Show Box Plot';
+    updatePlotWithFilters_multi_dropdown();
+});
+
+// Rug plot toggle button
+document.getElementById('multi_dropdown_rug_toggle').addEventListener('click', function() {
+    window.showRug_multi_dropdown = !window.showRug_multi_dropdown;
+    this.textContent = window.showRug_multi_dropdown ? 'Hide Rug Plot' : 'Show Rug Plot';
+    updatePlotWithFilters_multi_dropdown();
+});
+
+
+                    document.getElementById('multi_dropdown_value_selector').addEventListener('change', function() {
+        updatePlotWithFilters_multi_dropdown();
+    });
+
+
+                    document.getElementById('multi_dropdown_group_selector').addEventListener('change', function() {
+        updatePlotWithFilters_multi_dropdown();
+    });
+
+
+                    document.getElementById('multi_dropdown_bins_slider').addEventListener('input', function() {
+        var bins = parseInt(this.value);
+        document.getElementById('multi_dropdown_bins_label').textContent = bins;
+        updatePlotWithFilters_multi_dropdown();
+    });
+
+
+                
+
+            // Initial plot
+            updatePlotWithFilters_multi_dropdown();
+        });
+    }).catch(function(error) {
+        console.error('Error loading data for chart multi_dropdown:', error);
+    });
+    
+    function updatePlot_multi_dropdown(data) {
+        var traces = [];
+        
+        // Get current selections from dropdowns
+var currentValueCol = document.getElementById('multi_dropdown_value_selector').value;
+var currentGroupCol = document.getElementById('multi_dropdown_group_selector').value;
+
+// Handle "None" option for group selector
+if (currentGroupCol === '_none_') {
+    currentGroupCol = null;
+}
+
+// Get current bins from slider
+var binsSlider = document.getElementById('multi_dropdown_bins_slider');
+var currentBins = binsSlider ? parseInt(binsSlider.value) : 30;
+
+if (currentGroupCol) {
+    // Group data by group column
+    var groups = {};
+    data.forEach(function(row) {
+        var key = row[currentGroupCol];
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(row);
+    });
+
+    var groupKeys = Object.keys(groups);
+    var numGroups = groupKeys.length;
+
+    // Create traces for each group
+    groupKeys.forEach(function(key, idx) {
+        var groupData = groups[key];
+        var values = groupData.map(d => d[currentValueCol]);
+
+        // Box plot (top portion)
+        if (window.showBox_multi_dropdown) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'box',
+                xaxis: 'x2',
+                yaxis: 'y2',
+                orientation: 'h',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                boxmean: 'sd',
+                opacity: 0.7,
+                showlegend: false
+            });
+        }
+
+        // Histogram (bottom portion)
+        if (window.showHistogram_multi_dropdown) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'histogram',
+                xaxis: 'x',
+                yaxis: 'y',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                opacity: 0.7,
+                nbinsx: currentBins
+            });
+        }
+
+        // Rug plot (tick marks at bottom)
+        if (window.showRug_multi_dropdown) {
+            traces.push({
+                x: values,
+                name: key + ' rug',
+                type: 'scatter',
+                mode: 'markers',
+                xaxis: 'x',
+                yaxis: 'y3',
+                marker: {
+                    symbol: 'line-ns-open',
+                    color: plotlyColors[idx % plotlyColors.length],
+                    size: 8,
+                    line: {
+                        width: 1
+                    }
+                },
+                showlegend: false,
+                hoverinfo: 'x'
+            });
+        }
+    });
+} else {
+    // No grouping
+    var values = data.map(d => d[currentValueCol]);
+
+    // Box plot (top portion)
+    if (window.showBox_multi_dropdown) {
+        traces.push({
+            x: values,
+            name: 'distribution',
+            type: 'box',
+            xaxis: 'x2',
+            yaxis: 'y2',
+            orientation: 'h',
+            marker: {
+                color: 'rgb(31, 119, 180)'
+            },
+            boxmean: 'sd',
+            opacity: 0.7,
+            showlegend: false
+        });
+    }
+
+    // Histogram (bottom portion)
+    if (window.showHistogram_multi_dropdown) {
+        traces.push({
+            x: values,
+            name: 'frequency',
+            type: 'histogram',
+            xaxis: 'x',
+            yaxis: 'y',
+            marker: {
+                color: 'rgb(31, 119, 180)'
+            },
+            opacity: 0.7,
+            nbinsx: currentBins,
+            showlegend: false
+        });
+    }
+
+    // Rug plot (tick marks at bottom)
+    if (window.showRug_multi_dropdown) {
+        traces.push({
+            x: values,
+            name: 'rug',
+            type: 'scatter',
+            mode: 'markers',
+            xaxis: 'x',
+            yaxis: 'y3',
+            marker: {
+                symbol: 'line-ns-open',
+                color: 'rgb(31, 119, 180)',
+                size: 8,
+                line: {
+                    width: 1
+                }
+            },
+            showlegend: false,
+            hoverinfo: 'x'
+        });
+    }
+}
+
+        
+            var valueLabel = currentValueCol;
+    var layout = {
+        title: 'Multi-Variable Distribution with Dropdowns',
+        showlegend: currentGroupCol !== null,
+        autosize: true,
+        grid: {
+            rows: 3,
+            columns: 1,
+            pattern: 'independent',
+            roworder: 'top to bottom'
+        },
+        xaxis: {
+            title: valueLabel,
+            domain: [0, 1],
+            showgrid: true,
+            zeroline: true
+        },
+        yaxis: {
+            title: 'Frequency',
+            domain: [0.07, 0.69],
+            showgrid: true,
+            zeroline: true
+        },
+        xaxis2: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis2: {
+            domain: [0.7, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        xaxis3: {
+            domain: [0, 1],
+            showgrid: false,
+            showticklabels: false
+        },
+        yaxis3: {
+            domain: [0, 0.05],
+            showgrid: false,
+            showticklabels: false
+        },
+        margin: {t: 100, r: 50, b: 100, l: 80}
+    };
+
+        
+        Plotly.newPlot('multi_dropdown', traces, layout, {responsive: true});
+    }
+    
+        function updatePlotWithFilters_multi_dropdown() {
+        updatePlot_multi_dropdown(window.allData_multi_dropdown);
+    }
+
+    // Plotly default colors
+    var plotlyColors = [
+        'rgb(31, 119, 180)', 'rgb(255, 127, 14)', 'rgb(44, 160, 44)',
+        'rgb(214, 39, 40)', 'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
+        'rgb(227, 119, 194)', 'rgb(127, 127, 127)', 'rgb(188, 189, 34)',
+        'rgb(23, 190, 207)'
+    ];
+    
+    // Initialize toggle states
     window.showHistogram_custom_appearance = true;
     window.showBox_custom_appearance = true;
     window.showRug_custom_appearance = false;
     
     // Load and parse CSV data using centralized parser
-    loadDataset('df4').then(function(data) {
+    loadDataset('df5').then(function(data) {
         window.allData_custom_appearance = data;
 
         // Initialize buttons and sliders after data is loaded
         $(function() {
                 
+
+                
+
+                
+
+                    document.getElementById('custom_appearance_bins_slider').addEventListener('input', function() {
+        var bins = parseInt(this.value);
+        document.getElementById('custom_appearance_bins_label').textContent = bins;
+        updatePlotWithFilters_custom_appearance();
+    });
+
 
                 
 
@@ -869,68 +1462,143 @@ if (window.showRug_filtered_dist) {
     function updatePlot_custom_appearance(data) {
         var traces = [];
         
-        // Group data by group column
-var groups = {};
-data.forEach(function(row) {
-    var key = row.time_point;
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(row);
-});
+        // Get current selections from dropdowns
+var currentValueCol = 'measurement';
+var currentGroupCol = 'time_point';
 
-var groupKeys = Object.keys(groups);
-var numGroups = groupKeys.length;
+// Handle "None" option for group selector
+if (currentGroupCol === '_none_') {
+    currentGroupCol = null;
+}
 
-// Create traces for each group
-groupKeys.forEach(function(key, idx) {
-    var groupData = groups[key];
-    var values = groupData.map(d => d.measurement);
-    
+// Get current bins from slider
+var binsSlider = document.getElementById('custom_appearance_bins_slider');
+var currentBins = binsSlider ? parseInt(binsSlider.value) : 30;
+
+if (currentGroupCol) {
+    // Group data by group column
+    var groups = {};
+    data.forEach(function(row) {
+        var key = row[currentGroupCol];
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(row);
+    });
+
+    var groupKeys = Object.keys(groups);
+    var numGroups = groupKeys.length;
+
+    // Create traces for each group
+    groupKeys.forEach(function(key, idx) {
+        var groupData = groups[key];
+        var values = groupData.map(d => d[currentValueCol]);
+
+        // Box plot (top portion)
+        if (window.showBox_custom_appearance) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'box',
+                xaxis: 'x2',
+                yaxis: 'y2',
+                orientation: 'h',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                boxmean: 'sd',
+                opacity: 0.8,
+                showlegend: false
+            });
+        }
+
+        // Histogram (bottom portion)
+        if (window.showHistogram_custom_appearance) {
+            traces.push({
+                x: values,
+                name: key,
+                type: 'histogram',
+                xaxis: 'x',
+                yaxis: 'y',
+                marker: {
+                    color: plotlyColors[idx % plotlyColors.length]
+                },
+                opacity: 0.7,
+                nbinsx: currentBins
+            });
+        }
+
+        // Rug plot (tick marks at bottom)
+        if (window.showRug_custom_appearance) {
+            traces.push({
+                x: values,
+                name: key + ' rug',
+                type: 'scatter',
+                mode: 'markers',
+                xaxis: 'x',
+                yaxis: 'y3',
+                marker: {
+                    symbol: 'line-ns-open',
+                    color: plotlyColors[idx % plotlyColors.length],
+                    size: 8,
+                    line: {
+                        width: 1
+                    }
+                },
+                showlegend: false,
+                hoverinfo: 'x'
+            });
+        }
+    });
+} else {
+    // No grouping
+    var values = data.map(d => d[currentValueCol]);
+
     // Box plot (top portion)
     if (window.showBox_custom_appearance) {
         traces.push({
             x: values,
-            name: key,
+            name: 'distribution',
             type: 'box',
             xaxis: 'x2',
             yaxis: 'y2',
             orientation: 'h',
             marker: {
-                color: plotlyColors[idx % plotlyColors.length]
+                color: 'rgb(31, 119, 180)'
             },
             boxmean: 'sd',
             opacity: 0.8,
             showlegend: false
         });
     }
-    
+
     // Histogram (bottom portion)
     if (window.showHistogram_custom_appearance) {
         traces.push({
             x: values,
-            name: key,
+            name: 'frequency',
             type: 'histogram',
             xaxis: 'x',
             yaxis: 'y',
             marker: {
-                color: plotlyColors[idx % plotlyColors.length]
+                color: 'rgb(31, 119, 180)'
             },
             opacity: 0.7,
-            nbinsx: 30
+            nbinsx: currentBins,
+            showlegend: false
         });
     }
-    
+
     // Rug plot (tick marks at bottom)
     if (window.showRug_custom_appearance) {
         traces.push({
             x: values,
-            name: key + ' rug',
+            name: 'rug',
             type: 'scatter',
             mode: 'markers',
             xaxis: 'x',
             yaxis: 'y3',
             marker: {
                 symbol: 'line-ns-open',
-                color: plotlyColors[idx % plotlyColors.length],
+                color: 'rgb(31, 119, 180)',
                 size: 8,
                 line: {
                     width: 1
@@ -940,12 +1608,13 @@ groupKeys.forEach(function(key, idx) {
             hoverinfo: 'x'
         });
     }
-});
+}
 
         
-            var layout = {
+            var valueLabel = 'Clinical Measurement';
+    var layout = {
         title: 'Customized DistPlot - Longitudinal Study',
-        showlegend: true,
+        showlegend: currentGroupCol !== null,
         autosize: true,
         grid: {
             rows: 3,
@@ -954,7 +1623,7 @@ groupKeys.forEach(function(key, idx) {
             roworder: 'top to bottom'
         },
         xaxis: {
-            title: 'Clinical Measurement',
+            title: valueLabel,
             domain: [0, 1],
             showgrid: true,
             zeroline: true
@@ -3710,607 +4379,807 @@ score,age,department
 68.04584183464488,20,Marketing
 
 </script><script type="text/plain" id="df4" data-format="csv_embedded" data-src="">
-measurement,time_point
-107.17650497230335,Baseline
-106.83210300611975,Baseline
-105.45622875613952,Baseline
-107.49394802642503,Baseline
-101.54726602843375,Baseline
-120.36961782272292,Baseline
-90.01860901793874,Baseline
-95.70693657425787,Baseline
-96.83773768111315,Baseline
-85.93945718515799,Baseline
-98.9422354410023,Baseline
-108.50226402316845,Baseline
-100.76339192381576,Baseline
-112.13791315442563,Baseline
-105.58343150651883,Baseline
-100.06213273197079,Baseline
-113.60961966340419,Baseline
-106.35244476052523,Baseline
-89.39470283687052,Baseline
-93.94173266737688,Baseline
-94.69873706781875,Baseline
-99.31504679175619,Baseline
-98.70868648144317,Baseline
-85.96269849330123,Baseline
-105.66616147331946,Baseline
-102.39426642713633,Baseline
-97.99020440138518,Baseline
-103.14062433059317,Baseline
-88.97142047423037,Baseline
-107.43422426311122,Baseline
-93.04861397884417,Baseline
-104.1449504925204,Baseline
-96.26650160937594,Baseline
-84.17855897655436,Baseline
-99.35970897341456,Baseline
-95.1419731371862,Baseline
-93.99934309767191,Baseline
-122.8633344273794,Baseline
-111.438113235453,Baseline
-100.90674502767753,Baseline
-98.63556313090729,Baseline
-119.23601078874829,Baseline
-96.43920954065179,Baseline
-107.41205269823516,Baseline
-102.7915376922367,Baseline
-106.7818709778018,Baseline
-92.3109207932881,Baseline
-106.7241414558642,Baseline
-103.82020936747571,Baseline
-109.36353464265935,Baseline
-101.22161986278985,Baseline
-111.1943100580546,Baseline
-112.50434416798235,Baseline
-113.66978592346909,Baseline
-92.1809074478126,Baseline
-104.64101121217206,Baseline
-92.80459463974158,Baseline
-97.31996063013678,Baseline
-110.73795910943636,Baseline
-108.81842093472606,Baseline
-100.74315000961656,Baseline
-100.42103794544111,Baseline
-90.58449206493289,Baseline
-99.95043471041237,Baseline
-93.94802399473681,Baseline
-96.66337645213666,Baseline
-103.45104192398811,Baseline
-113.72714478415557,Baseline
-95.0211907135468,Baseline
-98.06292405835855,Baseline
-94.8990134125345,Baseline
-88.21747934934852,Baseline
-91.07421365799989,Baseline
-103.2284475402942,Baseline
-101.84112295069899,Baseline
-90.12157293771607,Baseline
-105.23411956949901,Baseline
-90.8251425342224,Baseline
-91.71479608384611,Baseline
-108.49967450662547,Baseline
-90.60940301611987,Baseline
-97.3489232463377,Baseline
-83.77286299915941,Baseline
-112.70309718181298,Baseline
-108.6781985216073,Baseline
-96.64087439807767,Baseline
-92.40100997488058,Baseline
-88.01480990961504,Baseline
-99.99297076861498,Baseline
-104.91293879858333,Baseline
-102.69000964646868,Baseline
-96.93779413652386,Baseline
-103.34126015433245,Baseline
-106.95357197887982,Baseline
-92.25079613405086,Baseline
-104.16078095721406,Baseline
-93.3775996474161,Baseline
-99.89811091029144,Baseline
-114.42345397843712,Baseline
-94.3387582498341,Baseline
-109.73190172935523,Baseline
-96.4594542642647,Baseline
-85.55001274995301,Baseline
-106.2892909166082,Baseline
-86.13407418962518,Baseline
-99.35126305305509,Baseline
-99.02631635013175,Baseline
-99.68540976517058,Baseline
-100.66913005821542,Baseline
-91.82507610305655,Baseline
-105.43693836471382,Baseline
-104.04241083947593,Baseline
-86.39004766047927,Baseline
-89.85810152292315,Baseline
-105.39210066767093,Baseline
-105.00943006463324,Baseline
-115.19251456676959,Baseline
-103.83809681001321,Baseline
-117.214850489365,Baseline
-108.873938253948,Baseline
-94.28100157211126,Week 1
-107.83746622358032,Week 1
-110.72485314657034,Week 1
-109.81668769952505,Week 1
-107.61061388770688,Week 1
-111.78688258715131,Week 1
-98.42912328443295,Week 1
-102.4235027895215,Week 1
-89.49088095216909,Week 1
-103.59062034415422,Week 1
-109.50037487475561,Week 1
-98.28977503285903,Week 1
-91.86609681412884,Week 1
-98.21099049599472,Week 1
-102.83297808058784,Week 1
-115.92003466765898,Week 1
-102.22699887181663,Week 1
-97.7758644255942,Week 1
-100.78872617117202,Week 1
-112.09318837969198,Week 1
-109.01567593599866,Week 1
-112.8885466445444,Week 1
-107.95854662008112,Week 1
-108.16521273584293,Week 1
-99.16729601763957,Week 1
-99.59048231646443,Week 1
-105.0538334531141,Week 1
-104.77756067202701,Week 1
-101.70512951854826,Week 1
-111.08343405372956,Week 1
-90.43080463631138,Week 1
-103.46661991817905,Week 1
-102.319948333988,Week 1
-113.41143441468645,Week 1
-104.88830492844004,Week 1
-95.21844376937602,Week 1
-93.98542676104279,Week 1
-98.68681129343986,Week 1
-104.64018050107754,Week 1
-118.05670022504293,Week 1
-109.34352593164482,Week 1
-108.06033843452457,Week 1
-107.67446600644774,Week 1
-95.692330459372,Week 1
-96.50110186450526,Week 1
-111.53040755351192,Week 1
-105.34202146442816,Week 1
-117.24316406842928,Week 1
-104.03614492500131,Week 1
-118.98694516874217,Week 1
-103.1671150603297,Week 1
-105.05431593319062,Week 1
-107.35526610764448,Week 1
-103.58065746238773,Week 1
-110.89497187518364,Week 1
-119.16482874328885,Week 1
-109.64718822722037,Week 1
-93.2890052134903,Week 1
-113.7695365725106,Week 1
-100.6919533119393,Week 1
-95.9130705505042,Week 1
-105.51479019910393,Week 1
-104.51977924659276,Week 1
-99.44343656506194,Week 1
-98.79832564255679,Week 1
-107.20111645321408,Week 1
-104.25555237580124,Week 1
-105.06173753382492,Week 1
-108.40830335850713,Week 1
-100.99626402988912,Week 1
-104.70227087401821,Week 1
-108.5544406896093,Week 1
-112.23592447918301,Week 1
-111.9895132306405,Week 1
-105.35907072221151,Week 1
-103.41038682940363,Week 1
-96.63505482052099,Week 1
-112.7158098148692,Week 1
-109.86666931557758,Week 1
-108.96531992568583,Week 1
-102.41345142966195,Week 1
-103.47995782758827,Week 1
-104.33639122661326,Week 1
-102.04996133088463,Week 1
-97.39554210839346,Week 1
-112.33323887872433,Week 1
-109.35986908708426,Week 1
-90.89632720706976,Week 1
-103.46471457369375,Week 1
-114.13560794588966,Week 1
-99.21715559165035,Week 1
-112.05784395423531,Week 1
-112.86248840599178,Week 1
-101.66534583525211,Week 1
-107.79018312886205,Week 1
-107.55735341114867,Week 1
-98.54582493765463,Week 1
-102.13538388372541,Week 1
-103.08274618848135,Week 1
-114.93779677244129,Week 1
-113.76859110850637,Week 1
-103.29158176511005,Week 1
-95.59351398961063,Week 1
-107.57518987082248,Week 1
-107.6882617846152,Week 1
-115.23879534302738,Week 1
-105.53650324556538,Week 1
-100.98762147405965,Week 1
-111.57956812826384,Week 1
-109.44966385396631,Week 1
-110.6035686382573,Week 1
-113.2394749689685,Week 1
-101.79421321853441,Week 1
-111.76296379560459,Week 1
-116.25950759140953,Week 1
-110.11732123042839,Week 1
-89.5352880134879,Week 1
-104.35244570123491,Week 1
-107.8715859328205,Week 1
-107.25850421064976,Week 1
-114.41661138451073,Week 2
-104.25342878016784,Week 2
-98.29418254683954,Week 2
-110.11412447924555,Week 2
-95.78644705326784,Week 2
-105.7331533169892,Week 2
-101.89007778737205,Week 2
-113.31354699996152,Week 2
-107.58034639062424,Week 2
-111.57291895310287,Week 2
-100.38676600379348,Week 2
-111.37772168008382,Week 2
-109.67387101908709,Week 2
-99.41117220099504,Week 2
-102.32824831503851,Week 2
-96.23392444281123,Week 2
-112.36631967105049,Week 2
-111.56281451762077,Week 2
-102.4833754333097,Week 2
-108.8227945256636,Week 2
-106.27491314970037,Week 2
-96.18148344583523,Week 2
-102.12259479716433,Week 2
-106.33861496046869,Week 2
-114.14308674691097,Week 2
-109.6920692197822,Week 2
-101.90360148347784,Week 2
-108.28307242025701,Week 2
-109.22640425251652,Week 2
-115.2779679786134,Week 2
-99.55269397751522,Week 2
-110.88655274769681,Week 2
-103.22515393549669,Week 2
-110.36741500319,Week 2
-102.35788188037569,Week 2
-115.29958735065446,Week 2
-114.94942113443739,Week 2
-104.72722198461162,Week 2
-105.98414896003686,Week 2
-100.03398095113651,Week 2
-111.96626421217545,Week 2
-97.91625780668696,Week 2
-113.85798901862532,Week 2
-103.32552474611782,Week 2
-113.81262708089511,Week 2
-104.98614386074493,Week 2
-107.39475459500419,Week 2
-112.42404262863775,Week 2
-108.63981618402238,Week 2
-99.71912972427319,Week 2
-113.33035897599387,Week 2
-108.91475719330863,Week 2
-106.23967991891466,Week 2
-105.63108625529333,Week 2
-103.63234209280179,Week 2
-103.87775850507587,Week 2
-102.20400693703745,Week 2
-120.56811583035963,Week 2
-104.50143917026917,Week 2
-99.17453478780808,Week 2
-95.86871998232627,Week 2
-111.49662258509609,Week 2
-109.5022567415493,Week 2
-110.44512031299121,Week 2
-106.92814988946604,Week 2
-108.81181798611851,Week 2
-112.7458705651034,Week 2
-104.44297028658144,Week 2
-108.21991715837021,Week 2
-105.5549250332354,Week 2
-114.10964191904787,Week 2
-103.52901401699464,Week 2
-106.89800101701634,Week 2
-105.01690277548651,Week 2
-103.73212410856186,Week 2
-110.71862989973384,Week 2
-105.40005551075824,Week 2
-112.73482453998139,Week 2
-107.75080881467338,Week 2
-107.23390642212789,Week 2
-111.82897068258305,Week 2
-99.94989282482246,Week 2
-113.8968825226195,Week 2
-100.85173132801575,Week 2
-113.47388893565467,Week 2
-120.36288324633367,Week 2
-100.73469925299435,Week 2
-105.99836223113331,Week 2
-94.76162204283602,Week 2
-106.52090462374859,Week 2
-107.90539465663666,Week 2
-101.7003000928227,Week 2
-104.62451527046494,Week 2
-111.39258363420751,Week 2
-111.53068685301083,Week 2
-114.01409194459812,Week 2
-104.96844752442854,Week 2
-98.7573335878592,Week 2
-111.34961148154628,Week 2
-104.52249681479616,Week 2
-104.06635511635768,Week 2
-107.8755857259447,Week 2
-110.00544430725766,Week 2
-112.00613016908068,Week 2
-109.08730836842642,Week 2
-115.47582166690238,Week 2
-105.06672015789206,Week 2
-106.777330736302,Week 2
-110.52393538037147,Week 2
-114.5010637840745,Week 2
-112.54053788854317,Week 2
-103.85928116561843,Week 2
-109.84886715918108,Week 2
-104.98499470145155,Week 2
-109.67719922856216,Week 2
-115.3983878505556,Week 2
-107.16698649670599,Week 2
-109.49913762357276,Week 2
-109.10504290965966,Week 2
-106.91423924180296,Week 2
-115.25783295683614,Week 3
-113.38967652707976,Week 3
-114.20628452964924,Week 3
-100.38422049024813,Week 3
-105.36091930996669,Week 3
-113.91027407860277,Week 3
-110.99255814089783,Week 3
-116.87183518205394,Week 3
-114.81231587824402,Week 3
-108.48017706564414,Week 3
-107.25972350428788,Week 3
-111.05451390567488,Week 3
-115.30423192512562,Week 3
-94.435038342635,Week 3
-104.118429598769,Week 3
-111.2885866381314,Week 3
-103.50777625235116,Week 3
-111.58611188152067,Week 3
-104.00709013244179,Week 3
-105.84032363469531,Week 3
-111.20564229999762,Week 3
-103.87793265701856,Week 3
-102.44634689618204,Week 3
-113.29874716048758,Week 3
-114.30640143398207,Week 3
-101.09682088963747,Week 3
-108.0683051776875,Week 3
-108.31557997786778,Week 3
-99.50302772263717,Week 3
-108.0017455517755,Week 3
-109.99062356476468,Week 3
-103.8409811829852,Week 3
-112.03971290819852,Week 3
-110.00875479504535,Week 3
-112.11387585956938,Week 3
-112.25602278482522,Week 3
-98.25590208827165,Week 3
-104.09494422674452,Week 3
-106.07060395364007,Week 3
-109.82728634239524,Week 3
-107.54862089415123,Week 3
-106.60065449012703,Week 3
-124.69938684038824,Week 3
-108.98783512386935,Week 3
-108.00068839657041,Week 3
-117.70430393763695,Week 3
-114.2569192773179,Week 3
-111.74187007641927,Week 3
-117.4487473760338,Week 3
-107.8542310814886,Week 3
-117.8373082995967,Week 3
-113.15616760155066,Week 3
-113.60369482763947,Week 3
-106.4794301063658,Week 3
-106.87233349723344,Week 3
-110.97150015709116,Week 3
-109.95163301912511,Week 3
-104.63348087743081,Week 3
-105.93427397357843,Week 3
-105.90532356593795,Week 3
-98.58046141558633,Week 3
-106.83200876589898,Week 3
-112.84164188379391,Week 3
-119.41426722555134,Week 3
-110.51969537931072,Week 3
-111.85845915308914,Week 3
-114.96212742327658,Week 3
-96.22007314532074,Week 3
-106.99922215584846,Week 3
-110.71546788655273,Week 3
-113.24517590083627,Week 3
-118.00750382857028,Week 3
-112.56159487895063,Week 3
-108.92221639152211,Week 3
-110.63786108008652,Week 3
-117.40059559334003,Week 3
-114.06247348771731,Week 3
-103.91224012768448,Week 3
-109.58688787482478,Week 3
-111.41327616229825,Week 3
-115.5971162792557,Week 3
-108.69288045158622,Week 3
-114.91899841133211,Week 3
-114.46726365510534,Week 3
-122.25698373747365,Week 3
-103.72146090478378,Week 3
-115.91200230780147,Week 3
-113.00554667405505,Week 3
-113.44660346137118,Week 3
-113.20391489472269,Week 3
-103.63729028008265,Week 3
-117.51337800275248,Week 3
-104.97928062395961,Week 3
-108.7579741474018,Week 3
-105.61573986124718,Week 3
-106.07939830001135,Week 3
-104.19964200839414,Week 3
-123.29329251076048,Week 3
-92.43449694869551,Week 3
-116.94031289959881,Week 3
-103.54130171946822,Week 3
-112.07727430871329,Week 3
-118.23912722789059,Week 3
-105.53666039899105,Week 3
-104.39363165545717,Week 3
-112.31184226951493,Week 3
-113.04345407646974,Week 3
-113.554015418223,Week 3
-104.36634231009181,Week 3
-108.55058428110202,Week 3
-112.46644038670209,Week 3
-111.90627214355234,Week 3
-101.34603746161524,Week 3
-116.31993150079019,Week 3
-116.01974890203675,Week 3
-114.81168297985974,Week 3
-120.438570791892,Week 3
-104.92269935475001,Week 3
-104.41681225054329,Week 3
-98.86886727106439,Week 3
-116.04944070356385,Week 4
-112.53617732046366,Week 4
-101.85936780296983,Week 4
-103.83790240764256,Week 4
-117.96191470415074,Week 4
-108.2107027298398,Week 4
-124.20082245375163,Week 4
-114.11413573518927,Week 4
-112.33689890638176,Week 4
-113.03650989520514,Week 4
-103.06255074663794,Week 4
-118.461144817693,Week 4
-111.17280975607514,Week 4
-110.45753945743955,Week 4
-112.6800324303553,Week 4
-112.24488968459875,Week 4
-111.39115430421161,Week 4
-110.71384092580338,Week 4
-106.32839664178393,Week 4
-108.49971192676406,Week 4
-109.50575713156785,Week 4
-113.70047394857127,Week 4
-115.7222545935688,Week 4
-115.8776100593089,Week 4
-109.30501342139814,Week 4
-115.98021741380288,Week 4
-108.44190374806156,Week 4
-105.49673408927472,Week 4
-106.63679726502454,Week 4
-106.92982065001891,Week 4
-108.12497890887032,Week 4
-112.76470473142396,Week 4
-115.79282390107697,Week 4
-108.01252630900318,Week 4
-106.6480952946185,Week 4
-110.27882048111763,Week 4
-100.99537401732475,Week 4
-106.90020945672522,Week 4
-112.10826825504573,Week 4
-110.22947992629253,Week 4
-112.41720430034765,Week 4
-116.37708102559624,Week 4
-116.90194781105282,Week 4
-103.65614252876748,Week 4
-106.23408852625863,Week 4
-110.8468166984309,Week 4
-119.53201967562268,Week 4
-107.04073094016027,Week 4
-113.51258487621844,Week 4
-111.7919025226718,Week 4
-120.31857025326208,Week 4
-110.14719944875674,Week 4
-107.0208509770464,Week 4
-109.72615017941055,Week 4
-106.27596391036258,Week 4
-111.45586729979554,Week 4
-118.51855757551407,Week 4
-112.65363202077413,Week 4
-110.2449502078537,Week 4
-109.38079085685472,Week 4
-122.83860766323886,Week 4
-109.80043579701187,Week 4
-113.09242486075496,Week 4
-108.70038610424851,Week 4
-106.17314681410873,Week 4
-107.06945394403729,Week 4
-112.84324102165405,Week 4
-103.29068521531116,Week 4
-124.69773509982122,Week 4
-108.45950840071893,Week 4
-111.61739363151652,Week 4
-113.29602574729307,Week 4
-112.47416975072743,Week 4
-106.53722689629085,Week 4
-118.11163959141534,Week 4
-104.82408412124875,Week 4
-118.54346147984162,Week 4
-115.44352086854187,Week 4
-101.03539351133301,Week 4
-117.32044084909364,Week 4
-110.49114241623381,Week 4
-109.04162443495909,Week 4
-111.97551168104965,Week 4
-108.14742801390742,Week 4
-111.58525242419547,Week 4
-113.47729221394555,Week 4
-104.26524529298075,Week 4
-103.24259567678855,Week 4
-119.78926451576976,Week 4
-115.31316869785667,Week 4
-109.10230487950317,Week 4
-113.15938542027308,Week 4
-117.79697065201867,Week 4
-113.34038724386254,Week 4
-116.23146770111317,Week 4
-113.77893623909877,Week 4
-113.55509983377783,Week 4
-102.56299680245417,Week 4
-115.98380779817002,Week 4
-110.97372195502405,Week 4
-108.14294837829107,Week 4
-115.86171907484683,Week 4
-112.17716330191658,Week 4
-111.74171932481548,Week 4
-113.44753291426007,Week 4
-108.47782206037718,Week 4
-116.08086077320749,Week 4
-114.96412034789758,Week 4
-110.65190965762237,Week 4
-111.78237566572558,Week 4
-116.31918425309632,Week 4
-109.8194400804417,Week 4
-111.99571536670938,Week 4
-106.31026081574107,Week 4
-107.71228102295886,Week 4
-118.41206422091732,Week 4
-113.36141124452561,Week 4
-108.25847548863037,Week 4
-110.85872082915886,Week 4
-113.5076514611438,Week 4
+height,weight,age_value,gender,country,category
+178.97063121537917,75.38379153986104,27.894132845687974,Female,USA,C
+178.54012875764968,45.31291287925642,25.591063802696944,Female,Canada,A
+176.8202859451744,82.27154675113664,35.94918161420792,Male,USA,A
+179.36743503303128,75.20528360046427,29.47990101025112,Female,USA,A
+171.9340825355422,84.85374253775434,20.61126903491774,Male,USA,C
+195.46202227840365,67.97188041732184,53.93687664156155,Male,USA,C
+157.5232612724234,72.95396997091443,50.91440286254323,Male,UK,C
+164.63367071782235,96.50161798949571,30.382475993740492,Male,Canada,C
+166.04717210139145,70.61124057883536,37.83662167171836,Female,UK,A
+152.4243214814475,77.5004902813269,35.87281910276961,Male,Canada,A
+168.67779430125287,68.61432517589921,26.080369226781777,Male,Canada,C
+180.62783002896057,68.88311677843521,35.92545112591093,Male,UK,A
+170.9542399047697,35.272894956371225,58.277584498158696,Female,Canada,C
+185.17239144303204,67.027914519203,33.69604167530316,Male,USA,C
+176.97928938314854,59.95161055628528,46.5900699879436,Female,USA,B
+170.0776659149635,70.13621912605652,40.7912872195506,Female,UK,C
+187.01202457925524,57.37558307168697,36.98622729672086,Female,UK,B
+177.94055595065655,108.08787966238127,42.36375702185859,Male,Canada,C
+156.74337854608814,67.96657057408909,57.23898154159448,Male,USA,C
+162.4271658342211,80.33613164044658,33.16086650919096,Male,UK,A
+163.37342133477344,62.746624344748966,30.10453416666792,Male,USA,B
+169.14380848969523,50.41774775809794,35.05541879293267,Female,Canada,A
+168.38585810180396,95.13013682758421,35.04934402144201,Female,UK,A
+152.45337311662655,77.70211546722788,42.380916126317395,Male,USA,B
+177.08270184164934,73.57555089571756,34.050849505150694,Female,USA,A
+172.99283303392042,72.42873887129046,34.647544167709356,Male,UK,B
+167.4877555017315,64.47140958479284,8.507772055220752,Female,Canada,A
+173.92578041324148,71.33478182422832,26.137497777701565,Female,UK,B
+156.21427559278794,79.53306213812887,36.83563512554785,Male,USA,B
+179.29278032888902,59.66752196142958,42.57305630302382,Male,UK,B
+161.31076747355522,41.012485376151034,47.04862466353256,Female,UK,B
+175.18118811565049,66.64919870365264,38.50028986605777,Male,UK,B
+165.33312701171994,72.32244521903189,34.0424225051877,Male,USA,A
+150.22319872069295,56.04273114929387,35.30067039666693,Male,UK,A
+169.1996362167682,61.55534250431643,49.00339344648893,Male,USA,C
+163.92746642148273,89.81791724782198,44.99728992803448,Male,Canada,B
+162.49917887208989,79.01423309601958,30.402629271267347,Female,Canada,B
+198.57916803422424,62.797707438374324,39.44816102543803,Female,USA,A
+184.29764154431626,81.39870377749094,22.293534175464345,Female,Canada,C
+171.1334312845969,65.5495983437811,40.220323447231024,Female,UK,A
+168.2944539136341,70.61047331398322,34.827100043644045,Female,UK,A
+194.04501348593536,69.09306239922124,19.344875944519206,Female,Canada,A
+165.54901192581474,81.45393357716628,32.791929423617304,Male,USA,B
+179.26506587279394,67.84994103035318,35.950183172117086,Female,UK,B
+173.48942211529587,49.53452162223236,31.97688940470265,Male,USA,A
+178.47733872225226,47.30644087523401,37.04524182589387,Female,UK,A
+160.38865099161012,52.433312391506746,36.56417788848336,Female,Canada,B
+178.40517681983025,60.29053381966679,34.14057381803708,Female,Canada,B
+174.77526170934465,70.67193493258742,40.06492880863391,Female,Canada,B
+181.7044183033242,83.57915970019,38.45274369369583,Female,Canada,B
+171.5270248284873,68.94952025076162,39.47388528837288,Female,UK,C
+183.99288757256824,48.350975924678906,25.851487405372612,Male,USA,B
+185.63043020997793,70.60395876226754,37.28838185692856,Female,Canada,C
+187.08723240433636,62.441548138791084,40.243026799053204,Male,USA,B
+160.22613430976574,76.04683111776367,31.77284948156945,Female,USA,C
+175.80126401521508,64.93989165810393,23.494612417615766,Male,Canada,C
+161.00574329967696,65.08310028259763,31.829720897359003,Female,UK,C
+166.64995078767097,61.98828376712298,35.79899581381925,Female,Canada,A
+183.42244888679545,73.0289005522559,24.287323101344146,Female,Canada,B
+181.02302616840757,75.61690309065611,28.715073302194433,Female,Canada,A
+170.9289375120207,56.26079073011785,36.856212953044725,Female,USA,C
+170.5262974318014,86.34198840490413,31.905467634136087,Male,UK,B
+158.23061508116612,84.73687195950185,26.249140211528783,Male,USA,C
+169.93804338801544,91.32208332598475,40.82783789565969,Male,USA,C
+162.43502999342104,65.5976755008706,33.13705580775616,Female,UK,C
+165.82922056517083,68.86986721304112,37.07583604499628,Female,UK,A
+174.31380240498513,50.67822451911959,32.696618779092454,Male,Canada,B
+187.15893098019447,66.39123781535166,51.68417919988076,Female,Canada,B
+163.7764883919335,84.53039946847264,38.59282389692394,Male,Canada,A
+167.57865507294818,73.01718571381501,32.63004170986696,Female,USA,A
+163.6237667656681,84.99034384269949,34.19773499685198,Female,Canada,C
+155.27184918668567,96.59927219181836,41.07937864132224,Male,USA,A
+158.84276707249987,84.06392001728057,38.8065997764128,Male,Canada,A
+174.03555942536775,46.63935347448607,44.762950836354605,Male,UK,C
+172.30140368837374,102.50173940352056,24.7010449040726,Male,Canada,A
+157.65196617214508,83.2296564878594,14.062703300494132,Male,UK,A
+176.54264946187376,80.04769668453552,39.92936387968509,Male,USA,B
+158.531428167778,97.4887236808749,36.99227152566354,Male,UK,B
+159.64349510480764,74.24039242218342,40.00463328119316,Male,Canada,A
+180.62459313328182,55.425022526771684,25.418476367691568,Female,USA,C
+158.26175377014985,62.54248167490587,34.84718293664036,Female,Canada,A
+166.68615405792212,27.514773972978055,31.030313527367834,Male,USA,A
+149.71607874894926,77.15027210483203,29.347358118273945,Female,UK,C
+185.87887147726622,54.89459135164441,24.11676192783022,Female,Canada,A
+180.84774815200913,66.28623866875444,26.491515101738372,Male,Canada,C
+165.8010929975971,62.63051243813074,44.64960742165294,Male,UK,B
+160.50126246860074,53.807071851145324,31.712833230976237,Male,Canada,C
+155.0185123870188,69.2605877533015,44.26774249708836,Male,USA,C
+169.99121346076873,64.2064853228508,48.322733062044875,Female,Canada,A
+176.14117349822916,74.81216662855651,33.45033797326457,Female,USA,C
+173.36251205808585,71.0175194538917,41.220265386056674,Female,USA,A
+166.17224267065484,92.33199730138887,39.39028934380813,Male,USA,A
+174.17657519291555,55.70115412243567,42.77425891661867,Female,USA,C
+178.69196497359977,56.450820353555734,38.664809707465444,Male,Canada,C
+160.3134951675636,51.996711941251306,29.6706102610663,Male,Canada,C
+175.20097619651756,63.876037772859874,0.10373319842480555,Male,USA,C
+161.72199955927013,53.121291043068325,27.712338218517274,Female,Canada,A
+169.8726386378643,72.58138684717416,28.93981278569706,Male,USA,A
+188.0293174730464,62.74532886893375,24.734574967834273,Male,UK,A
+162.9234478122926,55.59286045514442,43.18073863423223,Female,USA,B
+182.16487716169405,90.52417879706952,38.30388405877319,Female,Canada,C
+165.5743178303309,66.29911938887315,54.54622683809431,Male,USA,C
+151.93751593744128,68.3995214880098,33.66402408525209,Female,USA,A
+177.86161364576026,99.99073196120194,26.675886683369363,Female,Canada,B
+152.66759273703147,60.58485697932004,44.049861652830224,Male,USA,A
+169.18907881631887,80.49181225511768,36.31574084467507,Female,Canada,C
+168.78289543766468,57.56547801173292,55.738075823232364,Female,Canada,C
+169.60676220646323,65.12729316856976,31.43965913120538,Male,USA,B
+170.83641257276926,55.748735787565394,23.527821798664654,Female,USA,A
+159.78134512882067,92.61959070809402,32.886040552817995,Male,Canada,A
+176.79617295589227,81.05947681780549,31.085646619750193,Male,USA,B
+175.0530135493449,55.588944643649015,44.76995995251024,Male,USA,A
+152.98755957559908,59.266390557407234,27.207703914328228,Male,Canada,A
+157.32262690365394,71.6018768316888,22.58227586909189,Female,UK,C
+176.74012583458867,95.67818833154595,32.05551476208191,Male,UK,C
+176.26178758079155,64.56723935702912,34.18246130246767,Male,USA,A
+188.990643208462,64.16645317550328,59.266649939261846,Male,UK,B
+174.79762101251652,75.4646613304943,39.36133825947978,Female,UK,B
+191.51856311170627,78.98378949883761,10.639876651376806,Female,UK,C
+181.092422817435,70.35860505782723,43.94414563220414,Female,Canada,A
+181.50363279166078,70.47739426788765,26.0129322080987,Female,UK,A
+171.70525832059042,68.97996628838267,40.656730027759494,Male,Canada,B
+183.17551853554758,47.342887528673934,37.59289341383004,Female,Canada,C
+164.07425053243145,89.69902185785836,27.034176948037864,Female,UK,C
+195.02288619988144,75.76495108863686,32.26641842006521,Male,UK,C
+183.4754706112636,28.6853765848444,36.27322192833818,Male,USA,C
+162.47800847172851,55.02778729927718,28.10241168551657,Male,USA,A
+174.4557529263584,89.46336986069205,30.39436416713498,Female,UK,C
+159.62285509169658,43.364248709449875,31.660598521511275,Male,UK,A
+166.44150320685426,69.05014037933337,31.822547762428,Female,Canada,C
+170.24200383187952,67.33063877617977,39.2220685172685,Female,USA,C
+159.63194270568758,111.92995507698629,18.789228956768802,Female,USA,A
+179.93433323678698,48.66117422416735,52.21024384108146,Male,USA,A
+164.41405249574524,67.44764252246905,40.31307221549863,Male,USA,C
+165.77776785207274,54.32624573731472,10.181714612580016,Male,Canada,A
+168.44746249817098,85.24587440735456,20.550596871150216,Female,UK,B
+147.6860524956933,48.0547855822602,38.86568603077521,Male,UK,B
+157.10561748986746,69.30295617853525,34.52705628179248,Female,UK,C
+167.8179393133704,83.34285950957454,42.88342390491674,Female,USA,B
+153.61533695476277,57.80236506539703,58.16298883994352,Male,USA,A
+183.19165068665188,69.3152737199975,40.27255001728703,Male,UK,C
+174.05205570197228,64.2942151230056,39.25416224373543,Female,USA,A
+165.315582213259,98.47169019714913,31.79320847456029,Male,Canada,A
+180.23846172633714,77.16233884391576,40.51224903071433,Male,UK,C
+172.39831879065136,63.79367694791948,19.777657372497266,Male,USA,B
+188.7701204749983,73.34618445580632,33.44930568291239,Female,USA,B
+173.32076155845877,59.943139910974914,51.06437378606522,Female,Canada,A
+178.72921756993185,63.626171636835586,33.05752160743219,Male,Canada,C
+176.21516868504654,72.99547112765832,42.725634820344936,Female,Canada,B
+166.72594828752023,70.64063049161632,44.50674607828841,Female,Canada,C
+151.7267288654151,95.96841398081487,34.733780091807866,Female,USA,A
+181.466653529824,63.64234477290219,45.04373057586653,Female,Canada,A
+174.14255718204092,70.082902039777,46.12119959356397,Female,USA,A
+170.71649954414727,77.63939055689005,44.264038705648005,Male,USA,A
+160.4270612399538,74.41702488365796,48.53626851579326,Male,USA,A
+165.7981354044333,85.96513477563126,31.67605882106639,Female,UK,C
+177.39938900844575,50.55612720918749,26.73327251269324,Female,UK,B
+170.1904374615333,85.28687825345149,36.26912207747541,Male,UK,A
+177.92885055388078,84.37569333411513,30.891268232830765,Male,UK,C
+169.08767139249971,44.756070776955994,36.362193440097094,Female,Canada,B
+167.90228359033622,84.44770138698719,26.10308352209256,Female,Canada,C
+175.79051982216146,76.84870340955136,48.2197934545759,Male,USA,B
+164.4362579629788,74.0472649931287,40.22585075815886,Male,UK,A
+177.26249181884188,74.10731408274076,34.95368956265061,Female,Canada,C
+163.53652167793436,54.07590178634288,49.700074427591375,Female,Canada,A
+163.5976692495107,63.998203179745516,46.340061264241406,Male,UK,C
+193.3212105576955,78.56954815573768,42.41917257607969,Male,USA,C
+154.57623848330297,66.70203068981795,30.83158834525474,Male,USA,C
+181.99808154924574,45.351981608343806,37.61773823543807,Female,Canada,B
+174.94559162884067,77.5450479860644,40.31376589956622,Female,USA,C
+167.0435807088078,97.33493653275289,26.86533135057833,Male,UK,A
+164.90035670601563,99.31351536318692,25.16871868052631,Female,Canada,A
+158.43864668055744,84.50866610486761,37.97100212248453,Female,USA,C
+178.2642609495399,106.27952804106641,20.837673796115013,Female,UK,B
+177.46175449775458,76.76886838352203,51.252953600589414,Male,Canada,A
+162.5888528222874,89.33995260523787,39.01239627888489,Female,Canada,A
+162.0884581921429,77.86983914793461,16.99964287033393,Male,USA,A
+192.65551943338318,58.25675462541903,19.655399000736345,Male,Canada,A
+163.40259282145186,69.66554591684884,23.173393248355467,Female,Canada,B
+187.57999160111143,78.85077546286806,43.82623504922973,Female,UK,A
+174.53968767518646,63.98522725950989,35.90514072643913,Female,UK,C
+164.49725715389908,83.40624907173249,13.641747901691161,Female,UK,A
+166.01690002222225,58.65802413733452,34.98886562596104,Male,USA,A
+175.0683709548595,62.77094451297557,30.672079939288096,Male,USA,B
+156.32345331014636,73.13278734411838,40.63343616882059,Female,USA,A
+162.5646995162346,61.54162552913502,29.470178354437664,Female,UK,B
+185.4497228360786,51.82162782269592,32.604939150630386,Male,UK,B
+153.6595154412824,98.88929801523201,40.90259204779314,Male,UK,B
+150.2369960960254,57.30273899881584,18.4515745535709,Female,Canada,A
+162.8683627020593,51.169928407724626,50.10845409501005,Male,UK,C
+169.05118330070212,74.47493842890913,23.574788365180066,Male,USA,A
+178.12252645751846,73.06364407041795,42.333145811570134,Male,UK,B
+172.86099433555364,67.85352033009092,23.470784052208614,Male,Canada,A
+177.88348800339492,77.64015577171075,27.116690393373545,Male,USA,C
+166.4187900349208,92.82642606686615,37.74910002265268,Male,USA,C
+162.21500840718633,71.85166754740656,28.260843400776437,Female,UK,A
+181.6949544928445,67.43433372077268,38.72312677380094,Male,UK,C
+162.30253172496083,83.38088480288192,26.415393710472948,Female,Canada,B
+178.35539242713537,66.0673796645673,28.404487307265434,Male,USA,C
+171.86699606151888,52.65063193609254,35.35812059225705,Male,UK,C
+165.79204373512886,44.28150406110203,34.80213457824966,Female,Canada,C
+174.87369866916399,76.50077896336558,45.31168059371333,Male,USA,B
+166.87732455306818,95.6391847850742,32.09697566169097,Male,USA,C
+172.8155545030016,83.26178951529108,18.885611423595964,Female,Canada,B
+160.19046571024276,62.521583375486706,36.81560392911705,Female,UK,B
+158.10245133170955,71.08715838216865,63.048339345015755,Female,USA,A
+178.83901082684866,57.058843962135604,21.736519667443332,Male,USA,C
+165.2745490122183,64.76099769623376,29.446815027696623,Female,Canada,C
+171.84579887344216,48.55480176297508,25.474141116927704,Female,Canada,C
+146.98598534927962,79.95505998297367,25.33949187601511,Male,USA,A
+167.0025932408295,74.04534242423615,25.600526581115716,Female,Canada,B
+176.31884416729278,70.1660509294891,55.57772990573912,Female,USA,C
+162.14842578428963,50.21003156994858,40.241925763102245,Male,USA,A
+190.66580828684928,63.4585367284882,31.67122480280026,Male,USA,C
+166.49710127458704,86.94735394452235,41.409267965851676,Female,UK,B
+159.9468136690058,57.22941204882346,40.31617697272598,Male,Canada,C
+163.7989181263853,82.88567757260361,25.650512421803462,Male,UK,B
+196.89232732212577,57.88757939224361,39.27496379892215,Male,USA,A
+166.64747918493723,63.8567509110023,33.441686376966366,Female,UK,C
+166.45348014918528,76.95882752941189,36.841818309457935,Female,USA,B
+154.68846592638968,50.53877871502188,28.615399705319085,Male,UK,A
+175.84900074965844,57.776171375342045,28.888475555175823,Female,Canada,B
+176.22514916055994,58.82773468371461,32.51496000241024,Female,Canada,C
+180.950596287236,94.84814333235661,42.07087001495823,Female,UK,C
+187.2874897412205,69.92893060353158,50.067849422655385,Female,UK,A
+179.53364397721077,85.58164072697276,31.56560733009634,Male,USA,B
+169.5164942204361,59.48240972838055,42.69118132809574,Male,UK,A
+176.16675823034217,86.73261433557734,33.853128627552934,Female,USA,A
+171.24102918870486,71.14280885581725,57.0265264471302,Male,USA,B
+172.6178422574097,88.46465555470665,45.428058196976394,Male,Canada,B
+169.024809404081,32.82239778176498,33.244526411940676,Male,Canada,C
+177.26739917528613,66.78384742026527,48.905758826601,Female,UK,C
+158.1022986852947,81.21764718493681,55.453573918009894,Male,USA,A
+165.58012733729956,80.94862035585247,52.6699301422616,Male,USA,B
+170.6306759849625,88.93834813107281,44.281737221586674,Male,UK,B
+164.4124496638421,59.48909768189451,30.38470168350657,Female,UK,C
+183.16892203170903,65.46686643753583,36.3292485749713,Male,USA,B
+165.51313686636988,65.89824867146044,47.5221821792489,Male,Canada,C
+175.18339764815843,65.42309435280406,21.10759882449342,Female,UK,C
+180.228679861365,72.59426195506474,35.19713058541924,Male,Canada,B
+139.47779386926024,62.95064724237445,43.49039420245819,Female,USA,B
+165.61568189578603,67.74413742131334,31.265858869068676,Female,UK,C
+146.9290605060789,52.342619122547774,41.5360655049382,Female,USA,A
+178.1438950968256,41.82085961953358,30.381048980669746,Female,USA,B
+202.16491247397846,78.68425158348384,38.24423170279022,Male,USA,A
+150.41155504120107,71.68971289082992,27.48247914404857,Male,USA,B
+187.10117000582306,67.93766125050533,44.58773855720702,Male,Canada,C
+171.31230225483318,48.728643630600686,31.619656454744874,Male,Canada,A
+177.74381901802658,72.92661343531124,41.730564712558454,Male,Canada,A
+164.7715353582643,73.26086056548348,35.029766156002395,Male,USA,A
+169.76076704105617,73.10746426917058,17.09008451162031,Female,UK,C
+158.66983765946085,86.74499001815406,40.00743792216327,Female,Canada,C
+158.0621949579392,104.26924240878883,27.185724832505713,Male,UK,B
+176.2266675169794,79.3283323475573,35.4803813559592,Male,Canada,B
+162.34193062897225,74.8404385996002,31.35362409375704,Female,UK,B
+183.39556031392544,83.27854500787419,32.38851926315352,Male,UK,A
+168.29326895168177,75.65166784777617,27.970353145631147,Male,UK,B
+174.1480924119573,76.30120444616408,33.974109149761055,Male,UK,C
+148.89892864709415,91.13329860148454,25.498455297511292,Female,Canada,C
+187.1984965591712,72.7251496471597,35.390403648597655,Female,USA,A
+160.7760990203231,84.39370188791939,59.76096581177492,Male,USA,A
+169.5090234897692,61.91931765492753,16.28855452251207,Female,UK,C
+169.83794155771798,64.05266817209221,9.080751905925748,Female,UK,B
+195.1307398494009,76.66918061248371,20.095268767899615,Female,USA,C
+178.75255295587033,64.2995181519293,45.736970129070755,Male,Canada,A
+176.62661574817082,77.02966387878021,17.775259281908905,Male,UK,C
+174.60926457251333,89.16931377962666,34.649051950718274,Male,UK,B
+167.12207138097241,66.47967135976829,41.32042219087974,Female,Canada,C
+170.97536187171195,75.25249109611241,28.6510776689922,Male,Canada,A
+162.51725826847303,81.60203246223519,44.86220390478555,Male,Canada,C
+171.2705134389728,57.2847834887768,41.42553565615248,Female,Canada,A
+178.8543514603623,56.6932904161521,34.54910688737233,Female,Canada,C
+165.42231410793386,54.13541044056457,37.80673271861722,Female,UK,A
+170.5493003515284,80.95609201142979,68.30301121993116,Male,USA,C
+171.9689430642307,91.5709787993096,37.56284841438939,Female,USA,C
+166.50716490355185,66.65077503789622,41.64309013928499,Male,USA,B
+182.26573318876612,61.03512502061105,43.66527726839017,Female,USA,C
+178.84163572456896,83.04748431040339,25.749922199423818,Female,USA,A
+181.21700228609606,65.46685591424931,45.500526823544405,Female,Canada,C
+160.93987631383223,72.61999533864078,34.77726850742611,Female,USA,C
+176.23722447152284,47.89892622870194,44.43010365023967,Female,Canada,B
+176.40915883396707,72.47727637056575,35.48129094311375,Female,Canada,A
+168.27537413092017,74.63661618380382,25.70445384666003,Male,UK,B
+169.91035090652008,46.21990919447998,35.830057847815674,Female,UK,C
+169.25184411851126,62.14852099808942,29.65034493559804,Female,USA,B
+188.63492053231312,52.454247858385855,32.92253748821759,Female,USA,C
+174.41755069678533,56.75865277886585,17.958782603366128,Female,UK,C
+161.67905655894563,59.50239455195491,49.85865416876227,Male,UK,C
+178.09682380874042,67.85252297360293,55.9312018447163,Male,Canada,B
+176.22218341002116,81.28667066296504,29.559390139140593,Male,UK,C
+184.38043433045922,71.87997704885969,33.075049525952025,Female,Canada,B
+169.65056609771588,70.48927269572046,55.24375410848612,Female,UK,C
+177.521847176543,72.79967943133522,23.437236587401895,Male,UK,B
+168.13835658846543,62.381162122106296,37.99649725687324,Female,UK,C
+143.74797141129423,28.58466443413618,20.969450922182368,Male,Canada,B
+165.00429558720646,64.58854698550967,33.26165057769053,Male,Canada,C
+167.52804066280305,48.714745342997084,44.50439857570397,Male,Canada,A
+180.97527875941904,59.64984902529624,39.972361660403436,Male,Canada,A
+169.86795634608782,70.52710292383755,25.766586348452307,Female,Canada,A
+158.93370425298312,68.70763090789251,23.347489725008202,Female,UK,B
+171.75052335146924,51.4786526789039,31.22980910496129,Female,UK,B
+181.51887816837618,55.41564461057165,32.25729928672338,Female,UK,C
+176.15066256888213,66.1848046846643,43.14945795108391,Female,Canada,C
+163.80453403807786,62.970095705581905,24.32587133083629,Male,Canada,A
+175.2717285564073,84.2991706087928,35.211012616712225,Female,USA,A
+175.04342279426743,80.40949670489783,30.50967495662741,Female,Canada,C
+175.05979460199873,65.39730711396857,19.179771168728475,Female,UK,B
+190.6033922285419,80.07698366574945,41.442642257009915,Male,UK,C
+165.4917342824279,103.07405244116401,43.518615237037366,Male,UK,B
+161.6670402428329,87.94453508888591,42.43419701620433,Male,USA,B
+176.44743279217735,64.4008268508483,35.02114134116774,Female,USA,B
+157.2638056820513,91.45872871825567,36.00088112231932,Male,USA,B
+177.24116310933385,60.03125982107283,35.114773586801086,Female,Canada,A
+174.4389381223654,73.43110971864171,26.203195131208794,Male,USA,B
+179.38853660172737,45.6650784192058,47.58065539582725,Female,Canada,C
+171.66221641638407,43.328877959611894,15.295556328851653,Male,UK,C
+186.47547130269473,74.85408120403298,29.794357650430108,Male,Canada,A
+166.01005483127025,47.55026873465828,40.6588028707963,Female,UK,A
+168.89700823353297,72.36982985312194,47.32215846115754,Male,USA,C
+170.48029300924375,59.30276672268138,35.407510904962535,Male,USA,C
+159.68519069598847,66.99139282384401,48.62147586473799,Female,Canada,A
+177.88219850694873,65.42209731870813,39.789523849706185,Male,Canada,A
+167.05937058453586,76.10417674727665,26.027067669750885,Female,Canada,A
+187.6608563159344,84.19956082826744,32.735246706893726,Female,USA,C
+164.6608835505803,77.47364819521346,36.34856478525359,Female,UK,C
+178.79693788375192,66.92760270184331,43.184202728339116,Male,UK,A
+153.7490056888628,47.347081935744335,21.583082905297267,Male,UK,C
+192.9020834869743,85.44440217892415,25.712002509522808,Female,USA,A
+170.24429759196505,57.04899161367732,34.83929611797029,Male,Canada,C
+156.0824186280752,96.00544499224291,32.30224382798801,Male,Canada,B
+175.22780035949967,48.449661332030935,20.761774157698284,Female,UK,A
+175.9338740488914,84.29538303670472,35.75994655485324,Male,USA,B
+162.47626781575138,89.72397487945108,27.70047636840106,Male,USA,C
+182.7922586998807,71.39021277388161,33.13579866079601,Male,USA,C
+179.27571096673185,51.44332202803638,26.775794063198195,Male,Canada,C
+164.5813000923739,70.0201867106029,60.55769019546319,Male,Canada,A
+162.8683432518259,72.08568557238725,47.30465878150536,Female,Canada,B
+162.56494042438615,56.51054490016631,27.525648275909518,Female,Canada,A
+174.1975830039633,85.41995486673906,28.39265341310393,Male,UK,A
+173.9665143406479,103.55105771167615,34.07817886684026,Female,Canada,A
+157.79833417924496,59.17949194792481,31.324499434882078,Female,Canada,C
+172.9263311640704,55.696137056570905,50.25686229574315,Female,Canada,C
+154.08913492325445,64.54749513738551,39.29649485237406,Male,Canada,C
+181.27642168099584,50.109505221076695,28.192433832941624,Female,Canada,A
+156.2628229251606,76.10180377890339,24.508371463473075,Female,UK,A
+185.49541866456158,82.16715380555173,36.57485973965603,Female,USA,C
+174.74956383034083,50.34519989706357,32.084552988535116,Male,USA,A
+170.64321898693802,71.8928945316164,25.53738546875767,Female,USA,B
+151.47060160690086,68.64281305907122,32.63217486040666,Female,UK,C
+166.4609641900831,73.6852668867337,28.848406794101123,Male,Canada,A
+160.78053093770274,63.54587876829591,28.010605087170212,Male,UK,B
+165.1597514264814,92.8427047863586,53.817243266946676,Female,USA,C
+162.6832411788881,83.45775323988212,37.22388029564864,Female,Canada,A
+166.1805579965796,51.00380730580471,24.111550651011118,Female,Canada,B
+183.33767015405567,72.21569675950253,53.97767427530987,Male,Canada,C
+163.2705479093994,71.42968234511639,29.27696120789796,Female,UK,B
+173.6236688364725,93.32832390143054,40.81207791079055,Male,UK,C
+163.5031510630202,91.64919834058185,17.70017090674696,Male,USA,A
+179.38605882747186,57.74958101893154,37.31488454755747,Female,USA,B
+157.5189850755067,59.567993504377185,25.508697445902182,Female,UK,A
+172.49651606271175,67.36544804728688,34.590608163022495,Male,USA,C
+175.52949672818397,76.57232002875645,49.011135824942095,Female,UK,B
+197.77430751049596,73.48409048791405,49.223185098490106,Female,USA,A
+176.60778366416514,86.20065142369698,46.02586768220745,Female,Canada,C
+181.4689024442021,77.98625970304502,38.66037922255077,Male,UK,C
+163.28738003413903,68.04347500346083,19.510373490041474,Female,Canada,B
+206.55586572601325,55.436085044259165,21.81511959818696,Male,Canada,C
+165.8279084237072,67.7224882644128,27.887888593383884,Male,USA,B
+155.96375020289287,91.44658125039018,32.35597068539441,Female,UK,B
+169.46574241677862,81.76757386929702,52.90701688825159,Female,Canada,A
+167.3263486895456,57.28175040468566,29.871337229360616,Male,Canada,B
+176.47464735231705,50.83835754365592,44.855688871402876,Male,Canada,A
+154.52600607744296,60.65697372684728,37.89846106414928,Female,USA,B
+167.62450197203668,58.95773042837935,22.236666887713525,Female,USA,A
+164.38983557279045,75.30476356655056,37.30907642736595,Male,UK,A
+162.1508976278718,63.518934967913744,33.220197857336224,Female,USA,C
+162.49982633168656,70.71360622275944,24.357132558265604,Male,UK,A
+160.8087680225368,88.45377965154235,30.274125475658636,Female,UK,B
+171.63397791856303,62.14125432065772,35.107065917192834,Male,UK,B
+167.71688103038377,77.28739551883226,24.951971747539826,Female,USA,B
+166.78322341622072,74.01266374240663,26.685203039155816,Female,Canada,A
+146.84529214873302,82.56516363348793,30.848472593645596,Male,Canada,C
+178.64933980048443,86.07611698326393,33.41945564162338,Male,UK,A
+162.7187946752297,60.48613846989169,47.236048035642256,Female,USA,A
+156.09030006225186,109.53608573499156,44.20414333014987,Male,UK,B
+170.44901503762063,83.68566486446589,35.895186881238764,Female,UK,A
+159.30648926941305,73.49814420786807,21.02915096101768,Male,USA,C
+192.71941083694483,59.44238378101609,11.099967242451953,Female,UK,B
+163.9279360408215,47.124550889630356,39.59998534140323,Female,UK,B
+178.07174374294263,59.11306336642976,36.73802760809586,Male,USA,C
+178.09060446894978,69.60366226793194,44.205825080209614,Male,UK,C
+166.28660871183678,64.04868515165563,48.0030353989623,Male,UK,B
+163.39319095294468,64.37155604919158,41.0731506706674,Female,UK,C
+157.61979180314165,82.3919048776281,36.92370363944067,Male,Canada,A
+162.95909255147555,43.20017392838925,37.88997062806143,Female,Canada,C
+161.91051484761522,84.28215146625367,18.676182226543027,Female,USA,B
+160.82761825607906,75.69116751957462,46.74989976750189,Female,UK,C
+172.65185512827534,77.82384677099778,27.32843261935814,Female,USA,C
+172.83821864731047,59.706747728129415,44.40823857741728,Female,USA,B
+174.03707812761422,64.25867486871181,39.25818617810781,Male,USA,C
+184.50876319960489,90.91249020885203,51.256310282658106,Female,UK,A
+172.56745925678592,33.986356822531775,31.58527148964958,Female,USA,C
+168.24223272026916,69.55460339434372,29.291606137674016,Female,UK,B
+154.2740479451415,60.00787755246414,38.03810593932819,Male,Canada,C
+167.92354344486995,68.8047674416622,43.478472900369624,Male,UK,B
+167.12085613090315,81.86916610618823,33.79568489455644,Female,USA,C
+159.7973746832138,64.8163059959407,33.1497621246199,Male,USA,C
+156.88147636936984,63.0702501426216,46.88920041027114,Male,Canada,C
+167.96504781639734,47.95761589094529,43.37849808045203,Male,Canada,A
+163.67738939896827,77.46008100401559,28.72773828474005,Female,USA,B
+179.96108311593267,58.65653422892439,38.482715547601344,Male,USA,B
+186.18372139811075,110.11252403481863,32.597145661164156,Male,USA,A
+148.28795186645195,54.960562466168646,28.83557051717184,Male,UK,C
+164.29808660650716,45.95869522562963,28.257079504507406,Male,USA,B
+169.99783572477432,59.39844673536181,43.92145633179034,Female,Canada,C
+169.0915462005775,84.22515067361468,40.80880938554478,Male,Canada,C
+175.67464768368657,55.621055642450976,45.02691485859606,Male,UK,C
+159.77964166311574,81.28969906838792,40.19267719769011,Male,USA,B
+158.6428256339705,65.72599336837992,36.12393249328327,Female,USA,C
+153.88413025949274,86.07472456288572,30.23006382093903,Male,UK,C
+162.56209253437456,63.02618236826197,34.95411624866525,Female,USA,C
+156.20017595881708,67.76258022687547,27.803343391604827,Female,UK,C
+173.79753009682068,54.82562931244166,33.39668261348173,Female,Canada,B
+176.33823691987777,80.11944977756323,35.707024815603546,Male,Canada,C
+164.58820621390979,53.06983764511992,41.70942831097573,Female,UK,A
+176.94938386007465,48.36283573326833,30.90232739872693,Male,USA,C
+173.57074156228825,82.07443382494978,33.89048301939254,Female,Canada,C
+143.40410219620657,96.04923843597452,25.750624441891045,Female,USA,C
+160.56234567971669,34.02552865925722,29.03854579676904,Female,Canada,C
+176.60088347017387,59.781621246913865,35.35341999647794,Male,UK,A
+174.08038836603487,70.65650353189947,15.497094676941082,Male,UK,A
+173.7210608314142,54.28675096606668,38.78283621614667,Male,UK,A
+167.26199500652598,63.79597480784064,42.3233740114939,Male,USA,C
+170.57452560821568,79.60658844982558,34.15351606752923,Female,UK,C
+162.5086955290564,81.2262866893668,32.053049893745865,Male,Canada,B
+193.1840811468899,70.94398112312135,36.3693539478874,Male,Canada,B
+171.69635444262315,62.13183585434191,49.14553829931671,Male,Canada,A
+164.72218968152495,61.86863079394583,29.311084777621303,Male,Canada,A
+169.9891353741833,53.75875666665708,18.71806000199845,Female,USA,A
+180.53195688685184,87.3791000099195,42.63173268402726,Male,Canada,B
+159.32706986891014,74.29310763706992,51.576936531137335,Male,Canada,A
+164.64499223415143,82.8384878003371,26.120044030062786,Female,USA,A
+172.78874065249087,76.72810118940237,13.040537841151377,Female,USA,A
+167.84820151352397,83.40276007186193,39.42127825411252,Male,UK,A
+177.56993313911352,78.14002691096101,24.924858119196514,Male,USA,A
+184.28741083100908,78.35831547203951,20.391604570612895,Female,USA,C
+167.63058085146733,71.92154434947214,33.05532852424532,Female,Canada,A
+160.12814093999435,71.37577601058737,37.0214039181872,Male,UK,C
+166.0749138179821,53.40159575572673,49.77755420776302,Male,Canada,C
+195.87660389580975,56.11322698595629,36.268277146624975,Female,Canada,B
+191.93766868969976,50.830053904417774,44.224234888782604,Male,USA,A
+164.61033733283307,80.7513208249103,21.252010993854807,Male,UK,C
+161.20796466784935,47.621330651433375,47.64399650081691,Male,Canada,B
+167.36877770131585,38.30438215568811,24.78717644800543,Female,USA,C
+170.60383331656274,84.68806972743192,39.85505418961076,Male,UK,A
+171.40809747994578,60.40062607119328,43.788723841954244,Male,Canada,B
+168.84201889340932,107.56405760519081,42.99130003624413,Female,USA,A
+187.99958083195202,75.40053261397209,44.39556447077709,Female,Canada,A
+171.40374265685304,68.93811890167134,37.3202332125423,Male,USA,A
+178.5094461651086,47.60482523041799,41.0907199245809,Male,Canada,C
+190.56458165614595,66.99385120640241,24.342365114301607,Male,UK,B
+172.3459398711443,61.66678007898292,19.95575852963323,Male,UK,B
+168.91826599116126,84.36871135420917,45.94676216136155,Male,Canada,C
+186.09429869162395,63.32286930049325,29.17637985628637,Female,UK,C
+171.7937298976132,88.98215726806548,25.405752235425005,Male,USA,C
+165.17102070390894,65.71387477304019,44.9149212226682,Female,UK,A
+168.4914483469244,55.94903339355231,7.352164093400017,Female,UK,B
+168.4060079548149,64.97700511212156,43.612504482984875,Female,USA,B
+165.51383856637628,56.83648523889802,40.43885740602383,Female,USA,A
+184.46523640565272,43.91001174012156,37.26742426561118,Male,USA,A
+155.37284362124512,62.050693779451706,35.439398373243804,Female,UK,A
+162.67565683939847,93.61853814540297,34.08424597306421,Male,USA,A
+179.31886776856962,72.72279590124737,31.70391318853225,Male,Canada,B
+176.26171670289452,96.25612722727121,32.44942271174818,Female,USA,B
+185.63112540093167,62.807017026179224,49.06032515120119,Female,UK,A
+166.02255854674698,58.96933637175198,40.730191170260085,Male,UK,C
+170.46889375364418,78.63458212550769,34.954868432048364,Male,UK,A
+166.01241001176274,54.01440408584731,34.00447153680774,Male,Canada,A
+170.3173393694307,66.37629538812317,5.90932256632361,Female,USA,B
+157.9259369670155,62.49760515451848,29.453293656094132,Female,UK,B
+173.07079673327235,73.53206990775621,52.23513604654143,Female,USA,B
+180.86936466251086,93.2350068911597,30.914878437819084,Male,USA,B
+157.72595360707479,62.839337272527054,18.3733753610171,Male,Canada,A
+160.70160315306182,85.17866953868969,34.58653070757245,Female,Canada,A
+178.12325230861896,36.53815407463218,46.42462225453124,Female,UK,C
+174.9487269281279,51.921514102480046,50.83567993223245,Female,UK,B
+154.2757361040923,50.187798571026725,72.38921483744359,Female,Canada,C
+159.73255512420317,68.33253448532453,25.97142531033279,Male,Canada,C
+187.23641640329225,36.35740961559896,39.99938495080505,Male,Canada,B
+181.65235845856182,68.34046690216535,25.814940486266302,Male,USA,B
+166.97714356166688,59.70954859052462,45.87530976841346,Male,USA,A
+165.0158368642715,53.522503413352155,36.45717021808709,Female,USA,C
+170.67330060267614,87.09102286761555,47.55410371043964,Female,UK,C
+171.86287110894605,52.32773968200504,50.2803415060353,Male,Canada,C
+168.42718508336318,70.58519878958927,28.260079439957313,Male,UK,C
+193.8467212239993,66.69155141943745,39.87320429045839,Male,Canada,B
+178.95661470711832,73.84462855838704,41.03311803494417,Male,USA,B
+167.66593009387338,64.29665055087978,27.413303436893944,Male,Canada,B
+168.34598481951673,90.28872224019108,31.54819677249608,Male,Canada,C
+173.0633490728081,54.6659739281675,28.145652263593206,Female,UK,C
+170.24367169779887,111.85804256412624,37.697601118623105,Female,USA,A
+176.9658211793596,53.250640790727275,54.950371196008334,Female,USA,C
+166.93699862246604,47.2999452996073,39.90790082473831,Female,Canada,B
+181.10656459569046,80.6191225701519,32.447573622257394,Female,UK,A
+160.28544051741477,86.95959667415349,39.293705003464886,Female,USA,C
+171.13201630515888,94.88935396905485,23.818218890244623,Male,USA,A
+165.8091933082804,82.16421627877548,43.83320062122708,Male,USA,A
+163.15600880019886,91.51982186971381,49.92228776067734,Female,UK,A
+158.8958831724664,57.87162046294469,52.27668380450676,Male,UK,C
+163.15942425686538,86.41937234351691,34.16069182283696,Female,UK,B
+175.15507603568196,81.92237950570205,37.23969763949146,Male,UK,A
+160.88835656834362,61.672547657085396,30.04314783347926,Male,Canada,B
+172.75140483329744,75.26020953866318,30.203787190095465,Female,USA,B
+162.2907318419678,94.84214624413225,28.27947680741454,Female,Canada,C
+159.68316976363448,36.812435078970516,33.57942472169871,Male,USA,A
+163.211117185936,70.97970038155587,17.18975154180073,Female,UK,B
+182.91275462527673,60.11035144228214,37.92290832242447,Female,Canada,C
+169.50818935872582,55.08923563871543,28.0219220981478,Male,USA,A
+168.88196866618594,75.2127911480942,18.359540974554164,Female,Canada,B
+187.25019878510747,53.4304477234047,31.692111508601453,Male,USA,A
+170.99218045410916,94.76049968055861,44.80913897195358,Female,Canada,C
+163.5091314427412,78.18970825735913,23.521346363644692,Female,Canada,C
+165.21257124529262,82.1155714055383,26.70910379851494,Male,Canada,B
+167.634740105665,87.12376540557764,27.804936304146498,Male,Canada,A
+196.83544937941994,84.17063077676669,60.45079957015274,Female,USA,A
+172.31244849059178,75.09822951015575,41.01828551707496,Male,UK,A
+172.8756356463162,45.159571712293115,27.34917916920133,Female,USA,B
+174.2054323176376,90.76393832119655,26.778634005699182,Female,UK,C
+172.43295975200238,95.09216008413934,28.021922078315306,Male,USA,A
+155.680297804361,45.313091531332375,44.787253493412386,Female,USA,B
+164.706447888924,87.60823015026523,32.55581806539906,Female,Canada,A
+159.1846313225886,71.16252793173591,41.00769110695568,Female,Canada,C
+170.4913792726973,42.31325290458625,33.33383603743749,Male,UK,C
+149.03407271549864,95.8049416648224,37.241907213978095,Male,USA,B
+167.14411816055616,57.60076080116095,41.5499823041317,Female,Canada,A
+171.52796459188653,61.46091331904187,48.88420384687041,Female,Canada,C
+180.7023457141377,87.18555443241587,31.100468500598762,Female,UK,B
+162.95614236542713,70.9221172864491,58.35207808556267,Female,Canada,C
+160.7888788688992,73.32234209742104,16.38363092505631,Male,UK,B
+173.83134456298,85.51782135163084,39.92463385144643,Female,Canada,C
+158.6254780977881,81.83235587681533,31.968041434233363,Male,UK,C
+169.04044225204595,98.76712742558462,48.1613220079181,Male,UK,B
+149.74672119222842,55.551941136368725,44.99334623573665,Male,UK,C
+191.62609052971007,76.54958837666787,16.59567398388748,Male,Canada,A
+179.03139097317344,44.534075132514175,8.174745631633563,Female,Canada,C
+174.25562250900177,62.21219179047923,31.277503019124392,Female,UK,C
+172.45900940933484,73.20351816589552,40.8420768365599,Male,UK,B
+192.61486042876362,65.70497445639029,41.101605557369886,Female,Canada,C
+160.5483340353885,88.73319478170792,30.46649049038803,Male,UK,A
+187.97947428855653,80.89443179322635,36.580549322975116,Male,USA,A
+162.88591169573755,59.06456090738989,36.71462368682978,Female,USA,A
+174.53803765484494,96.72613511213265,28.110797140232908,Male,USA,B
+160.23095307038932,66.16071941019777,31.757894029841722,Female,USA,C
+160.0814824335416,45.61309845986949,51.67258799184012,Male,UK,A
+171.96624672525454,76.11932311759612,54.72742080589248,Female,USA,B
+178.17491456474258,49.66218514939727,27.602614527671058,Male,USA,B
+182.12862722237608,47.344662736239016,36.27090332066093,Male,Canada,B
+158.19507035005157,69.25006821810204,47.425799526908925,Female,UK,B
+181.39387897170403,79.53076106054354,28.00951483224888,Male,UK,B
+167.27399136482418,100.45456494935041,27.050016292234076,Male,USA,A
+154.01671205889747,90.60848597376561,38.96978821210928,Male,UK,B
+180.85463837237407,66.00438216330232,37.70586456680044,Male,UK,B
+161.39854102689554,68.75111207756507,37.436974280880435,Male,USA,B
+163.0309652878354,48.6740735424614,24.62844696258342,Male,UK,C
+174.3892154780278,60.58033111270182,31.237477873028123,Male,USA,B
+168.11308019106093,85.39854963233809,44.91046233104486,Male,Canada,B
+151.64872433874902,78.95788643508726,20.155899955199168,Male,Canada,A
+178.34401126959244,56.024062359928664,25.444852636649305,Male,USA,C
+172.7964868935616,84.30618741292388,31.0651907991811,Male,Canada,C
+180.1011019352818,79.31394488850135,46.92531803269635,Female,USA,B
+177.97344848727784,81.42125442054059,28.881175783927393,Male,USA,B
+162.93532110787748,73.63923510711305,38.17491062639345,Male,USA,A
+186.72685263973437,68.69117402979832,11.341733240096843,Female,USA,C
+181.1435248455965,70.9693532849547,48.42521248098832,Female,UK,A
+154.96181580880253,63.75615325748397,34.400671524364455,Female,UK,C
+166.44358070268956,69.79873467887457,35.23932721471296,Male,UK,A
+161.9111531780408,81.34268346187575,37.303672389522454,Male,Canada,A
+177.79583015585436,64.4819681461889,26.433854769396014,Female,UK,C
+159.20501453601545,96.84381561227208,32.520116779950634,Male,UK,C
+187.88975312884907,48.643793789561954,36.909502985363844,Female,USA,A
+163.1915874202419,76.61630361686447,50.333056684249144,Male,USA,C
+172.98016438223172,67.8061586489785,6.486607603329318,Female,USA,A
+168.34487828392685,69.55908993793477,34.493497490728316,Female,Canada,B
+170.56161420701315,69.72667630602014,49.88534849075951,Female,UK,B
+143.60120446222433,82.07712441386334,30.925590030569456,Female,UK,C
+174.81373124729254,80.29924097712083,35.39587483349574,Male,USA,A
+174.48049750810816,84.75342324837837,40.08139474818758,Male,Canada,B
+177.244954967375,66.5159047012093,47.18268541704006,Female,UK,C
+176.77510529183616,82.90422241905661,43.0939534990052,Male,USA,A
+172.10984557295941,54.72279024422839,26.64782918233943,Male,USA,C
+171.3966759248665,85.47290613026874,33.48678249632849,Female,USA,C
+173.63582327118573,54.48895396894021,28.935378418879782,Male,Canada,A
+160.1362564796912,90.36373253153502,19.60421903396933,Female,Canada,B
+180.02676238537396,73.5653256754076,41.06902413248717,Male,USA,B
+188.66835604115246,68.28839946336225,29.008707803679545,Female,UK,C
+147.28099526189328,69.74668337071651,40.03198456651283,Male,Canada,B
+172.33351631576554,51.884425967014046,52.21284109330923,Male,USA,C
+176.47865616452796,77.53504488557053,30.65687603674096,Female,Canada,A
+167.19880010205696,65.79091959309979,32.79240837955661,Male,Canada,B
+173.34723899322458,93.37659878126388,37.3274324613966,Female,USA,B
+172.3709065946406,56.06533005971295,29.65479544959907,Male,Canada,C
+152.644091978327,69.89988602866077,36.99882570431008,Male,Canada,B
+183.32465894284604,59.32235354115575,33.84363966868458,Female,USA,B
+154.1665210887117,67.82172608543947,43.669930087633,Male,UK,B
+167.37438680058682,74.74263856333408,29.274510565216794,Male,Canada,A
+178.69129220307826,68.96562972765867,41.16803830391983,Female,UK,C
+155.81226413944987,74.92553181463045,42.761548758086256,Female,UK,B
+175.65552547923156,42.89487441200348,36.468299645027344,Male,USA,B
+177.66594601063093,86.1244901349541,37.858813804781526,Female,Canada,C
+176.73024871835975,40.89820466152092,65.79765506167382,Male,UK,B
+183.85516980224142,70.68028820459948,42.117413662625324,Male,UK,C
+188.99844495122463,82.72766600963985,22.379144008009224,Female,Canada,C
+176.83894373675852,97.2397970157208,26.66976804220614,Male,UK,A
+168.26224121501258,90.90642907824225,28.330001426741095,Male,Canada,B
+161.8588779527469,91.56309325655214,46.391903494565206,Female,UK,C
+169.19672999331976,73.38875190974433,18.29568135979947,Male,UK,A
+149.0671577957525,75.11621396651813,26.753113769409143,Female,UK,B
+174.68684322077144,88.83579472850039,21.98755533430745,Female,UK,C
+150.36293039021413,74.6089232389292,32.53944615470385,Female,USA,A
+151.19592636729774,64.96554924732715,43.30461726641516,Female,USA,C
+181.7975530493474,59.16208601465953,28.625205496745014,Female,USA,B
+187.63955104087623,57.27948179656936,41.019991751836486,Female,UK,B
+179.26119599208002,64.73218396500303,41.694784339896025,Male,USA,A
+173.84385203577574,63.7247199724138,42.9813694314181,Male,UK,C
+168.47277015953486,53.494227105020634,35.140160061384464,Female,Canada,A
+166.1077343264938,52.66515414320397,34.12566878435962,Female,USA,A
+171.7077510896468,72.41283531268321,41.028666028010804,Female,USA,C
+150.6235317451392,71.50658228440226,50.64068463154165,Male,Canada,B
+180.93335132655912,42.6571861853518,47.17242811747731,Male,USA,B
+163.46261460521993,57.53551425379473,26.717808870159566,Male,USA,C
+159.11541639579514,89.00173820894628,36.55022749097511,Female,Canada,C
+169.28299764837746,78.50409257476502,43.669322880521584,Male,USA,C
+163.10085685982534,84.57975176014604,31.954746511936026,Female,USA,A
+170.13366400045658,41.32287656807509,35.72773645205619,Female,USA,B
+174.84395012357507,56.895266631595625,40.929678509680755,Male,USA,B
+157.13018046743952,69.6509073928328,36.23194038777394,Female,UK,B
+165.90855626947717,73.42678406974927,30.110219300566065,Female,Canada,A
+164.13084903894156,85.18339253482098,41.44847813178931,Male,USA,B
+177.59749312452035,68.9177462728126,29.400154703206066,Female,UK,A
+162.51049249414024,74.25253466996499,34.94388070519272,Female,Canada,B
+168.66868026085356,63.77181579382757,38.77898389589803,Female,Canada,B
+169.87993696026948,61.78297915441912,40.63947090120431,Female,UK,A
+167.18415465340195,79.26032553551694,48.25223642668653,Female,UK,B
+166.11783385194468,67.02768376577232,36.271658158918676,Male,UK,B
+172.70517471649302,65.82513139846559,46.248061405377655,Male,UK,A
+189.42684385601828,87.83042913831093,40.27408334307509,Female,Canada,A
+169.91636360902345,76.12144055309898,39.1499185910809,Female,UK,C
+168.50618434234664,68.94502987322521,24.84310249720663,Female,Canada,B
+168.46869962145098,81.10881135657357,17.18341232814026,Male,UK,C
+160.83401288730408,81.60981929552224,17.202612552567576,Male,UK,A
+173.00538707569558,73.10791797141559,37.26014442648043,Male,UK,A
+159.0147212385677,107.29786557005542,41.2177217405177,Male,USA,C
+164.2554530146167,73.75263572925523,8.526966266360965,Male,Canada,A
+167.84185687656017,55.129804026910946,37.159498904945885,Male,UK,C
+173.1771468754324,70.56562378647932,38.50503321654502,Male,UK,B
+171.8269764039982,99.63049573133108,34.79459263455612,Male,Canada,B
+159.72749699123364,58.889615182049766,52.26683419681929,Male,UK,A
+158.07241381428537,69.19675154907097,43.95634188546779,Male,USA,C
+165.9311434142524,86.564881193648,16.720564779205706,Female,UK,B
+190.64731505814902,61.99460300053755,41.40448532146568,Female,UK,A
+176.39199179566515,77.52995193511497,11.74661420489706,Female,USA,C
+168.4710544464011,55.05627128322841,40.08486387064734,Female,UK,B
+141.89272367374593,68.69067325693446,35.84948114335508,Male,USA,B
+174.28424921862066,85.94097707121476,39.49428496205004,Female,USA,A
+153.50167964888823,75.15034956196959,43.62113164735415,Male,USA,A
+175.7038437178436,58.34047099465481,38.40882899975662,Male,UK,C
+167.4607319255195,77.97840455901235,21.391843490405762,Male,USA,B
+177.96067847574386,86.85630411374903,24.83285138925376,Female,UK,C
+184.02791659951455,69.46728678351292,45.278107922375234,Female,USA,B
+154.7351043929144,66.14109141587248,27.02882968492014,Male,UK,B
+160.78646949636342,75.4163479623561,33.29349638725623,Male,UK,C
+180.5527378336926,65.18798188167864,46.270314366383275,Male,USA,B
+177.24989846975183,88.14091390092493,31.42671018463534,Female,UK,A
+176.70270124234435,83.29509914277092,29.653693919337776,Male,UK,C
+172.51581567614036,76.2268733966447,16.805337439436087,Male,Canada,C
+166.9237146160378,56.38684774787429,34.141958108933885,Male,Canada,B
+156.6797916004072,48.04216935365986,43.529783318778136,Female,UK,C
+166.3983378505708,68.60865063485052,26.99345992053349,Male,Canada,C
+170.16990938076728,66.63028117163807,36.642100252908115,Male,UK,C
+148.41453899377927,58.762790876055234,31.27279251628244,Female,Canada,B
+178.48761192138733,62.08398266315616,29.371294425091516,Male,UK,A
+161.12106980478,68.78044633653602,44.24347845226548,Female,USA,A
+162.65664354775453,95.46039975795372,44.19349626150209,Female,USA,A
+167.73478530468086,89.00728479253836,37.98733616981303,Female,Canada,A
+164.67144794688247,63.41950587776865,29.53958304448937,Male,Canada,A
+166.1435435197049,80.66597608336862,23.190012176981742,Female,Canada,C
+168.76948328159025,51.23713444321931,22.979071014984108,Female,Canada,B
+177.40595815766738,68.39552997622224,40.05101979358641,Female,UK,C
+159.83586406351935,82.58382263937301,36.83712569410342,Female,Canada,A
+144.3716070009031,80.40627854821383,38.29339811251678,Male,UK,C
+172.4399226942642,94.09162910655385,48.29814860532115,Female,UK,A
+161.41112108578048,65.11088473910989,24.654855940131213,Female,UK,C
+185.72519643470022,82.28350834297859,36.59321314706623,Female,UK,C
+165.15517483890628,98.85379239191118,27.523009168182057,Female,UK,C
+168.83172635231406,63.609377491256744,43.060697150905554,Female,USA,C
+169.71379683018833,70.67124010561037,34.58647344035202,Female,USA,C
+169.89805136336423,77.74266557389306,45.816998703972644,Male,Canada,B
+162.5759235039957,46.682866822614685,58.45754948990199,Female,UK,A
+177.24460066046512,53.65072261338812,44.29571279099905,Female,Canada,A
+163.44951187219573,76.19182857407172,29.093644219929576,Male,UK,A
+191.05979803892595,70.46342847564544,19.02001601988429,Male,Canada,C
+151.49134784701303,83.16666537977898,20.522428294566765,Male,Canada,B
+176.03754082720135,71.39031556350982,25.183781585429664,Female,Canada,A
+174.0208606475128,85.58297927884949,19.929541435346735,Male,UK,B
+182.8527920167476,63.59780726035078,38.34798777817021,Female,UK,B
+169.14650499577948,87.4188809054168,21.75291679095113,Male,USA,C
+162.69144059908172,92.63596373025142,43.72030922379328,Male,USA,A
+158.66606171004696,54.92325856545938,47.95629494714581,Male,UK,C
+164.78215334583982,62.27291366433458,46.359609617716394,Male,Canada,C
+161.32995603436885,118.1617930406988,39.34356045743483,Male,UK,C
+169.2070217317718,64.14464610963032,30.953177041846097,Female,UK,C
+174.6986353514862,66.50180956909593,34.74187517952837,Male,UK,C
+158.7880338392737,94.7483677255191,43.34470818397796,Male,USA,A
+169.4939696529745,46.857934998110686,20.462872212501846,Male,UK,A
+164.78253443820384,73.70040966911976,20.95261387540544,Male,Canada,C
+183.6729804167787,84.52026687203688,43.83485061037553,Male,UK,C
+174.72050019578916,72.27906127134332,24.946328385387606,Female,Canada,C
+173.80636517383445,75.60224732404016,19.06352535461628,Female,UK,B
+190.14919240597675,53.242770410584555,40.39388392215883,Female,USA,B
+163.6144677608388,78.60269438744601,34.5606057612764,Female,USA,C
+166.8632943682028,50.40234454462852,42.18321458681994,Female,USA,C
+179.3369959859972,77.83703550857817,32.354530535766926,Female,UK,B
+194.07982565432187,73.88759207862455,39.006822182302535,Male,Canada,C
+181.85287478879644,77.08210477714422,33.70161687836184,Female,Canada,B
+174.59955656202828,62.45416236377361,18.591589278138873,Female,Canada,A
+161.77936018833321,67.06386380271759,50.873132015967414,Male,USA,B
+169.1931692025786,69.03258688859611,46.354580175892224,Female,UK,B
+163.89894641803767,86.77272033411849,37.21499823572374,Male,USA,B
+158.89862956493803,86.9847427811124,36.181555627730056,Female,Canada,B
+175.5259971925784,55.218080870700945,45.0586907212477,Female,USA,A
+183.9411779382387,79.1798520254201,45.1144137112601,Male,Canada,A
+162.7537589839187,56.567803610739034,38.70330568802277,Male,UK,B
+172.67515961039527,49.22781952107971,32.93194572509612,Male,Canada,B
+134.49915159151132,81.04011576340429,27.473846180846664,Male,UK,A
+182.8305217884383,76.49332463040437,44.646165692205344,Male,USA,A
+174.52586308470123,60.676183861647644,21.874261661170987,Female,UK,C
+176.29771251545205,97.05576254718768,48.81132077837132,Male,Canada,A
+156.2691104219057,65.20263827019441,36.118936257127665,Male,USA,C
+160.08047140229993,73.55300621394213,42.50295286905251,Female,UK,B
+166.94438664255765,76.32544722130677,26.410977190798285,Male,USA,B
+175.24519001704826,83.99943042633791,41.58333515774123,Male,USA,C
+154.79916166202418,84.01249052904174,23.483567872929818,Female,Canada,C
+180.67898579679078,62.48753111708509,43.145144782198955,Male,USA,B
+180.06848688219645,53.06274727603029,44.94472599021506,Female,UK,A
+168.55285551866518,73.25238075976473,46.58438914626194,Male,USA,A
+161.84097800392624,82.66128574827623,22.134317645361122,Female,USA,B
+190.4897724620521,70.15614302730447,38.61431949788777,Female,USA,B
+165.8303063325123,65.26443794202447,28.16756542540636,Female,USA,C
+171.5204346363478,83.23277068443781,36.74206014439849,Female,UK,C
+179.00009741079606,63.045080233145875,38.906614758614104,Female,USA,A
+167.62272798869472,70.15639316717528,23.12008774499968,Female,UK,A
+170.86101464094128,93.9991649477302,41.57998897037472,Male,UK,B
+174.0764105299779,93.9408234707414,32.394389195025035,Male,USA,B
+166.42151151771233,58.77700398198488,24.42410376791757,Male,Canada,A
+156.6203675065557,88.78085071933629,35.03503787458347,Female,UK,C
+176.5729736659013,47.99790374599423,32.083463659203076,Female,USA,A
+172.8265382070803,85.91738724489292,24.01087623190374,Female,Canada,A
+155.39587800162352,94.35443537120783,32.6046239303414,Male,UK,A
+170.94860342029523,79.17767128529158,33.19304377124801,Female,Canada,C
+161.5606748938627,91.12591771196239,54.18832242605713,Female,Canada,A
+165.46322223667246,79.81121267852525,41.52417700722635,Male,USA,C
+167.78077915645366,74.36539407943044,43.37911463941782,Female,UK,A
+170.90487203458144,62.1930088479797,31.551778312894,Male,Canada,B
+176.86247773136566,59.82477556786385,33.63885461427638,Female,USA,B
+175.4413034757125,90.47321505423457,30.618400563654934,Female,Canada,B
+194.1237449073638,57.34660621473383,31.395451252736876,Female,Canada,B
+175.98672264338396,70.06840638705789,50.397110948738074,Female,UK,C
+178.3978851674023,35.216440215512534,47.41613876816674,Male,USA,A
+160.31032787943926,69.28856635843091,24.680814442685886,Female,Canada,B
+152.27965562931618,53.93091211700619,45.89954311475741,Male,Canada,C
+166.8871830462847,76.69488833895078,26.0190831184758,Female,Canada,B
+160.48953268811343,70.97513686637078,53.546846845856415,Female,USA,C
+178.87169165306702,69.84154752919224,37.594326886168844,Female,USA,C
+185.08271452251657,37.00872190222922,27.33597311365616,Female,Canada,A
+168.4366742728241,62.84999484312392,40.71486640017356,Male,USA,C
+171.27766675631085,59.970005162526974,29.592929786743472,Male,USA,A
+164.42651637884327,35.96840554638012,38.169952467570766,Female,UK,B
+174.3654691981917,48.00931102939532,29.516453015254882,Female,USA,B
+157.7522593440543,67.66220035491142,34.11793168211046,Female,UK,A
+167.2595516344509,62.27895587810953,42.65217371523305,Male,USA,A
+180.23485294250452,57.933310552201746,32.89343714504992,Male,USA,C
+169.28461612756954,60.846465544218724,52.89320196905082,Male,Canada,C
+169.2805162543269,51.689471872093605,43.97011228423695,Male,USA,C
+174.27609365388972,60.65869715839441,45.3835971814277,Male,Canada,B
+172.32946614578398,50.825775789856834,24.908360758339693,Male,Canada,A
+161.6437039736811,70.89746410012148,25.01749049494564,Female,UK,B
+168.47943361251404,56.79430973451586,31.18484133254189,Female,Canada,A
+173.77021868314912,66.11991282056563,48.96091341291098,Female,UK,A
+175.51442460988693,60.91755470832046,36.39773444712586,Female,Canada,C
+160.81142317090644,61.443329490785715,25.039517078180822,Female,Canada,A
+181.21099226293808,33.54198778386838,44.80276413582032,Male,UK,C
+164.02936838714342,63.14246498958988,40.64635063180738,Female,USA,C
+161.36779539427772,64.43579140339135,26.783775913598877,Female,USA,A
+187.2088644055932,69.17945423357033,29.671373889067926,Female,USA,C
+162.9076335766532,79.09099629774802,32.048367233231126,Male,Canada,C
+166.64499169580967,56.78756352126837,20.721609200534203,Female,Canada,B
+172.36876378038122,81.45794018054836,43.96466097552359,Male,UK,C
+165.98491115688407,41.431090923964675,35.85018873885665,Male,Canada,C
+163.3321492781449,67.9021980207605,45.79689842931873,Male,USA,B
+164.4458328292209,70.19289477236686,37.03152435422105,Female,USA,A
 
 </script><script type="text/plain" id="df1" data-format="csv_embedded" data-src="">
 value
@@ -5315,6 +6184,609 @@ value
 59.76857186915991
 47.53656125069508
 
+</script><script type="text/plain" id="df5" data-format="csv_embedded" data-src="">
+measurement,time_point
+111.7800084322252,Baseline
+104.83402582199977,Baseline
+95.83963117228515,Baseline
+109.69840092592682,Baseline
+114.78484051490605,Baseline
+95.08030785806962,Baseline
+98.42259567016818,Baseline
+101.89302661052358,Baseline
+106.95833053579304,Baseline
+94.68427516040153,Baseline
+108.47768256416579,Baseline
+105.518755215102,Baseline
+95.68869958560882,Baseline
+98.56637126798078,Baseline
+97.81167929306343,Baseline
+79.83922575688479,Baseline
+97.61971874848541,Baseline
+111.78702851345966,Baseline
+124.24319230297657,Baseline
+106.57602259323343,Baseline
+107.91471330524371,Baseline
+101.09619133179602,Baseline
+90.61450547494958,Baseline
+89.37843311674851,Baseline
+90.1951879389177,Baseline
+87.90030939630665,Baseline
+105.37602992464187,Baseline
+93.17264203133215,Baseline
+105.24321397550614,Baseline
+106.38372567734822,Baseline
+90.78564112151432,Baseline
+93.8449628108446,Baseline
+105.40629675596541,Baseline
+108.97665956395,Baseline
+92.96830647068202,Baseline
+94.27957384688825,Baseline
+108.39679242594073,Baseline
+110.67315165718863,Baseline
+101.78152956789225,Baseline
+86.16947584675447,Baseline
+104.07561206865633,Baseline
+97.0624405134883,Baseline
+99.77277413612015,Baseline
+115.05912872637313,Baseline
+94.13453676718194,Baseline
+106.04589784001094,Baseline
+102.30174179533648,Baseline
+106.34514994430197,Baseline
+99.00896634911417,Baseline
+94.42686180255727,Baseline
+91.60792076648413,Baseline
+111.05029282822886,Baseline
+88.14362478890777,Baseline
+106.10023961707327,Baseline
+72.7394090404421,Baseline
+112.90433151212312,Baseline
+92.06300533694095,Baseline
+104.01014599325848,Baseline
+108.43997416620034,Baseline
+103.72661025521111,Baseline
+101.41132312184497,Baseline
+107.06278373386286,Baseline
+87.22098792598315,Baseline
+111.70801071239941,Baseline
+100.39165723512492,Baseline
+90.94766066052523,Baseline
+109.11616107525631,Baseline
+103.26280096523159,Baseline
+93.55409954538825,Baseline
+91.44869533869692,Baseline
+88.2920664954016,Baseline
+95.41148999198381,Baseline
+103.45592669874303,Baseline
+107.49366321319407,Baseline
+91.82501857682075,Baseline
+113.50442512654928,Baseline
+98.3161567061862,Baseline
+97.13473622046146,Baseline
+92.83808234799672,Baseline
+106.45897177058755,Baseline
+101.03700657583866,Baseline
+101.69272450049228,Baseline
+125.23286833531597,Baseline
+101.83780762333745,Baseline
+100.07847444420848,Baseline
+93.02824071443084,Baseline
+88.8785520254456,Baseline
+98.21669948316016,Baseline
+94.06965255302251,Baseline
+93.82475506331242,Baseline
+100.67000785785527,Baseline
+98.76559742931647,Baseline
+90.95637053053395,Baseline
+93.19148378740135,Baseline
+112.36611476626476,Baseline
+101.13992693063781,Baseline
+105.04308697361951,Baseline
+100.68912005197242,Baseline
+100.05694321902753,Baseline
+82.49694738866671,Baseline
+105.61376292384297,Baseline
+89.79537798358095,Baseline
+101.8435405069228,Baseline
+98.40549835870519,Baseline
+98.45602442840624,Baseline
+104.78328501304244,Baseline
+87.23459593186993,Baseline
+95.67513298033167,Baseline
+102.51884040242949,Baseline
+100.40884535996179,Baseline
+88.25794989878419,Baseline
+99.71844037696304,Baseline
+103.3559830932934,Baseline
+86.24425275444703,Baseline
+110.79740287954024,Baseline
+86.31136771707085,Baseline
+105.27740448773135,Baseline
+104.7153940479586,Baseline
+88.24223649871733,Baseline
+94.36211304849424,Baseline
+97.00860533224338,Week 1
+94.35653451251183,Week 1
+99.41253848618479,Week 1
+98.57093786361929,Week 1
+107.06353593521392,Week 1
+101.00485306087825,Week 1
+109.16152845707506,Week 1
+103.1726475883658,Week 1
+95.9527839166407,Week 1
+112.96364754897931,Week 1
+98.02435627575237,Week 1
+104.54106711766428,Week 1
+99.32723134693698,Week 1
+99.52124247376717,Week 1
+100.65998499364237,Week 1
+104.48308835899459,Week 1
+104.30256264096484,Week 1
+99.48457520640862,Week 1
+100.50406122140906,Week 1
+104.8106094245932,Week 1
+101.30263792376522,Week 1
+110.70570073451766,Week 1
+94.70803804600152,Week 1
+110.6603287019118,Week 1
+106.3539105556851,Week 1
+104.80962560983187,Week 1
+107.4101278113379,Week 1
+99.36077478407023,Week 1
+93.2110744984013,Week 1
+102.3555902114827,Week 1
+107.82708892333969,Week 1
+102.65904790375262,Week 1
+114.25433352538667,Week 1
+113.60749049504808,Week 1
+123.46518314016596,Week 1
+104.09863382797538,Week 1
+100.84361717147776,Week 1
+109.75987541779232,Week 1
+112.9602179366051,Week 1
+111.55835748004853,Week 1
+90.10097460828345,Week 1
+118.57561704396379,Week 1
+100.32640602255293,Week 1
+108.44648033468272,Week 1
+95.9792521036622,Week 1
+97.76813780846166,Week 1
+101.67974250268483,Week 1
+105.572068018038,Week 1
+121.26919091084714,Week 1
+108.70605686883968,Week 1
+113.71384723442588,Week 1
+104.0854657764122,Week 1
+100.79988591685138,Week 1
+104.99894784812737,Week 1
+109.43149781907475,Week 1
+105.62186667473136,Week 1
+107.89148836701595,Week 1
+95.33991847914083,Week 1
+97.0126722294831,Week 1
+101.49467001668516,Week 1
+99.10294798554271,Week 1
+98.20664488910433,Week 1
+105.68990508775882,Week 1
+98.88714171290931,Week 1
+99.78651729875996,Week 1
+95.43252505458085,Week 1
+108.07822811503252,Week 1
+106.50919027919474,Week 1
+109.5192531698381,Week 1
+101.20241196726413,Week 1
+108.55586931349106,Week 1
+107.29793777103863,Week 1
+109.39967257752983,Week 1
+112.98503782573411,Week 1
+111.27597321566125,Week 1
+101.55140863219515,Week 1
+101.0838137220862,Week 1
+112.76083239495456,Week 1
+104.06814090751658,Week 1
+107.0649939068148,Week 1
+115.30738788707733,Week 1
+101.8337614980513,Week 1
+108.66435307849831,Week 1
+114.37458361280423,Week 1
+98.3731315772016,Week 1
+98.63895682591462,Week 1
+117.47093499066003,Week 1
+105.9105281613834,Week 1
+100.0471388078651,Week 1
+102.44878891236782,Week 1
+120.36692593980415,Week 1
+96.367332652073,Week 1
+94.5889586435022,Week 1
+117.15617049671867,Week 1
+96.25547130910356,Week 1
+118.21066407026439,Week 1
+111.94588630690075,Week 1
+104.3874804955998,Week 1
+87.27496369867289,Week 1
+117.87862296910738,Week 1
+88.4853648115041,Week 1
+94.54033482772482,Week 1
+100.4858329655793,Week 1
+106.30699348704387,Week 1
+100.07494748414396,Week 1
+101.41472806147056,Week 1
+111.19954339605391,Week 1
+105.29028451166661,Week 1
+127.1596536200781,Week 1
+106.4990449972727,Week 1
+102.82159101354941,Week 1
+108.70863512154547,Week 1
+104.60857334107648,Week 1
+109.89799502729116,Week 1
+119.69201467135042,Week 1
+99.32211904737466,Week 1
+107.91113148828032,Week 1
+93.69753635693262,Week 1
+99.87169548288978,Week 1
+97.84937267276949,Week 1
+98.59453523657086,Week 2
+109.77136080042482,Week 2
+105.90265361862157,Week 2
+95.92626482352223,Week 2
+102.00617280363875,Week 2
+106.95439007466523,Week 2
+108.4154162442509,Week 2
+109.7631845175425,Week 2
+105.29501818409929,Week 2
+110.66621587110365,Week 2
+116.52983972221568,Week 2
+116.35011292901828,Week 2
+113.99708652561833,Week 2
+107.51620817612525,Week 2
+111.68758807603471,Week 2
+108.20263255094216,Week 2
+115.65650827748163,Week 2
+116.6727621247014,Week 2
+103.12980371359804,Week 2
+105.65630226951335,Week 2
+103.65274801163027,Week 2
+105.36786197531707,Week 2
+116.68470396287847,Week 2
+111.74187159959217,Week 2
+112.65542382915369,Week 2
+118.62969797045054,Week 2
+102.89167774031561,Week 2
+101.35812760467654,Week 2
+112.0561222082427,Week 2
+93.80947874049149,Week 2
+107.73261789724452,Week 2
+107.3982871952441,Week 2
+113.35057019004095,Week 2
+100.51790968572811,Week 2
+109.96716819650086,Week 2
+115.98478626754773,Week 2
+104.93412288689562,Week 2
+109.51237845861586,Week 2
+105.0365890199853,Week 2
+114.14186771808791,Week 2
+105.10458105310833,Week 2
+110.6088761525818,Week 2
+115.5617005563322,Week 2
+111.44438765798331,Week 2
+102.2412537489826,Week 2
+108.8779363080739,Week 2
+117.00806739675926,Week 2
+99.51744780297362,Week 2
+120.10367170916169,Week 2
+104.74698913380209,Week 2
+113.35809888358584,Week 2
+113.42467885220695,Week 2
+112.23331487712493,Week 2
+100.36785482298987,Week 2
+105.13007384672876,Week 2
+117.22565104960549,Week 2
+103.55963334078047,Week 2
+113.32776945068862,Week 2
+93.09360086519078,Week 2
+114.25580749571594,Week 2
+103.25775326453001,Week 2
+104.36524204325949,Week 2
+113.85833938241885,Week 2
+107.73563963618487,Week 2
+107.05939239125324,Week 2
+107.41402083493142,Week 2
+111.82962523096259,Week 2
+101.60872228726008,Week 2
+104.94241663907376,Week 2
+101.96260752266215,Week 2
+115.7005427778867,Week 2
+116.43279499475526,Week 2
+104.33619440748608,Week 2
+108.11310504751809,Week 2
+115.71727747815937,Week 2
+111.58589590928946,Week 2
+102.2714633062296,Week 2
+110.85599325269912,Week 2
+113.52972630225443,Week 2
+100.8510543631237,Week 2
+100.7184919571097,Week 2
+115.50749028940984,Week 2
+112.8625338019374,Week 2
+95.81610637816998,Week 2
+107.30568464361491,Week 2
+113.30133417702599,Week 2
+104.8815701469883,Week 2
+109.65368513140285,Week 2
+106.4963245931576,Week 2
+99.55136876379751,Week 2
+111.2681266373046,Week 2
+104.41030240134675,Week 2
+111.58065215953374,Week 2
+108.85055705252648,Week 2
+104.25961007033658,Week 2
+101.11945779632396,Week 2
+100.2034226863195,Week 2
+98.95239334053107,Week 2
+102.97055421438907,Week 2
+117.01582742035686,Week 2
+114.90533282846098,Week 2
+111.00967347290344,Week 2
+101.57511007355515,Week 2
+112.15759860319947,Week 2
+107.52914991579568,Week 2
+111.86157691033463,Week 2
+103.4359248539066,Week 2
+98.33147253629271,Week 2
+108.74247931777273,Week 2
+105.2426638154717,Week 2
+109.08317133682262,Week 2
+99.9631931300313,Week 2
+120.68173358127223,Week 2
+109.19541866791958,Week 2
+107.28636933551243,Week 2
+110.4935579869879,Week 2
+109.44329483110945,Week 2
+91.581289927438,Week 2
+106.66910190113843,Week 2
+105.70426117166394,Week 2
+111.25058311812559,Week 3
+109.18010553931533,Week 3
+112.19602645492473,Week 3
+109.06197516978608,Week 3
+112.59930307092533,Week 3
+113.61939535150309,Week 3
+109.7864715591257,Week 3
+106.39786506858971,Week 3
+100.00408662103013,Week 3
+106.99694756678102,Week 3
+104.37036034327745,Week 3
+105.95975017166924,Week 3
+110.72090585744837,Week 3
+112.92708178872842,Week 3
+112.2121111717267,Week 3
+112.53658562051987,Week 3
+122.03311326243349,Week 3
+122.24320769435262,Week 3
+101.62741340699182,Week 3
+107.64821307464975,Week 3
+110.63992998183832,Week 3
+101.64031332149268,Week 3
+101.47020869270882,Week 3
+104.58577038652548,Week 3
+111.68703334589472,Week 3
+107.60000997439417,Week 3
+105.99717813800743,Week 3
+102.45985965193732,Week 3
+117.17807283602083,Week 3
+111.4368404638416,Week 3
+111.04603295279918,Week 3
+113.89651334473163,Week 3
+102.57351509371989,Week 3
+115.18320271215227,Week 3
+107.12357239152472,Week 3
+102.93494301998031,Week 3
+107.93821792954873,Week 3
+99.36549547931062,Week 3
+103.55239601685291,Week 3
+103.95023374852322,Week 3
+117.04416176838646,Week 3
+102.74600912675622,Week 3
+110.90976644298904,Week 3
+113.41233742640175,Week 3
+109.37703782677943,Week 3
+127.07197492827234,Week 3
+100.08417038292087,Week 3
+112.81444563332148,Week 3
+107.44978377307223,Week 3
+121.8049803550628,Week 3
+106.64632020952052,Week 3
+108.65616994139955,Week 3
+111.86104943159138,Week 3
+110.64485802486499,Week 3
+111.79821779081306,Week 3
+105.64839968979669,Week 3
+112.8900856216318,Week 3
+95.74571467245666,Week 3
+101.71230677007662,Week 3
+106.18663713904691,Week 3
+102.51888401782567,Week 3
+109.3454395565375,Week 3
+108.36762232469695,Week 3
+115.30283047643783,Week 3
+113.65535277429478,Week 3
+101.1029329487736,Week 3
+108.46656334667546,Week 3
+109.48842375759574,Week 3
+105.73867563724842,Week 3
+113.95423206323844,Week 3
+117.80168355020518,Week 3
+103.82549904996992,Week 3
+109.27729989225779,Week 3
+112.48441457942644,Week 3
+114.31991593037114,Week 3
+118.41725739584818,Week 3
+102.44461983085604,Week 3
+112.97304703379763,Week 3
+109.59420744590038,Week 3
+109.61238279871245,Week 3
+109.84349533590667,Week 3
+108.15470491777577,Week 3
+118.36041133682954,Week 3
+104.8144167813618,Week 3
+111.59525604753654,Week 3
+101.7092657908244,Week 3
+102.50965254152896,Week 3
+107.01625539565102,Week 3
+99.83277057225918,Week 3
+108.07804954207408,Week 3
+112.76948537654575,Week 3
+115.87302562800615,Week 3
+105.26980991573498,Week 3
+107.44978293792909,Week 3
+112.63274334751998,Week 3
+109.78992907212465,Week 3
+114.47424475741673,Week 3
+114.1658975540537,Week 3
+116.82943514031206,Week 3
+101.9690479320189,Week 3
+110.53125747108668,Week 3
+108.40285246130802,Week 3
+117.93827178808364,Week 3
+106.70406160317918,Week 3
+105.2238816615894,Week 3
+109.06558147954692,Week 3
+105.10581373053395,Week 3
+114.57774890059096,Week 3
+114.72809238249795,Week 3
+109.87311090022196,Week 3
+113.3711556417076,Week 3
+118.03558363034121,Week 3
+113.13123594268862,Week 3
+113.97026312760994,Week 3
+114.65861523675794,Week 3
+112.11534032974173,Week 3
+110.93395257677699,Week 3
+109.584516664661,Week 3
+105.19395754582813,Week 3
+107.8696722327675,Week 3
+109.4463828683427,Week 4
+104.53680868002208,Week 4
+115.7065689144251,Week 4
+111.05382027854921,Week 4
+103.46457415636615,Week 4
+112.22626974683642,Week 4
+109.372523759662,Week 4
+108.60076144825868,Week 4
+111.62774143245909,Week 4
+104.20666996445172,Week 4
+114.19312863357052,Week 4
+117.11059731859447,Week 4
+112.14207752830858,Week 4
+112.75824120484658,Week 4
+107.72455445282253,Week 4
+119.33719711576417,Week 4
+104.18201683052094,Week 4
+119.57464752524464,Week 4
+108.86897340606208,Week 4
+114.43761489180582,Week 4
+109.26753895352971,Week 4
+115.30961221611709,Week 4
+108.87640851545066,Week 4
+115.85513738266101,Week 4
+110.22235368777216,Week 4
+109.35996822256872,Week 4
+105.95633778998707,Week 4
+118.03986090456354,Week 4
+113.4484458084897,Week 4
+112.31473471540593,Week 4
+113.60843557280216,Week 4
+116.55013722865677,Week 4
+113.36355839974,Week 4
+116.87524896010632,Week 4
+117.52731169010409,Week 4
+118.26195819199083,Week 4
+118.70106903498808,Week 4
+113.91572899941612,Week 4
+111.27887175554064,Week 4
+104.65642041278352,Week 4
+98.66706036989378,Week 4
+118.99970536520853,Week 4
+115.9288703555034,Week 4
+112.57395476836369,Week 4
+115.8752936686152,Week 4
+102.04634709534743,Week 4
+115.82610931079901,Week 4
+115.29459374771848,Week 4
+112.15624567582545,Week 4
+109.64291432887752,Week 4
+124.16168578888914,Week 4
+111.53651636985596,Week 4
+108.42037727124878,Week 4
+112.75449197682481,Week 4
+116.9365527668725,Week 4
+117.1624627679239,Week 4
+101.04511032856965,Week 4
+106.27493766667138,Week 4
+112.22864888229623,Week 4
+111.35444710458042,Week 4
+107.9685420126363,Week 4
+113.36621113993647,Week 4
+124.223353599522,Week 4
+115.95229781327761,Week 4
+114.8886172002351,Week 4
+114.83379210405046,Week 4
+109.39375961251133,Week 4
+109.19484965816271,Week 4
+117.16187967244694,Week 4
+113.75222586404973,Week 4
+118.1914498995065,Week 4
+114.74387305401395,Week 4
+111.30836414453314,Week 4
+113.03008558358933,Week 4
+109.29334387264336,Week 4
+121.3023505456957,Week 4
+112.37074662883701,Week 4
+109.01493358819444,Week 4
+101.7477493988446,Week 4
+107.57649056879865,Week 4
+106.67739233399676,Week 4
+109.94018721291951,Week 4
+108.74727240931895,Week 4
+112.29998995574798,Week 4
+110.4922754410949,Week 4
+108.16729460511533,Week 4
+116.33332276835733,Week 4
+116.79351513504784,Week 4
+118.00085050893334,Week 4
+107.48170960430632,Week 4
+112.84991333827928,Week 4
+106.83135472462031,Week 4
+114.73025446121412,Week 4
+115.15108682165359,Week 4
+110.06126227369091,Week 4
+111.88326778902926,Week 4
+106.28816860002505,Week 4
+111.65281180401719,Week 4
+107.70085061218481,Week 4
+113.0515766908319,Week 4
+110.79138337776405,Week 4
+117.8797152667614,Week 4
+102.21229012202161,Week 4
+117.72568728054277,Week 4
+109.92805481028653,Week 4
+114.38854531209243,Week 4
+115.96524214343384,Week 4
+117.63199073375343,Week 4
+113.04562431890072,Week 4
+113.38614954538865,Week 4
+113.34738873750256,Week 4
+127.75807872820175,Week 4
+105.95085790372472,Week 4
+106.8728774147529,Week 4
+112.72019520364164,Week 4
+116.5890221586928,Week 4
+120.05023742096108,Week 4
+104.60845398346515,Week 4
+116.41338773367583,Week 4
+115.84175927648644,Week 4
+
 </script>
 
 <!-- ACTUAL CONTENT -->
@@ -5340,20 +6812,57 @@ value
 <h2>Simple Distribution Plot</h2>
 <p>Basic distribution showing histogram, box plot, and rug plot for a normal distribution</p>
 
+<div style="margin: 20px 0;">
+    <button id="simple_dist_histogram_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Histogram
+    </button>
+    <button id="simple_dist_box_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Box Plot
+    </button>
+    <button id="simple_dist_rug_toggle" style="padding: 5px 15px; cursor: pointer;">
+        Hide Rug Plot
+    </button>
+</div>
 
 
 <!-- Chart -->
 <div id="simple_dist"></div>
+
+<!-- Bins slider below chart -->
+<div style="margin: 20px 0;">
+    <label for="simple_dist_bins_slider">Number of bins: </label>
+    <span id="simple_dist_bins_label">30</span>
+    <input type="range" id="simple_dist_bins_slider"
+           min="5"
+           max="100"
+           step="1"
+           value="30"
+           style="width: 300px; margin-left: 10px;">
+</div>
+
 <br><p style="text-align: right; font-size: 0.8em; color: #666; margin-top: -10px; margin-bottom: 10px;">Data: df1</p><br>
 <hr>
 <br>
 <h2>Treatment Effect Comparison</h2>
-<p>Compare distributions across different treatment groups using group_col</p>
+<p>Compare distributions across different treatment groups using group_cols</p>
 
 
 
 <!-- Chart -->
 <div id="multi_group_dist"></div>
+
+<!-- Bins slider below chart -->
+<div style="margin: 20px 0;">
+    <label for="multi_group_dist_bins_slider">Number of bins: </label>
+    <span id="multi_group_dist_bins_label">30</span>
+    <input type="range" id="multi_group_dist_bins_slider"
+           min="5"
+           max="100"
+           step="1"
+           value="30"
+           style="width: 300px; margin-left: 10px;">
+</div>
+
 <br><p style="text-align: right; font-size: 0.8em; color: #666; margin-top: -10px; margin-bottom: 10px;">Data: df2</p><br>
 <hr>
 <br>
@@ -5379,7 +6888,71 @@ value
 
 <!-- Chart -->
 <div id="filtered_dist"></div>
+
+<!-- Bins slider below chart -->
+<div style="margin: 20px 0;">
+    <label for="filtered_dist_bins_slider">Number of bins: </label>
+    <span id="filtered_dist_bins_label">40</span>
+    <input type="range" id="filtered_dist_bins_slider"
+           min="5"
+           max="100"
+           step="1"
+           value="40"
+           style="width: 300px; margin-left: 10px;">
+</div>
+
 <br><p style="text-align: right; font-size: 0.8em; color: #666; margin-top: -10px; margin-bottom: 10px;">Data: df3</p><br>
+<hr>
+<br>
+<h2>Multi-Variable Distribution with Dropdowns</h2>
+<p>Select different variables and grouping columns using the dropdowns above. This example demonstrates the full flexibility of the DistPlot.</p>
+
+<div style="margin: 20px 0;">
+    <button id="multi_dropdown_histogram_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Histogram
+    </button>
+    <button id="multi_dropdown_box_toggle" style="padding: 5px 15px; cursor: pointer; margin-right: 10px;">
+        Hide Box Plot
+    </button>
+    <button id="multi_dropdown_rug_toggle" style="padding: 5px 15px; cursor: pointer;">
+        Hide Rug Plot
+    </button>
+</div>
+<div style="margin: 20px 0;">
+        <label for="multi_dropdown_value_selector">Select variable: </label>
+    <select id="multi_dropdown_value_selector" style="padding: 5px 10px;">
+        <option value="height" selected>height</option>
+<option value="weight">weight</option>
+<option value="age_value">age_value</option>
+    </select>
+
+        <label for="multi_dropdown_group_selector" style="margin-left: 20px;">Group by: </label>
+    <select id="multi_dropdown_group_selector" style="padding: 5px 10px;">
+        <option value="_none_">None</option>
+<option value="gender" selected>gender</option>
+<option value="country">country</option>
+<option value="category">category</option>
+    </select>
+
+</div>
+
+
+<!-- Chart -->
+<div id="multi_dropdown"></div>
+
+<!-- Bins slider below chart -->
+<div style="margin: 20px 0;">
+    <label for="multi_dropdown_bins_slider">Number of bins: </label>
+    <span id="multi_dropdown_bins_label">30</span>
+    <input type="range" id="multi_dropdown_bins_slider"
+           min="5"
+           max="100"
+           step="1"
+           value="30"
+           style="width: 300px; margin-left: 10px;">
+</div>
+
+<br><p style="text-align: right; font-size: 0.8em; color: #666; margin-top: -10px; margin-bottom: 10px;">Data: df4</p><br>
 <hr>
 <br>
 <h2>Customized DistPlot - Longitudinal Study</h2>
@@ -5389,7 +6962,20 @@ value
 
 <!-- Chart -->
 <div id="custom_appearance"></div>
-<br><p style="text-align: right; font-size: 0.8em; color: #666; margin-top: -10px; margin-bottom: 10px;">Data: df4</p><br>
+
+<!-- Bins slider below chart -->
+<div style="margin: 20px 0;">
+    <label for="custom_appearance_bins_slider">Number of bins: </label>
+    <span id="custom_appearance_bins_label">30</span>
+    <input type="range" id="custom_appearance_bins_slider"
+           min="5"
+           max="100"
+           step="1"
+           value="30"
+           style="width: 300px; margin-left: 10px;">
+</div>
+
+<br><p style="text-align: right; font-size: 0.8em; color: #666; margin-top: -10px; margin-bottom: 10px;">Data: df5</p><br>
 <hr>
 <br>
     <div class="textblock-content">

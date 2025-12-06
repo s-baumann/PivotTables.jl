@@ -68,8 +68,8 @@ using Dates
     @testset "LineChart" begin
         @testset "Basic creation" begin
             chart = LineChart(:test_chart, test_df, :test_df;
-                x_col = :x,
-                y_col = :y,
+                x_cols = [:x],
+                y_cols = [:y],
                 title = "Test Chart"
             )
             @test chart.chart_title == :test_chart
@@ -80,8 +80,8 @@ using Dates
 
         @testset "With color and filters" begin
             chart = LineChart(:color_chart, test_df, :test_df;
-                x_col = :x,
-                y_col = :y,
+                x_cols = [:x],
+                y_cols = [:y],
                 color_cols = [:category],
                 linetype_cols = [:category],
                 filters = Dict{Symbol,Any}(:category => "A"),
@@ -93,8 +93,8 @@ using Dates
 
         @testset "With custom labels" begin
             chart = LineChart(:labeled_chart, test_df, :test_df;
-                x_col = :x,
-                y_col = :y,
+                x_cols = [:x],
+                y_cols = [:y],
                 x_label = "X Axis",
                 y_label = "Y Axis",
                 notes = "Test notes"
@@ -140,9 +140,7 @@ using Dates
 
     @testset "ScatterPlot" begin
         @testset "Basic creation" begin
-            chart = ScatterPlot(:test_scatter, test_df, :test_df;
-                x_col = :x,
-                y_col = :y,
+            chart = ScatterPlot(:test_scatter, test_df, :test_df, [:x, :y];
                 title = "Scatter Test"
             )
             @test chart.chart_title == :test_scatter
@@ -150,23 +148,19 @@ using Dates
         end
 
         @testset "With sliders" begin
-            chart = ScatterPlot(:slider_scatter, test_df, :test_df;
-                x_col = :x,
-                y_col = :y,
+            chart = ScatterPlot(:slider_scatter, test_df, :test_df, [:x, :y];
                 slider_col = [:category, :date],
-                color_col = :category
+                color_cols = [:category]
             )
             @test occursin("category", chart.functional_html)
             @test occursin("date", chart.functional_html)
         end
 
         @testset "Custom marker settings" begin
-            chart = ScatterPlot(:custom_scatter, test_df, :test_df;
-                x_col = :x,
-                y_col = :y,
+            chart = ScatterPlot(:custom_scatter, test_df, :test_df, [:x, :y];
                 marker_size = 10,
                 marker_opacity = 0.5,
-                show_marginals = false
+                show_density = false
             )
             @test occursin("10", chart.functional_html)
             @test occursin("0.5", chart.functional_html)
@@ -178,7 +172,7 @@ using Dates
 
         @testset "Basic creation" begin
             chart = DistPlot(:test_dist, df_dist, :df_dist;
-                value_col = :value,
+                value_cols = :value,
                 title = "Dist Test"
             )
             @test chart.chart_title == :test_dist
@@ -191,15 +185,15 @@ using Dates
                 group = repeat(["A", "B"], 50)
             )
             chart = DistPlot(:grouped_dist, df_grouped, :df_grouped;
-                value_col = :value,
-                group_col = :group
+                value_cols = :value,
+                group_cols = :group
             )
             @test occursin("group", chart.functional_html)
         end
 
         @testset "Custom appearance" begin
             chart = DistPlot(:custom_dist, df_dist, :df_dist;
-                value_col = :value,
+                value_cols = :value,
                 show_box = false,
                 show_rug = false,
                 histogram_bins = 50,
@@ -207,6 +201,73 @@ using Dates
             )
             @test occursin("50", chart.functional_html)
             @test occursin("false", lowercase(chart.functional_html))
+        end
+    end
+
+    @testset "KernelDensity" begin
+        df_kde = DataFrame(value = randn(100))
+
+        @testset "Basic creation" begin
+            chart = KernelDensity(:test_kde, df_kde, :df_kde;
+                value_cols = :value,
+                title = "KDE Test"
+            )
+            @test chart.chart_title == :test_kde
+            @test occursin("value", chart.functional_html)
+            @test occursin("kernelDensity", chart.functional_html)
+        end
+
+        @testset "With groups" begin
+            df_grouped = DataFrame(
+                value = randn(100),
+                group = repeat(["A", "B"], 50)
+            )
+            chart = KernelDensity(:grouped_kde, df_grouped, :df_grouped;
+                value_cols = :value,
+                group_cols = :group
+            )
+            @test occursin("group", chart.functional_html)
+        end
+
+        @testset "With facets" begin
+            df_faceted = DataFrame(
+                value = randn(100),
+                facet1 = repeat(["X", "Y"], 50),
+                facet2 = repeat(["P", "Q"], inner=50)
+            )
+            chart = KernelDensity(:faceted_kde, df_faceted, :df_faceted;
+                value_cols = :value,
+                facet_cols = [:facet1, :facet2],
+                default_facet_cols = :facet1
+            )
+            @test occursin("facet1", chart.functional_html)
+            @test occursin("facet2", chart.functional_html)
+        end
+
+        @testset "With filters" begin
+            df_filtered = DataFrame(
+                value = randn(100),
+                age = rand(18:80, 100),
+                category = rand(["A", "B", "C"], 100)
+            )
+            chart = KernelDensity(:filtered_kde, df_filtered, :df_filtered;
+                value_cols = :value,
+                slider_col = [:age, :category]
+            )
+            @test occursin("age", chart.functional_html)
+            @test occursin("category", chart.functional_html)
+        end
+
+        @testset "Custom bandwidth and appearance" begin
+            chart = KernelDensity(:custom_kde, df_kde, :df_kde;
+                value_cols = :value,
+                bandwidth = 1.5,
+                density_opacity = 0.7,
+                fill_density = false
+            )
+            @test occursin("1.5", chart.functional_html)
+            @test occursin("0.7", chart.functional_html)
+            @test occursin("none", chart.functional_html)
         end
     end
 
@@ -377,7 +438,7 @@ using Dates
 
         @testset "Single plot convenience function" begin
             mktempdir() do tmpdir
-                chart = LineChart(:simple, test_df, :test_df; x_col = :x, y_col = :y)
+                chart = LineChart(:simple, test_df, :test_df; x_cols = [:x], y_cols = [:y])
                 outfile = joinpath(tmpdir, "single_plot.html")
                 create_html(chart, test_df, outfile)
 
@@ -390,7 +451,7 @@ using Dates
 
     @testset "HTML Structure Validation" begin
         mktempdir() do tmpdir
-            chart = LineChart(:validation_test, test_df, :test_df; x_col = :x, y_col = :y)
+            chart = LineChart(:validation_test, test_df, :test_df; x_cols = [:x], y_cols = [:y])
             page = JSPlotPage(Dict{Symbol,DataFrame}(:test => test_df), [chart])
             outfile = joinpath(tmpdir, "validate.html")
             create_html(page, outfile)
@@ -475,8 +536,8 @@ using Dates
             )
 
             chart = LineChart(:long_cols, df_long_cols, :df_long_cols;
-                x_col = :this_is_a_very_long_column_name_that_should_still_work,
-                y_col = :another_extremely_long_column_name_for_testing
+                x_cols = [:this_is_a_very_long_column_name_that_should_still_work],
+                y_cols = [:another_extremely_long_column_name_for_testing]
             )
 
             @test occursin("this_is_a_very_long", chart.functional_html)
@@ -500,8 +561,8 @@ using Dates
         end
 
         @testset "Multiple charts on same page" begin
-            chart1 = LineChart(:chart1, test_df, :test_df; x_col = :x, y_col = :y)
-            chart2 = ScatterPlot(:chart2, test_df, :test_df; x_col = :x, y_col = :y)
+            chart1 = LineChart(:chart1, test_df, :test_df; x_cols = [:x], y_cols = [:y])
+            chart2 = ScatterPlot(:chart2, test_df, :test_df, [:x, :y])
             text = TextBlock("<h1>Between charts</h1>")
 
             page = JSPlotPage(Dict{Symbol,DataFrame}(:test_df => test_df), [chart1, text, chart2])
@@ -772,7 +833,7 @@ using Dates
                 test_df = DataFrame(x = 1:5, y = rand(5), color = repeat(["A"], 5))
                 table_df = DataFrame(item = ["A", "B"], value = [10, 20])
 
-                chart = LineChart(:line, test_df, :data; x_col=:x, y_col=:y)
+                chart = LineChart(:line, test_df, :data; x_cols=[:x], y_cols=[:y])
                 tbl = Table(:summary, table_df)
                 pic = Picture(:image, test_png)
                 text = TextBlock("<h2>Mixed Content Test</h2>")

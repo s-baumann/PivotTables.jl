@@ -6,8 +6,6 @@ struct ScatterPlot <: JSPlotsType
 
     function ScatterPlot(chart_title::Symbol, df::DataFrame, data_label::Symbol, dimensions::Vector{Symbol};
                          color_cols::Vector{Symbol}=[:color],
-                         pointtype_cols::Vector{Symbol}=[:color],
-                         pointsize_cols::Vector{Symbol}=[:color],
                          slider_col::Union{Symbol,Vector{Symbol},Nothing}=nothing,
                          facet_cols::Union{Nothing, Symbol, Vector{Symbol}}=nothing,
                          default_facet_cols::Union{Nothing, Symbol, Vector{Symbol}}=nothing,
@@ -32,8 +30,9 @@ struct ScatterPlot <: JSPlotsType
         default_y_col = string(dimensions[2])  # Second dimension is default Y
 
         valid_color_cols = validate_cols(color_cols, "color_cols")
-        valid_pointtype_cols = validate_cols(pointtype_cols, "pointtype_cols")
-        valid_pointsize_cols = validate_cols(pointsize_cols, "pointsize_cols")
+        default_color_col = string(valid_color_cols[1])
+        # Point type always uses the same variable as color
+        valid_pointtype_cols = valid_color_cols
 
         # Normalize facet_cols
         facet_choices = if facet_cols === nothing
@@ -71,9 +70,9 @@ struct ScatterPlot <: JSPlotsType
         end
 
         # Helper function to build dropdown HTML
-        build_dropdown(id, label, cols, title) = begin
+        build_dropdown(id, label, cols, title, default_value) = begin
             length(cols) <= 1 && return ""
-            options = join(["                    <option value=\"$col\"$((col == first(cols)) ? " selected" : "")>$col</option>"
+            options = join(["                    <option value=\"$col\"$((string(col) == default_value) ? " selected" : "")>$col</option>"
                            for col in cols], "\n")
             """
                 <div style="display: flex; gap: 5px; align-items: center;">
@@ -94,18 +93,16 @@ $options                </select>
         """
 
         # X and Y dropdowns (on same line if either has multiple options)
-        xy_html = build_dropdown("x_col_select", "X", valid_x_cols, chart_title) *
-                  build_dropdown("y_col_select", "Y", valid_y_cols, chart_title)
+        xy_html = build_dropdown("x_col_select", "X", valid_x_cols, chart_title, default_x_col) *
+                  build_dropdown("y_col_select", "Y", valid_y_cols, chart_title, default_y_col)
         if !isempty(xy_html)
             dropdowns_html *= """<div style="margin: 10px 0; display: flex; gap: 20px; align-items: center;">
 $xy_html        </div>
 """
         end
 
-        # Style dropdowns (color, pointtype, pointsize on same line)
-        style_html = build_dropdown("color_col_select", "Color", valid_color_cols, chart_title) *
-                     build_dropdown("pointtype_col_select", "Point type", valid_pointtype_cols, chart_title) *
-                     build_dropdown("pointsize_col_select", "Point size", valid_pointsize_cols, chart_title)
+        # Style dropdown (color only - point type is always linked to color)
+        style_html = build_dropdown("color_col_select", "Color/Point type", valid_color_cols, chart_title, default_color_col)
         if !isempty(style_html)
             dropdowns_html *= """<div style="margin: 10px 0; display: flex; gap: 20px; align-items: center;">
 $style_html        </div>
@@ -251,9 +248,6 @@ $options2                </select>
 
         point_symbols = ["circle", "square", "diamond", "cross", "x", "triangle-up",
                         "triangle-down", "triangle-left", "triangle-right", "pentagon", "hexagon", "star"]
-        default_color_col = string(valid_color_cols[1])
-        default_pointtype_col = string(valid_pointtype_cols[1])
-        default_pointsize_col = string(valid_pointsize_cols[1])
 
         functional_html = """
             (function() {
@@ -262,25 +256,15 @@ $options2                </select>
             const DEFAULT_X_COL = '$default_x_col';
             const DEFAULT_Y_COL = '$default_y_col';
             const DEFAULT_COLOR_COL = '$default_color_col';
-            const DEFAULT_POINTTYPE_COL = '$default_pointtype_col';
-            const DEFAULT_POINTSIZE_COL = '$default_pointsize_col';
 
             const getCol = (id, def) => { const el = document.getElementById(id); return el ? el.value : def; };
             const buildSymbolMap = (data, col) => {
                 const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
                 return Object.fromEntries(uniqueVals.map((val, i) => [val, POINT_SYMBOLS[i % POINT_SYMBOLS.length]]));
             };
-            const buildSizeMap = (data, col) => {
-                const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
-                if (uniqueVals.length === 1) return {[uniqueVals[0]]: $marker_size};
-                return Object.fromEntries(uniqueVals.map((val, i) =>
-                    [val, $marker_size + ($marker_size * 2) * i / (uniqueVals.length - 1)]
-                ));
-            };
 
-            function createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis='x', yaxis='y', showlegend=true) {
-                const symbolMap = buildSymbolMap(data, POINTTYPE_COL);
-                const sizeMap = buildSizeMap(data, POINTSIZE_COL);
+            function createTraces(data, X_COL, Y_COL, COLOR_COL, xaxis='x', yaxis='y', showlegend=true) {
+                const symbolMap = buildSymbolMap(data, COLOR_COL);
                 const groups = {};
                 data.forEach(row => {
                     const key = row[COLOR_COL];
@@ -298,16 +282,16 @@ $options2                </select>
                     xaxis: xaxis,
                     yaxis: yaxis,
                     marker: {
-                        size: groupData.map(d => sizeMap[d[POINTSIZE_COL]]),
+                        size: $marker_size,
                         opacity: $marker_opacity,
-                        symbol: groupData.map(d => symbolMap[d[POINTTYPE_COL]])
+                        symbol: groupData.map(d => symbolMap[d[COLOR_COL]])
                     },
                     type: 'scatter'
                 }));
             }
 
-            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL) {
-                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL) {
+                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL);
 
                 if (window.showDensity_$(chart_title)) {
                     traces.push({
@@ -332,7 +316,7 @@ $options2                </select>
                 }, {responsive: true});
             }
 
-            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET_COL) {
+            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET_COL) {
                 const facetValues = [...new Set(data.map(row => row[FACET_COL]))].sort();
                 const nFacets = facetValues.length, cols = Math.ceil(Math.sqrt(nFacets)), rows = Math.ceil(nFacets / cols);
                 const traces = [];
@@ -341,7 +325,7 @@ $options2                </select>
                     const facetData = data.filter(row => row[FACET_COL] === facetVal);
                     const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                     const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                     if (window.showDensity_$(chart_title)) {
                         traces.push({
@@ -370,7 +354,7 @@ $options2                </select>
                 Plotly.newPlot('$chart_title', traces, layout, {responsive: true});
             }
 
-            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1_COL, FACET2_COL) {
+            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1_COL, FACET2_COL) {
                 const facet1Values = [...new Set(data.map(row => row[FACET1_COL]))].sort();
                 const facet2Values = [...new Set(data.map(row => row[FACET2_COL]))].sort();
                 const rows = facet1Values.length, cols = facet2Values.length;
@@ -384,7 +368,7 @@ $options2                </select>
                         const idx = rowIdx * cols + colIdx;
                         const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                         const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                         if (window.showDensity_$(chart_title)) {
                             traces.push({
@@ -428,8 +412,6 @@ $options2                </select>
                 const X_COL = getCol('x_col_select_$chart_title', DEFAULT_X_COL);
                 const Y_COL = getCol('y_col_select_$chart_title', DEFAULT_Y_COL);
                 const COLOR_COL = getCol('color_col_select_$chart_title', DEFAULT_COLOR_COL);
-                const POINTTYPE_COL = getCol('pointtype_col_select_$chart_title', DEFAULT_POINTTYPE_COL);
-                const POINTSIZE_COL = getCol('pointsize_col_select_$chart_title', DEFAULT_POINTSIZE_COL);
 
                 let FACET1 = getCol('facet1_select_$chart_title', null);
                 let FACET2 = getCol('facet2_select_$chart_title', null);
@@ -437,11 +419,11 @@ $options2                </select>
                 if (FACET2 === 'None') FACET2 = null;
 
                 if (FACET1 && FACET2) {
-                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1, FACET2);
+                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1, FACET2);
                 } else if (FACET1) {
-                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1);
+                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET1);
                 } else {
-                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL);
                 }
             }
 

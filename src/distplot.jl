@@ -5,8 +5,8 @@ struct DistPlot <: JSPlotsType
     appearance_html::String
 
     function DistPlot(chart_title::Symbol, df::DataFrame, data_label::Symbol;
-                      value_col::Symbol=:value,
-                      group_col::Union{Symbol,Nothing}=nothing,
+                      value_cols::Union{Symbol,Vector{Symbol}}=:value,
+                      group_cols::Union{Symbol,Vector{Symbol},Nothing}=nothing,
                       slider_col::Union{Symbol,Vector{Symbol},Nothing}=nothing,
                       show_histogram::Bool=true,
                       show_box::Bool=true,
@@ -26,7 +26,69 @@ struct DistPlot <: JSPlotsType
         else
             slider_col
         end
+
+        # Normalize value_cols and group_cols
+        value_cols_vec = value_cols isa Symbol ? [value_cols] : value_cols
+        group_cols_vec = if group_cols === nothing
+            Symbol[]
+        elseif group_cols isa Symbol
+            [group_cols]
+        else
+            group_cols
+        end
+
+        # Default selections
+        default_value_col = first(value_cols_vec)
+        default_group_col = isempty(group_cols_vec) ? nothing : first(group_cols_vec)
         
+        # Generate dropdown for value column selection (if multiple options)
+        value_dropdown_html = ""
+        value_dropdown_js = ""
+        if length(value_cols_vec) >= 2
+            value_options_html = join(["""<option value="$(col)"$(col == default_value_col ? " selected" : "")>$(col)</option>""" for col in value_cols_vec], "\n")
+            value_dropdown_html = """
+                <label for="$(chart_title)_value_selector">Select variable: </label>
+                <select id="$(chart_title)_value_selector" style="padding: 5px 10px;">
+                    $value_options_html
+                </select>
+            """
+            value_dropdown_js = """
+                document.getElementById('$(chart_title)_value_selector').addEventListener('change', function() {
+                    updatePlotWithFilters_$(chart_title)();
+                });
+            """
+        end
+
+        # Generate dropdown for group column selection (if multiple options)
+        group_dropdown_html = ""
+        group_dropdown_js = ""
+        if length(group_cols_vec) >= 2
+            group_options_html = """<option value="_none_"$(default_group_col === nothing ? " selected" : "")>None</option>\n""" *
+                               join(["""<option value="$(col)"$(col == default_group_col ? " selected" : "")>$(col)</option>""" for col in group_cols_vec], "\n")
+            group_dropdown_html = """
+                <label for="$(chart_title)_group_selector" style="margin-left: 20px;">Group by: </label>
+                <select id="$(chart_title)_group_selector" style="padding: 5px 10px;">
+                    $group_options_html
+                </select>
+            """
+            group_dropdown_js = """
+                document.getElementById('$(chart_title)_group_selector').addEventListener('change', function() {
+                    updatePlotWithFilters_$(chart_title)();
+                });
+            """
+        end
+
+        # Combine dropdowns on same line if either exists
+        combined_dropdown_html = ""
+        if value_dropdown_html != "" || group_dropdown_html != ""
+            combined_dropdown_html = """
+            <div style="margin: 20px 0;">
+                $value_dropdown_html
+                $group_dropdown_html
+            </div>
+            """
+        end
+
         # Generate sliders HTML and initialization
         sliders_html = ""
         slider_init_js = ""
@@ -171,70 +233,148 @@ struct DistPlot <: JSPlotsType
         end
         
         # Generate trace creation JavaScript
-        trace_js = if group_col !== nothing
-            """
-            // Group data by group column
-            var groups = {};
-            data.forEach(function(row) {
-                var key = row.$(group_col);
-                if (!groups[key]) groups[key] = [];
-                groups[key].push(row);
-            });
-            
-            var groupKeys = Object.keys(groups);
-            var numGroups = groupKeys.length;
-            
-            // Create traces for each group
-            groupKeys.forEach(function(key, idx) {
-                var groupData = groups[key];
-                var values = groupData.map(d => d.$(value_col));
-                
+        trace_js = """
+            // Get current selections from dropdowns
+            var currentValueCol = $(length(value_cols_vec) >= 2 ?
+                "document.getElementById('$(chart_title)_value_selector').value" :
+                "'$(default_value_col)'");
+            var currentGroupCol = $(length(group_cols_vec) >= 2 ?
+                "document.getElementById('$(chart_title)_group_selector').value" :
+                (default_group_col !== nothing ? "'$(default_group_col)'" : "null"));
+
+            // Handle "None" option for group selector
+            if (currentGroupCol === '_none_') {
+                currentGroupCol = null;
+            }
+
+            // Get current bins from slider
+            var binsSlider = document.getElementById('$(chart_title)_bins_slider');
+            var currentBins = binsSlider ? parseInt(binsSlider.value) : $histogram_bins;
+
+            if (currentGroupCol) {
+                // Group data by group column
+                var groups = {};
+                data.forEach(function(row) {
+                    var key = row[currentGroupCol];
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(row);
+                });
+
+                var groupKeys = Object.keys(groups);
+                var numGroups = groupKeys.length;
+
+                // Create traces for each group
+                groupKeys.forEach(function(key, idx) {
+                    var groupData = groups[key];
+                    var values = groupData.map(d => d[currentValueCol]);
+
+                    // Box plot (top portion)
+                    if (window.showBox_$(chart_title)) {
+                        traces.push({
+                            x: values,
+                            name: key,
+                            type: 'box',
+                            xaxis: 'x2',
+                            yaxis: 'y2',
+                            orientation: 'h',
+                            marker: {
+                                color: plotlyColors[idx % plotlyColors.length]
+                            },
+                            boxmean: 'sd',
+                            opacity: $box_opacity,
+                            showlegend: false
+                        });
+                    }
+
+                    // Histogram (bottom portion)
+                    if (window.showHistogram_$(chart_title)) {
+                        traces.push({
+                            x: values,
+                            name: key,
+                            type: 'histogram',
+                            xaxis: 'x',
+                            yaxis: 'y',
+                            marker: {
+                                color: plotlyColors[idx % plotlyColors.length]
+                            },
+                            opacity: 0.7,
+                            nbinsx: currentBins
+                        });
+                    }
+
+                    // Rug plot (tick marks at bottom)
+                    if (window.showRug_$(chart_title)) {
+                        traces.push({
+                            x: values,
+                            name: key + ' rug',
+                            type: 'scatter',
+                            mode: 'markers',
+                            xaxis: 'x',
+                            yaxis: 'y3',
+                            marker: {
+                                symbol: 'line-ns-open',
+                                color: plotlyColors[idx % plotlyColors.length],
+                                size: 8,
+                                line: {
+                                    width: 1
+                                }
+                            },
+                            showlegend: false,
+                            hoverinfo: 'x'
+                        });
+                    }
+                });
+            } else {
+                // No grouping
+                var values = data.map(d => d[currentValueCol]);
+
                 // Box plot (top portion)
                 if (window.showBox_$(chart_title)) {
                     traces.push({
                         x: values,
-                        name: key,
+                        name: 'distribution',
                         type: 'box',
                         xaxis: 'x2',
                         yaxis: 'y2',
                         orientation: 'h',
                         marker: {
-                            color: plotlyColors[idx % plotlyColors.length]
+                            color: 'rgb(31, 119, 180)'
                         },
                         boxmean: 'sd',
                         opacity: $box_opacity,
                         showlegend: false
                     });
                 }
-                
+
                 // Histogram (bottom portion)
                 if (window.showHistogram_$(chart_title)) {
                     traces.push({
                         x: values,
-                        name: key,
+                        name: 'frequency',
                         type: 'histogram',
                         xaxis: 'x',
                         yaxis: 'y',
                         marker: {
-                            color: plotlyColors[idx % plotlyColors.length]
+                            color: 'rgb(31, 119, 180)'
                         },
                         opacity: 0.7,
-                        nbinsx: $histogram_bins
+                        nbinsx: currentBins,
+                        showlegend: false
                     });
                 }
-                
+
                 // Rug plot (tick marks at bottom)
                 if (window.showRug_$(chart_title)) {
                     traces.push({
                         x: values,
-                        name: key + ' rug',
+                        name: 'rug',
                         type: 'scatter',
                         mode: 'markers',
                         xaxis: 'x',
                         yaxis: 'y3',
                         marker: {
                             symbol: 'line-ns-open',
-                            color: plotlyColors[idx % plotlyColors.length],
+                            color: 'rgb(31, 119, 180)',
                             size: 8,
                             line: {
                                 width: 1
@@ -244,76 +384,15 @@ struct DistPlot <: JSPlotsType
                         hoverinfo: 'x'
                     });
                 }
-            });
-            """
-        else
-            """
-            var values = data.map(d => d.$(value_col));
-            
-            // Box plot (top portion)
-            if (window.showBox_$(chart_title)) {
-                traces.push({
-                    x: values,
-                    name: 'distribution',
-                    type: 'box',
-                    xaxis: 'x2',
-                    yaxis: 'y2',
-                    orientation: 'h',
-                    marker: {
-                        color: 'rgb(31, 119, 180)'
-                    },
-                    boxmean: 'sd',
-                    opacity: $box_opacity,
-                    showlegend: false
-                });
-            }
-            
-            // Histogram (bottom portion)
-            if (window.showHistogram_$(chart_title)) {
-                traces.push({
-                    x: values,
-                    name: 'frequency',
-                    type: 'histogram',
-                    xaxis: 'x',
-                    yaxis: 'y',
-                    marker: {
-                        color: 'rgb(31, 119, 180)'
-                    },
-                    opacity: 0.7,
-                    nbinsx: $histogram_bins,
-                    showlegend: false
-                });
-            }
-            
-            // Rug plot (tick marks at bottom)
-            if (window.showRug_$(chart_title)) {
-                traces.push({
-                    x: values,
-                    name: 'rug',
-                    type: 'scatter',
-                    mode: 'markers',
-                    xaxis: 'x',
-                    yaxis: 'y3',
-                    marker: {
-                        symbol: 'line-ns-open',
-                        color: 'rgb(31, 119, 180)',
-                        size: 8,
-                        line: {
-                            width: 1
-                        }
-                    },
-                    showlegend: false,
-                    hoverinfo: 'x'
-                });
             }
             """
-        end
         
         # Layout configuration for distribution plot
         layout_js = """
+            var valueLabel = $(value_label != "" ? "'$value_label'" : "currentValueCol");
             var layout = {
                 title: '$title',
-                showlegend: $(group_col !== nothing),
+                showlegend: currentGroupCol !== null,
                 autosize: true,
                 grid: {
                     rows: 3,
@@ -322,7 +401,7 @@ struct DistPlot <: JSPlotsType
                     roworder: 'top to bottom'
                 },
                 xaxis: {
-                    title: '$(value_label != "" ? value_label : string(value_col))',
+                    title: valueLabel,
                     domain: [0, 1],
                     showgrid: true,
                     zeroline: true
@@ -376,8 +455,29 @@ struct DistPlot <: JSPlotsType
             ""
         end
 
-        sliders_html = toggle_buttons_html * sliders_html
-        
+        sliders_html = toggle_buttons_html * combined_dropdown_html * sliders_html
+
+        # Generate bins slider (placed below chart)
+        bins_slider_html = """
+        <div style="margin: 20px 0;">
+            <label for="$(chart_title)_bins_slider">Number of bins: </label>
+            <span id="$(chart_title)_bins_label">$histogram_bins</span>
+            <input type="range" id="$(chart_title)_bins_slider"
+                   min="5"
+                   max="100"
+                   step="1"
+                   value="$histogram_bins"
+                   style="width: 300px; margin-left: 10px;">
+        </div>
+        """
+        bins_slider_js = """
+            document.getElementById('$(chart_title)_bins_slider').addEventListener('input', function() {
+                var bins = parseInt(this.value);
+                document.getElementById('$(chart_title)_bins_label').textContent = bins;
+                updatePlotWithFilters_$(chart_title)();
+            });
+        """
+
         functional_html = """
             // Plotly default colors
             var plotlyColors = [
@@ -421,6 +521,12 @@ struct DistPlot <: JSPlotsType
                         });
                         """ : "")
 
+                        $value_dropdown_js
+
+                        $group_dropdown_js
+
+                        $bins_slider_js
+
                         $slider_init_js
 
                     // Initial plot
@@ -446,11 +552,14 @@ struct DistPlot <: JSPlotsType
         appearance_html = """
         <h2>$title</h2>
         <p>$notes</p>
-        
+
         $sliders_html
-        
+
         <!-- Chart -->
         <div id="$chart_title"></div>
+
+        <!-- Bins slider below chart -->
+        $bins_slider_html
         """
         
         new(chart_title, data_label, functional_html, appearance_html)

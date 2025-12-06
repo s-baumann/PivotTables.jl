@@ -24,9 +24,10 @@ df1 = DataFrame(
 )
 
 distplot1 = DistPlot(:simple_dist, df1, :df1;
-    value_col = :value,
+    value_cols = :value,
     title = "Simple Distribution Plot",
     value_label = "Values",
+    show_controls = true,
     notes = "Basic distribution showing histogram, box plot, and rug plot for a normal distribution"
 )
 
@@ -42,11 +43,11 @@ df2 = DataFrame(
 )
 
 distplot2 = DistPlot(:multi_group_dist, df2, :df2;
-    value_col = :value,
-    group_col = :group,
+    value_cols = :value,
+    group_cols = :group,
     title = "Treatment Effect Comparison",
     value_label = "Response Value",
-    notes = "Compare distributions across different treatment groups using group_col"
+    notes = "Compare distributions across different treatment groups using group_cols"
 )
 
 # Example 3: Interactive Filters with Range Sliders
@@ -58,7 +59,7 @@ df3 = DataFrame(
 )
 
 distplot3 = DistPlot(:filtered_dist, df3, :df3;
-    value_col = :score,
+    value_cols = :score,
     slider_col = [:age, :department],
     histogram_bins = 40,
     title = "Score Distribution with Interactive Filters",
@@ -66,9 +67,28 @@ distplot3 = DistPlot(:filtered_dist, df3, :df3;
     notes = "Use age range slider and department multi-select to filter data dynamically"
 )
 
-# Example 4: Customized Appearance
-n = 600
+# Example 4: Multiple Value and Group Columns with Dropdowns
+n = 800
 df4 = DataFrame(
+    height = randn(n) .* 10 .+ 170,
+    weight = randn(n) .* 15 .+ 70,
+    age_value = randn(n) .* 10 .+ 35,
+    gender = rand(["Male", "Female"], n),
+    country = rand(["USA", "UK", "Canada"], n),
+    category = rand(["A", "B", "C"], n)
+)
+
+distplot4 = DistPlot(:multi_dropdown, df4, :df4;
+    value_cols = [:height, :weight, :age_value],
+    group_cols = [:gender, :country, :category],
+    show_controls = true,
+    title = "Multi-Variable Distribution with Dropdowns",
+    notes = "Select different variables and grouping columns using the dropdowns above. This example demonstrates the full flexibility of the DistPlot."
+)
+
+# Example 5: Customized Appearance
+n = 600
+df5 = DataFrame(
     measurement = vcat(
         randn(n÷5) .* 8 .+ 100,
         randn(n÷5) .* 7 .+ 105,
@@ -79,9 +99,9 @@ df4 = DataFrame(
     time_point = repeat(["Baseline", "Week 1", "Week 2", "Week 3", "Week 4"], inner=n÷5)
 )
 
-distplot4 = DistPlot(:custom_appearance, df4, :df4;
-    value_col = :measurement,
-    group_col = :time_point,
+distplot5 = DistPlot(:custom_appearance, df5, :df5;
+    value_cols = :measurement,
+    group_cols = :time_point,
     show_histogram = true,
     show_box = true,
     show_rug = false,
@@ -110,9 +130,10 @@ page = JSPlotPage(
         :df1 => df1,
         :df2 => df2,
         :df3 => df3,
-        :df4 => df4
+        :df4 => df4,
+        :df5 => df5
     ),
-    [header, distplot1, distplot2, distplot3, distplot4, conclusion],
+    [header, distplot1, distplot2, distplot3, distplot4, distplot5, conclusion],
     tab_title = "DistPlot Examples"
 )
 
@@ -126,4 +147,5 @@ println("\nThis page includes:")
 println("  • Simple single-group distribution")
 println("  • Multiple groups comparison")
 println("  • Interactive filters (numeric and categorical)")
+println("  • Multiple value and group columns with dropdowns")
 println("  • Customized appearance options")

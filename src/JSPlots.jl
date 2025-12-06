@@ -19,6 +19,9 @@ module JSPlots
     include("distplot.jl")
     export DistPlot
 
+    include("kerneldensity.jl")
+    export KernelDensity
+
     include("textblock.jl")
     export TextBlock
 

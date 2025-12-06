@@ -262,26 +262,16 @@ $(function(){
             const POINT_SYMBOLS = ["circle","square","diamond","cross","x","triangle-up","triangle-down","triangle-left","triangle-right","pentagon","hexagon","star"];
             const DEFAULT_X_COL = 'mass';
             const DEFAULT_Y_COL = 'height';
-            const DEFAULT_COLOR_COL = 'color';
-            const DEFAULT_POINTTYPE_COL = 'color';
-            const DEFAULT_POINTSIZE_COL = 'color';
+            const DEFAULT_COLOR_COL = 'gender';
 
             const getCol = (id, def) => { const el = document.getElementById(id); return el ? el.value : def; };
             const buildSymbolMap = (data, col) => {
                 const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
                 return Object.fromEntries(uniqueVals.map((val, i) => [val, POINT_SYMBOLS[i % POINT_SYMBOLS.length]]));
             };
-            const buildSizeMap = (data, col) => {
-                const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
-                if (uniqueVals.length === 1) return {[uniqueVals[0]]: 4};
-                return Object.fromEntries(uniqueVals.map((val, i) =>
-                    [val, 4 + (4 * 2) * i / (uniqueVals.length - 1)]
-                ));
-            };
 
-            function createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis='x', yaxis='y', showlegend=true) {
-                const symbolMap = buildSymbolMap(data, POINTTYPE_COL);
-                const sizeMap = buildSizeMap(data, POINTSIZE_COL);
+            function createTraces(data, X_COL, Y_COL, COLOR_COL, xaxis='x', yaxis='y', showlegend=true) {
+                const symbolMap = buildSymbolMap(data, COLOR_COL);
                 const groups = {};
                 data.forEach(row => {
                     const key = row[COLOR_COL];
@@ -299,16 +289,16 @@ $(function(){
                     xaxis: xaxis,
                     yaxis: yaxis,
                     marker: {
-                        size: groupData.map(d => sizeMap[d[POINTSIZE_COL]]),
+                        size: 4,
                         opacity: 0.6,
-                        symbol: groupData.map(d => symbolMap[d[POINTTYPE_COL]])
+                        symbol: groupData.map(d => symbolMap[d[COLOR_COL]])
                     },
                     type: 'scatter'
                 }));
             }
 
-            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL) {
-                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL) {
+                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL);
 
                 if (window.showDensity_multi_dim) {
                     traces.push({
@@ -333,7 +323,7 @@ $(function(){
                 }, {responsive: true});
             }
 
-            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET_COL) {
+            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET_COL) {
                 const facetValues = [...new Set(data.map(row => row[FACET_COL]))].sort();
                 const nFacets = facetValues.length, cols = Math.ceil(Math.sqrt(nFacets)), rows = Math.ceil(nFacets / cols);
                 const traces = [];
@@ -342,7 +332,7 @@ $(function(){
                     const facetData = data.filter(row => row[FACET_COL] === facetVal);
                     const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                     const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                     if (window.showDensity_multi_dim) {
                         traces.push({
@@ -371,7 +361,7 @@ $(function(){
                 Plotly.newPlot('multi_dim', traces, layout, {responsive: true});
             }
 
-            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1_COL, FACET2_COL) {
+            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1_COL, FACET2_COL) {
                 const facet1Values = [...new Set(data.map(row => row[FACET1_COL]))].sort();
                 const facet2Values = [...new Set(data.map(row => row[FACET2_COL]))].sort();
                 const rows = facet1Values.length, cols = facet2Values.length;
@@ -385,7 +375,7 @@ $(function(){
                         const idx = rowIdx * cols + colIdx;
                         const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                         const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                         if (window.showDensity_multi_dim) {
                             traces.push({
@@ -429,8 +419,6 @@ $(function(){
                 const X_COL = getCol('x_col_select_multi_dim', DEFAULT_X_COL);
                 const Y_COL = getCol('y_col_select_multi_dim', DEFAULT_Y_COL);
                 const COLOR_COL = getCol('color_col_select_multi_dim', DEFAULT_COLOR_COL);
-                const POINTTYPE_COL = getCol('pointtype_col_select_multi_dim', DEFAULT_POINTTYPE_COL);
-                const POINTSIZE_COL = getCol('pointsize_col_select_multi_dim', DEFAULT_POINTSIZE_COL);
 
                 let FACET1 = getCol('facet1_select_multi_dim', null);
                 let FACET2 = getCol('facet2_select_multi_dim', null);
@@ -438,11 +426,11 @@ $(function(){
                 if (FACET2 === 'None') FACET2 = null;
 
                 if (FACET1 && FACET2) {
-                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1, FACET2);
+                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1, FACET2);
                 } else if (FACET1) {
-                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1);
+                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET1);
                 } else {
-                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL);
                 }
             }
 
@@ -470,25 +458,15 @@ $(function(){
             const DEFAULT_X_COL = 'x';
             const DEFAULT_Y_COL = 'y';
             const DEFAULT_COLOR_COL = 'region';
-            const DEFAULT_POINTTYPE_COL = 'region';
-            const DEFAULT_POINTSIZE_COL = 'region';
 
             const getCol = (id, def) => { const el = document.getElementById(id); return el ? el.value : def; };
             const buildSymbolMap = (data, col) => {
                 const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
                 return Object.fromEntries(uniqueVals.map((val, i) => [val, POINT_SYMBOLS[i % POINT_SYMBOLS.length]]));
             };
-            const buildSizeMap = (data, col) => {
-                const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
-                if (uniqueVals.length === 1) return {[uniqueVals[0]]: 4};
-                return Object.fromEntries(uniqueVals.map((val, i) =>
-                    [val, 4 + (4 * 2) * i / (uniqueVals.length - 1)]
-                ));
-            };
 
-            function createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis='x', yaxis='y', showlegend=true) {
-                const symbolMap = buildSymbolMap(data, POINTTYPE_COL);
-                const sizeMap = buildSizeMap(data, POINTSIZE_COL);
+            function createTraces(data, X_COL, Y_COL, COLOR_COL, xaxis='x', yaxis='y', showlegend=true) {
+                const symbolMap = buildSymbolMap(data, COLOR_COL);
                 const groups = {};
                 data.forEach(row => {
                     const key = row[COLOR_COL];
@@ -506,16 +484,16 @@ $(function(){
                     xaxis: xaxis,
                     yaxis: yaxis,
                     marker: {
-                        size: groupData.map(d => sizeMap[d[POINTSIZE_COL]]),
+                        size: 4,
                         opacity: 0.6,
-                        symbol: groupData.map(d => symbolMap[d[POINTTYPE_COL]])
+                        symbol: groupData.map(d => symbolMap[d[COLOR_COL]])
                     },
                     type: 'scatter'
                 }));
             }
 
-            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL) {
-                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL) {
+                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL);
 
                 if (window.showDensity_multi_style) {
                     traces.push({
@@ -540,7 +518,7 @@ $(function(){
                 }, {responsive: true});
             }
 
-            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET_COL) {
+            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET_COL) {
                 const facetValues = [...new Set(data.map(row => row[FACET_COL]))].sort();
                 const nFacets = facetValues.length, cols = Math.ceil(Math.sqrt(nFacets)), rows = Math.ceil(nFacets / cols);
                 const traces = [];
@@ -549,7 +527,7 @@ $(function(){
                     const facetData = data.filter(row => row[FACET_COL] === facetVal);
                     const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                     const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                     if (window.showDensity_multi_style) {
                         traces.push({
@@ -578,7 +556,7 @@ $(function(){
                 Plotly.newPlot('multi_style', traces, layout, {responsive: true});
             }
 
-            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1_COL, FACET2_COL) {
+            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1_COL, FACET2_COL) {
                 const facet1Values = [...new Set(data.map(row => row[FACET1_COL]))].sort();
                 const facet2Values = [...new Set(data.map(row => row[FACET2_COL]))].sort();
                 const rows = facet1Values.length, cols = facet2Values.length;
@@ -592,7 +570,7 @@ $(function(){
                         const idx = rowIdx * cols + colIdx;
                         const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                         const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                         if (window.showDensity_multi_style) {
                             traces.push({
@@ -636,8 +614,6 @@ $(function(){
                 const X_COL = getCol('x_col_select_multi_style', DEFAULT_X_COL);
                 const Y_COL = getCol('y_col_select_multi_style', DEFAULT_Y_COL);
                 const COLOR_COL = getCol('color_col_select_multi_style', DEFAULT_COLOR_COL);
-                const POINTTYPE_COL = getCol('pointtype_col_select_multi_style', DEFAULT_POINTTYPE_COL);
-                const POINTSIZE_COL = getCol('pointsize_col_select_multi_style', DEFAULT_POINTSIZE_COL);
 
                 let FACET1 = getCol('facet1_select_multi_style', null);
                 let FACET2 = getCol('facet2_select_multi_style', null);
@@ -645,11 +621,11 @@ $(function(){
                 if (FACET2 === 'None') FACET2 = null;
 
                 if (FACET1 && FACET2) {
-                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1, FACET2);
+                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1, FACET2);
                 } else if (FACET1) {
-                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1);
+                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET1);
                 } else {
-                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL);
                 }
             }
 
@@ -676,26 +652,16 @@ $(function(){
             const POINT_SYMBOLS = ["circle","square","diamond","cross","x","triangle-up","triangle-down","triangle-left","triangle-right","pentagon","hexagon","star"];
             const DEFAULT_X_COL = 'temperature';
             const DEFAULT_Y_COL = 'humidity';
-            const DEFAULT_COLOR_COL = 'color';
-            const DEFAULT_POINTTYPE_COL = 'color';
-            const DEFAULT_POINTSIZE_COL = 'color';
+            const DEFAULT_COLOR_COL = 'location';
 
             const getCol = (id, def) => { const el = document.getElementById(id); return el ? el.value : def; };
             const buildSymbolMap = (data, col) => {
                 const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
                 return Object.fromEntries(uniqueVals.map((val, i) => [val, POINT_SYMBOLS[i % POINT_SYMBOLS.length]]));
             };
-            const buildSizeMap = (data, col) => {
-                const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
-                if (uniqueVals.length === 1) return {[uniqueVals[0]]: 4};
-                return Object.fromEntries(uniqueVals.map((val, i) =>
-                    [val, 4 + (4 * 2) * i / (uniqueVals.length - 1)]
-                ));
-            };
 
-            function createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis='x', yaxis='y', showlegend=true) {
-                const symbolMap = buildSymbolMap(data, POINTTYPE_COL);
-                const sizeMap = buildSizeMap(data, POINTSIZE_COL);
+            function createTraces(data, X_COL, Y_COL, COLOR_COL, xaxis='x', yaxis='y', showlegend=true) {
+                const symbolMap = buildSymbolMap(data, COLOR_COL);
                 const groups = {};
                 data.forEach(row => {
                     const key = row[COLOR_COL];
@@ -713,16 +679,16 @@ $(function(){
                     xaxis: xaxis,
                     yaxis: yaxis,
                     marker: {
-                        size: groupData.map(d => sizeMap[d[POINTSIZE_COL]]),
+                        size: 4,
                         opacity: 0.6,
-                        symbol: groupData.map(d => symbolMap[d[POINTTYPE_COL]])
+                        symbol: groupData.map(d => symbolMap[d[COLOR_COL]])
                     },
                     type: 'scatter'
                 }));
             }
 
-            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL) {
-                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL) {
+                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL);
 
                 if (window.showDensity_facet_single) {
                     traces.push({
@@ -747,7 +713,7 @@ $(function(){
                 }, {responsive: true});
             }
 
-            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET_COL) {
+            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET_COL) {
                 const facetValues = [...new Set(data.map(row => row[FACET_COL]))].sort();
                 const nFacets = facetValues.length, cols = Math.ceil(Math.sqrt(nFacets)), rows = Math.ceil(nFacets / cols);
                 const traces = [];
@@ -756,7 +722,7 @@ $(function(){
                     const facetData = data.filter(row => row[FACET_COL] === facetVal);
                     const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                     const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                     if (window.showDensity_facet_single) {
                         traces.push({
@@ -785,7 +751,7 @@ $(function(){
                 Plotly.newPlot('facet_single', traces, layout, {responsive: true});
             }
 
-            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1_COL, FACET2_COL) {
+            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1_COL, FACET2_COL) {
                 const facet1Values = [...new Set(data.map(row => row[FACET1_COL]))].sort();
                 const facet2Values = [...new Set(data.map(row => row[FACET2_COL]))].sort();
                 const rows = facet1Values.length, cols = facet2Values.length;
@@ -799,7 +765,7 @@ $(function(){
                         const idx = rowIdx * cols + colIdx;
                         const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                         const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                         if (window.showDensity_facet_single) {
                             traces.push({
@@ -843,8 +809,6 @@ $(function(){
                 const X_COL = getCol('x_col_select_facet_single', DEFAULT_X_COL);
                 const Y_COL = getCol('y_col_select_facet_single', DEFAULT_Y_COL);
                 const COLOR_COL = getCol('color_col_select_facet_single', DEFAULT_COLOR_COL);
-                const POINTTYPE_COL = getCol('pointtype_col_select_facet_single', DEFAULT_POINTTYPE_COL);
-                const POINTSIZE_COL = getCol('pointsize_col_select_facet_single', DEFAULT_POINTSIZE_COL);
 
                 let FACET1 = getCol('facet1_select_facet_single', null);
                 let FACET2 = getCol('facet2_select_facet_single', null);
@@ -852,11 +816,11 @@ $(function(){
                 if (FACET2 === 'None') FACET2 = null;
 
                 if (FACET1 && FACET2) {
-                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1, FACET2);
+                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1, FACET2);
                 } else if (FACET1) {
-                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1);
+                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET1);
                 } else {
-                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL);
                 }
             }
 
@@ -883,26 +847,16 @@ $(function(){
             const POINT_SYMBOLS = ["circle","square","diamond","cross","x","triangle-up","triangle-down","triangle-left","triangle-right","pentagon","hexagon","star"];
             const DEFAULT_X_COL = 'score1';
             const DEFAULT_Y_COL = 'score2';
-            const DEFAULT_COLOR_COL = 'color';
-            const DEFAULT_POINTTYPE_COL = 'color';
-            const DEFAULT_POINTSIZE_COL = 'color';
+            const DEFAULT_COLOR_COL = 'performance';
 
             const getCol = (id, def) => { const el = document.getElementById(id); return el ? el.value : def; };
             const buildSymbolMap = (data, col) => {
                 const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
                 return Object.fromEntries(uniqueVals.map((val, i) => [val, POINT_SYMBOLS[i % POINT_SYMBOLS.length]]));
             };
-            const buildSizeMap = (data, col) => {
-                const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
-                if (uniqueVals.length === 1) return {[uniqueVals[0]]: 4};
-                return Object.fromEntries(uniqueVals.map((val, i) =>
-                    [val, 4 + (4 * 2) * i / (uniqueVals.length - 1)]
-                ));
-            };
 
-            function createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis='x', yaxis='y', showlegend=true) {
-                const symbolMap = buildSymbolMap(data, POINTTYPE_COL);
-                const sizeMap = buildSizeMap(data, POINTSIZE_COL);
+            function createTraces(data, X_COL, Y_COL, COLOR_COL, xaxis='x', yaxis='y', showlegend=true) {
+                const symbolMap = buildSymbolMap(data, COLOR_COL);
                 const groups = {};
                 data.forEach(row => {
                     const key = row[COLOR_COL];
@@ -920,16 +874,16 @@ $(function(){
                     xaxis: xaxis,
                     yaxis: yaxis,
                     marker: {
-                        size: groupData.map(d => sizeMap[d[POINTSIZE_COL]]),
+                        size: 4,
                         opacity: 0.6,
-                        symbol: groupData.map(d => symbolMap[d[POINTTYPE_COL]])
+                        symbol: groupData.map(d => symbolMap[d[COLOR_COL]])
                     },
                     type: 'scatter'
                 }));
             }
 
-            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL) {
-                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL) {
+                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL);
 
                 if (window.showDensity_facet_grid) {
                     traces.push({
@@ -954,7 +908,7 @@ $(function(){
                 }, {responsive: true});
             }
 
-            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET_COL) {
+            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET_COL) {
                 const facetValues = [...new Set(data.map(row => row[FACET_COL]))].sort();
                 const nFacets = facetValues.length, cols = Math.ceil(Math.sqrt(nFacets)), rows = Math.ceil(nFacets / cols);
                 const traces = [];
@@ -963,7 +917,7 @@ $(function(){
                     const facetData = data.filter(row => row[FACET_COL] === facetVal);
                     const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                     const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                     if (window.showDensity_facet_grid) {
                         traces.push({
@@ -992,7 +946,7 @@ $(function(){
                 Plotly.newPlot('facet_grid', traces, layout, {responsive: true});
             }
 
-            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1_COL, FACET2_COL) {
+            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1_COL, FACET2_COL) {
                 const facet1Values = [...new Set(data.map(row => row[FACET1_COL]))].sort();
                 const facet2Values = [...new Set(data.map(row => row[FACET2_COL]))].sort();
                 const rows = facet1Values.length, cols = facet2Values.length;
@@ -1006,7 +960,7 @@ $(function(){
                         const idx = rowIdx * cols + colIdx;
                         const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                         const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                         if (window.showDensity_facet_grid) {
                             traces.push({
@@ -1050,8 +1004,6 @@ $(function(){
                 const X_COL = getCol('x_col_select_facet_grid', DEFAULT_X_COL);
                 const Y_COL = getCol('y_col_select_facet_grid', DEFAULT_Y_COL);
                 const COLOR_COL = getCol('color_col_select_facet_grid', DEFAULT_COLOR_COL);
-                const POINTTYPE_COL = getCol('pointtype_col_select_facet_grid', DEFAULT_POINTTYPE_COL);
-                const POINTSIZE_COL = getCol('pointsize_col_select_facet_grid', DEFAULT_POINTSIZE_COL);
 
                 let FACET1 = getCol('facet1_select_facet_grid', null);
                 let FACET2 = getCol('facet2_select_facet_grid', null);
@@ -1059,11 +1011,11 @@ $(function(){
                 if (FACET2 === 'None') FACET2 = null;
 
                 if (FACET1 && FACET2) {
-                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1, FACET2);
+                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1, FACET2);
                 } else if (FACET1) {
-                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1);
+                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET1);
                 } else {
-                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL);
                 }
             }
 
@@ -1091,25 +1043,15 @@ $(function(){
             const DEFAULT_X_COL = 'var1';
             const DEFAULT_Y_COL = 'var2';
             const DEFAULT_COLOR_COL = 'group_A';
-            const DEFAULT_POINTTYPE_COL = 'group_A';
-            const DEFAULT_POINTSIZE_COL = 'group_A';
 
             const getCol = (id, def) => { const el = document.getElementById(id); return el ? el.value : def; };
             const buildSymbolMap = (data, col) => {
                 const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
                 return Object.fromEntries(uniqueVals.map((val, i) => [val, POINT_SYMBOLS[i % POINT_SYMBOLS.length]]));
             };
-            const buildSizeMap = (data, col) => {
-                const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
-                if (uniqueVals.length === 1) return {[uniqueVals[0]]: 4};
-                return Object.fromEntries(uniqueVals.map((val, i) =>
-                    [val, 4 + (4 * 2) * i / (uniqueVals.length - 1)]
-                ));
-            };
 
-            function createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis='x', yaxis='y', showlegend=true) {
-                const symbolMap = buildSymbolMap(data, POINTTYPE_COL);
-                const sizeMap = buildSizeMap(data, POINTSIZE_COL);
+            function createTraces(data, X_COL, Y_COL, COLOR_COL, xaxis='x', yaxis='y', showlegend=true) {
+                const symbolMap = buildSymbolMap(data, COLOR_COL);
                 const groups = {};
                 data.forEach(row => {
                     const key = row[COLOR_COL];
@@ -1127,16 +1069,16 @@ $(function(){
                     xaxis: xaxis,
                     yaxis: yaxis,
                     marker: {
-                        size: groupData.map(d => sizeMap[d[POINTSIZE_COL]]),
+                        size: 4,
                         opacity: 0.6,
-                        symbol: groupData.map(d => symbolMap[d[POINTTYPE_COL]])
+                        symbol: groupData.map(d => symbolMap[d[COLOR_COL]])
                     },
                     type: 'scatter'
                 }));
             }
 
-            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL) {
-                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL) {
+                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL);
 
                 if (window.showDensity_complex) {
                     traces.push({
@@ -1161,7 +1103,7 @@ $(function(){
                 }, {responsive: true});
             }
 
-            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET_COL) {
+            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET_COL) {
                 const facetValues = [...new Set(data.map(row => row[FACET_COL]))].sort();
                 const nFacets = facetValues.length, cols = Math.ceil(Math.sqrt(nFacets)), rows = Math.ceil(nFacets / cols);
                 const traces = [];
@@ -1170,7 +1112,7 @@ $(function(){
                     const facetData = data.filter(row => row[FACET_COL] === facetVal);
                     const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                     const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                     if (window.showDensity_complex) {
                         traces.push({
@@ -1199,7 +1141,7 @@ $(function(){
                 Plotly.newPlot('complex', traces, layout, {responsive: true});
             }
 
-            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1_COL, FACET2_COL) {
+            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1_COL, FACET2_COL) {
                 const facet1Values = [...new Set(data.map(row => row[FACET1_COL]))].sort();
                 const facet2Values = [...new Set(data.map(row => row[FACET2_COL]))].sort();
                 const rows = facet1Values.length, cols = facet2Values.length;
@@ -1213,7 +1155,7 @@ $(function(){
                         const idx = rowIdx * cols + colIdx;
                         const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                         const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                         if (window.showDensity_complex) {
                             traces.push({
@@ -1257,8 +1199,6 @@ $(function(){
                 const X_COL = getCol('x_col_select_complex', DEFAULT_X_COL);
                 const Y_COL = getCol('y_col_select_complex', DEFAULT_Y_COL);
                 const COLOR_COL = getCol('color_col_select_complex', DEFAULT_COLOR_COL);
-                const POINTTYPE_COL = getCol('pointtype_col_select_complex', DEFAULT_POINTTYPE_COL);
-                const POINTSIZE_COL = getCol('pointsize_col_select_complex', DEFAULT_POINTSIZE_COL);
 
                 let FACET1 = getCol('facet1_select_complex', null);
                 let FACET2 = getCol('facet2_select_complex', null);
@@ -1266,11 +1206,11 @@ $(function(){
                 if (FACET2 === 'None') FACET2 = null;
 
                 if (FACET1 && FACET2) {
-                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1, FACET2);
+                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1, FACET2);
                 } else if (FACET1) {
-                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1);
+                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET1);
                 } else {
-                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL);
                 }
             }
 
@@ -1298,25 +1238,15 @@ $(function(){
             const DEFAULT_X_COL = 'value1';
             const DEFAULT_Y_COL = 'value2';
             const DEFAULT_COLOR_COL = 'portfolio';
-            const DEFAULT_POINTTYPE_COL = 'portfolio';
-            const DEFAULT_POINTSIZE_COL = 'portfolio';
 
             const getCol = (id, def) => { const el = document.getElementById(id); return el ? el.value : def; };
             const buildSymbolMap = (data, col) => {
                 const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
                 return Object.fromEntries(uniqueVals.map((val, i) => [val, POINT_SYMBOLS[i % POINT_SYMBOLS.length]]));
             };
-            const buildSizeMap = (data, col) => {
-                const uniqueVals = [...new Set(data.map(row => row[col]))].sort();
-                if (uniqueVals.length === 1) return {[uniqueVals[0]]: 4};
-                return Object.fromEntries(uniqueVals.map((val, i) =>
-                    [val, 4 + (4 * 2) * i / (uniqueVals.length - 1)]
-                ));
-            };
 
-            function createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis='x', yaxis='y', showlegend=true) {
-                const symbolMap = buildSymbolMap(data, POINTTYPE_COL);
-                const sizeMap = buildSizeMap(data, POINTSIZE_COL);
+            function createTraces(data, X_COL, Y_COL, COLOR_COL, xaxis='x', yaxis='y', showlegend=true) {
+                const symbolMap = buildSymbolMap(data, COLOR_COL);
                 const groups = {};
                 data.forEach(row => {
                     const key = row[COLOR_COL];
@@ -1334,16 +1264,16 @@ $(function(){
                     xaxis: xaxis,
                     yaxis: yaxis,
                     marker: {
-                        size: groupData.map(d => sizeMap[d[POINTSIZE_COL]]),
+                        size: 4,
                         opacity: 0.6,
-                        symbol: groupData.map(d => symbolMap[d[POINTTYPE_COL]])
+                        symbol: groupData.map(d => symbolMap[d[COLOR_COL]])
                     },
                     type: 'scatter'
                 }));
             }
 
-            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL) {
-                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+            function renderNoFacets(data, X_COL, Y_COL, COLOR_COL) {
+                const traces = createTraces(data, X_COL, Y_COL, COLOR_COL);
 
                 if (window.showDensity_timeseries) {
                     traces.push({
@@ -1368,7 +1298,7 @@ $(function(){
                 }, {responsive: true});
             }
 
-            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET_COL) {
+            function renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET_COL) {
                 const facetValues = [...new Set(data.map(row => row[FACET_COL]))].sort();
                 const nFacets = facetValues.length, cols = Math.ceil(Math.sqrt(nFacets)), rows = Math.ceil(nFacets / cols);
                 const traces = [];
@@ -1377,7 +1307,7 @@ $(function(){
                     const facetData = data.filter(row => row[FACET_COL] === facetVal);
                     const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                     const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                    traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                     if (window.showDensity_timeseries) {
                         traces.push({
@@ -1406,7 +1336,7 @@ $(function(){
                 Plotly.newPlot('timeseries', traces, layout, {responsive: true});
             }
 
-            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1_COL, FACET2_COL) {
+            function renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1_COL, FACET2_COL) {
                 const facet1Values = [...new Set(data.map(row => row[FACET1_COL]))].sort();
                 const facet2Values = [...new Set(data.map(row => row[FACET2_COL]))].sort();
                 const rows = facet1Values.length, cols = facet2Values.length;
@@ -1420,7 +1350,7 @@ $(function(){
                         const idx = rowIdx * cols + colIdx;
                         const xaxis = idx === 0 ? 'x' : 'x' + (idx + 1);
                         const yaxis = idx === 0 ? 'y' : 'y' + (idx + 1);
-                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, xaxis, yaxis, idx === 0));
+                        traces.push(...createTraces(facetData, X_COL, Y_COL, COLOR_COL, xaxis, yaxis, idx === 0));
 
                         if (window.showDensity_timeseries) {
                             traces.push({
@@ -1464,8 +1394,6 @@ $(function(){
                 const X_COL = getCol('x_col_select_timeseries', DEFAULT_X_COL);
                 const Y_COL = getCol('y_col_select_timeseries', DEFAULT_Y_COL);
                 const COLOR_COL = getCol('color_col_select_timeseries', DEFAULT_COLOR_COL);
-                const POINTTYPE_COL = getCol('pointtype_col_select_timeseries', DEFAULT_POINTTYPE_COL);
-                const POINTSIZE_COL = getCol('pointsize_col_select_timeseries', DEFAULT_POINTSIZE_COL);
 
                 let FACET1 = getCol('facet1_select_timeseries', null);
                 let FACET2 = getCol('facet2_select_timeseries', null);
@@ -1473,11 +1401,11 @@ $(function(){
                 if (FACET2 === 'None') FACET2 = null;
 
                 if (FACET1 && FACET2) {
-                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1, FACET2);
+                    renderFacetGrid(data, X_COL, Y_COL, COLOR_COL, FACET1, FACET2);
                 } else if (FACET1) {
-                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL, FACET1);
+                    renderFacetWrap(data, X_COL, Y_COL, COLOR_COL, FACET1);
                 } else {
-                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL, POINTTYPE_COL, POINTSIZE_COL);
+                    renderNoFacets(data, X_COL, Y_COL, COLOR_COL);
                 }
             }
 
@@ -1556,8 +1484,8 @@ $(function(){
                             <div style="display: flex; gap: 5px; align-items: center;">
                     <label for="y_col_select_multi_dim">Y:</label>
                     <select id="y_col_select_multi_dim" onchange="updateChart_multi_dim()">
-                    <option value="mass" selected>mass</option>
-                    <option value="height">height</option>
+                    <option value="mass">mass</option>
+                    <option value="height" selected>height</option>
                     <option value="age">age</option>
                     <option value="bmi">bmi</option>                </select>
                 </div>
@@ -1570,7 +1498,7 @@ $(function(){
 <hr>
 <br>
 <h2>Multiple Styling Options</h2>
-<p>Use the Color, Point type, and Point size dropdowns to change visual encoding. Try different combinations to highlight different aspects of the data.</p>
+<p>Use the Color dropdown to change visual encoding. Try different combinations to highlight different aspects of the data.</p>
 
 
 <div style="margin: 10px 0;">
@@ -1588,30 +1516,16 @@ $(function(){
                             <div style="display: flex; gap: 5px; align-items: center;">
                     <label for="y_col_select_multi_style">Y:</label>
                     <select id="y_col_select_multi_style" onchange="updateChart_multi_style()">
-                    <option value="x" selected>x</option>
-                    <option value="y">y</option>                </select>
+                    <option value="x">x</option>
+                    <option value="y" selected>y</option>                </select>
                 </div>
                     </div>
 <div style="margin: 10px 0; display: flex; gap: 20px; align-items: center;">
                 <div style="display: flex; gap: 5px; align-items: center;">
-                    <label for="color_col_select_multi_style">Color:</label>
+                    <label for="color_col_select_multi_style">Color/Point type:</label>
                     <select id="color_col_select_multi_style" onchange="updateChart_multi_style()">
                     <option value="region" selected>region</option>
                     <option value="category">category</option>
-                    <option value="priority">priority</option>                </select>
-                </div>
-                            <div style="display: flex; gap: 5px; align-items: center;">
-                    <label for="pointtype_col_select_multi_style">Point type:</label>
-                    <select id="pointtype_col_select_multi_style" onchange="updateChart_multi_style()">
-                    <option value="region" selected>region</option>
-                    <option value="category">category</option>
-                    <option value="priority">priority</option>                </select>
-                </div>
-                            <div style="display: flex; gap: 5px; align-items: center;">
-                    <label for="pointsize_col_select_multi_style">Point size:</label>
-                    <select id="pointsize_col_select_multi_style" onchange="updateChart_multi_style()">
-                    <option value="region" selected>region</option>
-                    <option value="size_group">size_group</option>
                     <option value="priority">priority</option>                </select>
                 </div>
                     </div>
@@ -1641,8 +1555,8 @@ $(function(){
                             <div style="display: flex; gap: 5px; align-items: center;">
                     <label for="y_col_select_facet_single">Y:</label>
                     <select id="y_col_select_facet_single" onchange="updateChart_facet_single()">
-                    <option value="temperature" selected>temperature</option>
-                    <option value="humidity">humidity</option>                </select>
+                    <option value="temperature">temperature</option>
+                    <option value="humidity" selected>humidity</option>                </select>
                 </div>
                     </div>
             <div style="margin: 10px 0; display: flex; gap: 20px; align-items: center;">
@@ -1687,8 +1601,8 @@ $(function(){
                             <div style="display: flex; gap: 5px; align-items: center;">
                     <label for="y_col_select_facet_grid">Y:</label>
                     <select id="y_col_select_facet_grid" onchange="updateChart_facet_grid()">
-                    <option value="score1" selected>score1</option>
-                    <option value="score2">score2</option>                </select>
+                    <option value="score1">score1</option>
+                    <option value="score2" selected>score2</option>                </select>
                 </div>
                     </div>
             <div style="margin: 10px 0; display: flex; gap: 20px; align-items: center;">
@@ -1717,7 +1631,7 @@ $(function(){
 <hr>
 <br>
 <h2>Complex Multi-Dimensional Exploration</h2>
-<p>Demonstrates all features together: 4 dimensions for X/Y axes, multiple color/shape/size options, and faceting. Explore different combinations to find interesting patterns.</p>
+<p>Demonstrates all features together: 4 dimensions for X/Y axes, multiple color options, and faceting. Explore different combinations to find interesting patterns.</p>
 
 
 <div style="margin: 10px 0;">
@@ -1737,32 +1651,19 @@ $(function(){
                             <div style="display: flex; gap: 5px; align-items: center;">
                     <label for="y_col_select_complex">Y:</label>
                     <select id="y_col_select_complex" onchange="updateChart_complex()">
-                    <option value="var1" selected>var1</option>
-                    <option value="var2">var2</option>
+                    <option value="var1">var1</option>
+                    <option value="var2" selected>var2</option>
                     <option value="var3">var3</option>
                     <option value="var4">var4</option>                </select>
                 </div>
                     </div>
 <div style="margin: 10px 0; display: flex; gap: 20px; align-items: center;">
                 <div style="display: flex; gap: 5px; align-items: center;">
-                    <label for="color_col_select_complex">Color:</label>
+                    <label for="color_col_select_complex">Color/Point type:</label>
                     <select id="color_col_select_complex" onchange="updateChart_complex()">
                     <option value="group_A" selected>group_A</option>
                     <option value="group_B">group_B</option>
                     <option value="group_C">group_C</option>                </select>
-                </div>
-                            <div style="display: flex; gap: 5px; align-items: center;">
-                    <label for="pointtype_col_select_complex">Point type:</label>
-                    <select id="pointtype_col_select_complex" onchange="updateChart_complex()">
-                    <option value="group_A" selected>group_A</option>
-                    <option value="group_B">group_B</option>
-                    <option value="intensity">intensity</option>                </select>
-                </div>
-                            <div style="display: flex; gap: 5px; align-items: center;">
-                    <label for="pointsize_col_select_complex">Point size:</label>
-                    <select id="pointsize_col_select_complex" onchange="updateChart_complex()">
-                    <option value="group_A" selected>group_A</option>
-                    <option value="intensity">intensity</option>                </select>
                 </div>
                     </div>
             <div style="margin: 10px 0; display: flex; gap: 20px; align-items: center;">
@@ -1789,7 +1690,7 @@ $(function(){
 <hr>
 <br>
 <h2>Time Series Scatter with Filters</h2>
-<p>Use date range slider and quarter filter to focus on specific time periods. Switch between viewing by portfolio or as aggregate using the color dropdown.</p>
+<p>Use date range slider and quarter filter to focus on specific time periods. Points are colored by portfolio to show different investment trajectories.</p>
 
 <div style="margin: 20px 0;">
     <label>Filter by date: </label>
@@ -1820,28 +1721,8 @@ $(function(){
                             <div style="display: flex; gap: 5px; align-items: center;">
                     <label for="y_col_select_timeseries">Y:</label>
                     <select id="y_col_select_timeseries" onchange="updateChart_timeseries()">
-                    <option value="value1" selected>value1</option>
-                    <option value="value2">value2</option>                </select>
-                </div>
-                    </div>
-<div style="margin: 10px 0; display: flex; gap: 20px; align-items: center;">
-                <div style="display: flex; gap: 5px; align-items: center;">
-                    <label for="color_col_select_timeseries">Color:</label>
-                    <select id="color_col_select_timeseries" onchange="updateChart_timeseries()">
-                    <option value="portfolio" selected>portfolio</option>
-                    <option value="color">color</option>                </select>
-                </div>
-                            <div style="display: flex; gap: 5px; align-items: center;">
-                    <label for="pointtype_col_select_timeseries">Point type:</label>
-                    <select id="pointtype_col_select_timeseries" onchange="updateChart_timeseries()">
-                    <option value="portfolio" selected>portfolio</option>
-                    <option value="color">color</option>                </select>
-                </div>
-                            <div style="display: flex; gap: 5px; align-items: center;">
-                    <label for="pointsize_col_select_timeseries">Point size:</label>
-                    <select id="pointsize_col_select_timeseries" onchange="updateChart_timeseries()">
-                    <option value="portfolio" selected>portfolio</option>
-                    <option value="color">color</option>                </select>
+                    <option value="value1">value1</option>
+                    <option value="value2" selected>value2</option>                </select>
                 </div>
                     </div>
 

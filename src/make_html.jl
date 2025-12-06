@@ -608,6 +608,15 @@ function create_html(pt::JSPlotPage, outfile_path::String="pivottable.html")
                 # Add picture attribution
                 table_bit *= "<br>" * generate_picture_attribution(pti.image_path)
                 # Picture has no functional HTML
+            elseif isa(pti, TextBlock)
+                # Generate TextBlock HTML, handling images if present
+                if !isempty(pti.images)
+                    table_bit *= sp * generate_textblock_html(pti, pt.dataformat, project_dir)
+                else
+                    # No images, use original appearance_html for backward compatibility
+                    table_bit *= sp * replace(TEXTBLOCK_TEMPLATE, "___HTML_CONTENT___" => pti.html_content)
+                end
+                # TextBlock has no functional HTML
             elseif isa(pti, Table)
                 functional_bit *= pti.functional_html
                 table_bit *= sp * pti.appearance_html
@@ -681,6 +690,15 @@ function create_html(pt::JSPlotPage, outfile_path::String="pivottable.html")
                 # Add picture attribution
                 table_bit *= "<br>" * generate_picture_attribution(pti.image_path)
                 # Picture has no functional HTML
+            elseif isa(pti, TextBlock)
+                # Generate TextBlock HTML, handling images if present
+                if !isempty(pti.images)
+                    table_bit *= sp * generate_textblock_html(pti, pt.dataformat, "")
+                else
+                    # No images, use original template for backward compatibility
+                    table_bit *= sp * replace(TEXTBLOCK_TEMPLATE, "___HTML_CONTENT___" => pti.html_content)
+                end
+                # TextBlock has no functional HTML
             elseif isa(pti, Table)
                 functional_bit *= pti.functional_html
                 table_bit *= sp * pti.appearance_html

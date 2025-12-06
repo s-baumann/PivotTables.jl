@@ -103,12 +103,106 @@ const TEXTBLOCK_STYLE = raw"""
 
 struct TextBlock <: JSPlotsType
     html_content::String
+    images::Dict{String, String}  # Map image IDs to file paths
     appearance_html::String
     functional_html::String  # Empty for TextBlock, but needed for consistency
+end
 
-    function TextBlock(html_content::String)
-        appearance_html = replace(TEXTBLOCK_TEMPLATE, "___HTML_CONTENT___" => html_content)
-        functional_html = ""  # TextBlock doesn't need any JavaScript
-        new(html_content, appearance_html, functional_html)
+# Constructor with optional images parameter (default empty dict for backward compatibility)
+function TextBlock(html_content::String, images::Dict{String, String}=Dict{String, String}())
+    # Validate that all image files exist
+    for (id, path) in images
+        if !isfile(path)
+            error("Image file not found for ID '$id': $path")
+        end
     end
+
+    # For TextBlocks without images, populate appearance_html for backward compatibility
+    # For TextBlocks with images, appearance_html will be generated during create_html
+    appearance_html = if isempty(images)
+        replace(TEXTBLOCK_TEMPLATE, "___HTML_CONTENT___" => html_content)
+    else
+        ""  # Will be filled in generate_textblock_html
+    end
+    functional_html = ""  # TextBlock doesn't need any JavaScript
+    TextBlock(html_content, images, appearance_html, functional_html)
+end
+
+"""
+    generate_textblock_html(tb::TextBlock, dataformat::Symbol, project_dir::String="")
+
+Generate HTML for a TextBlock, handling embedded images.
+
+Images are referenced in the HTML content using the syntax: {{IMAGE:image_id}}
+where image_id corresponds to a key in the images dictionary.
+
+For embedded formats (:csv_embedded, :json_embedded): Encodes images as base64 data URIs
+For external formats (:csv_external, :json_external, :parquet): Copies images to pictures/ subdirectory
+"""
+function generate_textblock_html(tb::TextBlock, dataformat::Symbol, project_dir::String="")
+    html_content = tb.html_content
+
+    # Process each image
+    for (image_id, image_path) in tb.images
+        # Check image size for embedded formats
+        if dataformat in [:csv_embedded, :json_embedded]
+            size_mb = filesize(image_path) / 1_048_576
+            if size_mb > 5
+                @warn "Large image '$image_id' ($(round(size_mb, digits=1)) MB) being embedded in TextBlock. " *
+                      "Consider using external dataformat or reducing image size."
+            end
+        end
+
+        image_html = ""
+
+        if dataformat in [:csv_embedded, :json_embedded]
+            # Embed the image
+            if endswith(lowercase(image_path), ".svg")
+                # SVG: Embed directly as XML
+                svg_content = read(image_path, String)
+                image_html = svg_content
+            else
+                # PNG/JPEG: Base64 encode
+                img_bytes = read(image_path)
+                img_base64 = base64encode(img_bytes)
+
+                # Determine MIME type
+                mime = if endswith(lowercase(image_path), ".png")
+                    "image/png"
+                elseif endswith(lowercase(image_path), r"\.(jpg|jpeg)$"i)
+                    "image/jpeg"
+                else
+                    "image/png"  # Default to PNG
+                end
+
+                image_html = """<img src="data:$(mime);base64,$(img_base64)" alt="$(image_id)" />"""
+            end
+        else
+            # External format - copy to pictures/ subdirectory
+            pictures_dir = joinpath(project_dir, "pictures")
+            if !isdir(pictures_dir)
+                mkpath(pictures_dir)
+            end
+
+            # Get file extension
+            ext = splitext(image_path)[2]
+            dest_filename = image_id * ext
+            dest_path = joinpath(pictures_dir, dest_filename)
+
+            # Copy the image file
+            cp(image_path, dest_path, force=true)
+            println("  TextBlock image '$image_id' saved to $dest_path")
+
+            # Reference the external image
+            image_html = """<img src="pictures/$(dest_filename)" alt="$(image_id)" />"""
+        end
+
+        # Replace placeholder in HTML content
+        html_content = replace(html_content, "{{IMAGE:$(image_id)}}" => image_html)
+    end
+
+    # Build the complete HTML using the template
+    html = replace(TEXTBLOCK_TEMPLATE, "___HTML_CONTENT___" => html_content)
+
+    return html
 end
