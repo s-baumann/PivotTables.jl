@@ -1,6 +1,6 @@
 module JSPlots
 
-    using CSV, DataFrames, JSON, Dates, DuckDB, DBInterface, Base64
+    using CSV, DataFrames, JSON, Dates, DuckDB, DBInterface, Base64, LinearAlgebra
 
     abstract type JSPlotsType end
 
@@ -10,8 +10,11 @@ module JSPlots
     include("linechart.jl")
     export LineChart
 
-    include("threedchart.jl")
-    export Chart3d
+    include("surface3d.jl")
+    export Surface3D
+
+    include("scatter3d.jl")
+    export Scatter3D
 
     include("scatterplot.jl")
     export ScatterPlot

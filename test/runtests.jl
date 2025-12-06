@@ -105,16 +105,18 @@ using Dates
         end
     end
 
-    @testset "Chart3d" begin
+    @testset "Surface3D" begin
         df_3d = DataFrame(
             x = repeat(1:5, inner=5),
             y = repeat(1:5, outer=5),
             z = rand(25),
-            group = repeat(["A", "B"], 13)[1:25]
+            w = rand(25),
+            group = repeat(["A", "B"], 13)[1:25],
+            category = repeat(["Type1", "Type2"], 13)[1:25]
         )
 
         @testset "Basic creation" begin
-            chart = Chart3d(:test_3d, :df_3d;
+            chart = Surface3D(:test_3d, df_3d, :df_3d;
                 x_col = :x,
                 y_col = :y,
                 z_col = :z,
@@ -127,14 +129,108 @@ using Dates
         end
 
         @testset "With groups" begin
-            chart = Chart3d(:grouped_3d, :df_3d;
+            chart = Surface3D(:grouped_3d, df_3d, :df_3d;
                 x_col = :x,
                 y_col = :y,
                 z_col = :z,
                 group_col = :group,
                 title = "Grouped 3D"
             )
+            @test chart.chart_title == :grouped_3d
             @test occursin("group", chart.functional_html)
+        end
+
+        @testset "With filtering" begin
+            chart = Surface3D(:filtered_3d, df_3d, :df_3d;
+                x_col = :x,
+                y_col = :y,
+                z_col = :z,
+                group_col = :group,
+                slider_col = [:w, :category],
+                title = "Filtered 3D"
+            )
+            @test occursin("w", chart.appearance_html)
+            @test occursin("_slider", chart.appearance_html)
+            @test occursin("updatePlotWithFilters", chart.functional_html)
+        end
+
+        @testset "Error handling" begin
+            @test_throws ErrorException Surface3D(:bad_col, df_3d, :df_3d; x_col=:nonexistent, y_col=:y, z_col=:z)
+            @test_throws ErrorException Surface3D(:bad_group, df_3d, :df_3d; x_col=:x, y_col=:y, z_col=:z, group_col=:nonexistent)
+        end
+    end
+
+    @testset "Scatter3D" begin
+        df_scatter_3d = DataFrame(
+            x = randn(50),
+            y = randn(50),
+            z = randn(50),
+            w = randn(50),
+            v = randn(50),
+            category = repeat(["A", "B", "C"], 17)[1:50],
+            group = repeat(["G1", "G2"], 25)
+        )
+
+        @testset "Basic creation" begin
+            chart = Scatter3D(:test_3d_scatter, df_scatter_3d, :df_scatter_3d, [:x, :y, :z];
+                color_cols = [:category],
+                title = "3D Scatter Test"
+            )
+            @test chart.chart_title == :test_3d_scatter
+            @test occursin("scatter3d", chart.functional_html)
+            @test occursin("eigenvector", lowercase(chart.appearance_html))
+        end
+
+        @testset "Multiple dimensions" begin
+            chart = Scatter3D(:multi_dim_scatter, df_scatter_3d, :df_scatter_3d, [:x, :y, :z, :w, :v];
+                color_cols = [:category],
+                show_eigenvectors = true
+            )
+            @test occursin("_x_col_select", chart.appearance_html)
+            @test occursin("_y_col_select", chart.appearance_html)
+            @test occursin("_z_col_select", chart.appearance_html)
+        end
+
+        @testset "With filtering" begin
+            chart = Scatter3D(:filtered_scatter, df_scatter_3d, :df_scatter_3d, [:x, :y, :z];
+                color_cols = [:category],
+                slider_col = [:w, :group],
+                show_eigenvectors = true
+            )
+            @test occursin("w", chart.appearance_html)
+            @test occursin("_slider", chart.appearance_html)
+            @test occursin("updatePlotWithFilters", chart.functional_html)
+        end
+
+        @testset "Eigenvector toggle" begin
+            chart1 = Scatter3D(:eig_on, df_scatter_3d, :df_scatter_3d, [:x, :y, :z];
+                color_cols = [:category],
+                show_eigenvectors = true
+            )
+            @test occursin("showEigenvectors", chart1.functional_html)
+            @test occursin("true", chart1.functional_html)
+
+            chart2 = Scatter3D(:eig_off, df_scatter_3d, :df_scatter_3d, [:x, :y, :z];
+                color_cols = [:category],
+                show_eigenvectors = false
+            )
+            @test occursin("false", chart2.functional_html)
+        end
+
+        @testset "Custom marker settings" begin
+            chart = Scatter3D(:custom_scatter, df_scatter_3d, :df_scatter_3d, [:x, :y, :z];
+                color_cols = [:category],
+                marker_size = 8,
+                marker_opacity = 0.8
+            )
+            @test occursin("8", chart.functional_html)
+            @test occursin("0.8", chart.functional_html)
+        end
+
+        @testset "Error handling" begin
+            @test_throws ErrorException Scatter3D(:bad_dims, df_scatter_3d, :df_scatter_3d, [:x, :y])  # Not enough dimensions
+            @test_throws ErrorException Scatter3D(:bad_col, df_scatter_3d, :df_scatter_3d, [:x, :y, :nonexistent])
+            @test_throws ErrorException Scatter3D(:bad_color, df_scatter_3d, :df_scatter_3d, [:x, :y, :z]; color_cols=[:nonexistent])
         end
     end
 
